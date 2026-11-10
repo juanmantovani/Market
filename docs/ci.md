@@ -27,9 +27,24 @@ aplican las migraciones antes de la suite.
 - Ramas de trabajo: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
 - Un `hotfix/*` mergeado a `main` se mergea también a `develop`.
 
-### Protección recomendada
+### Protección de ramas
 
-Se configura en GitHub (**Settings › Branches**), no en el repositorio:
-para `main` y `develop`, exigir PR, los checks de este workflow en verde y la
-rama actualizada contra la base. La aprobación obligatoria tiene sentido
-cuando haya más de un colaborador.
+Configurada en GitHub (**Settings › Branches**), no en el repositorio.
+`main` y `develop` exigen:
+
+- cambios solo por pull request, sin aprobación obligatoria por ahora (con un
+  único colaborador bloquearía cada merge: GitHub no deja aprobar el PR
+  propio). Sumarla cuando haya más de una persona;
+- los checks `build`, `test`, `coverage`, `dependency-audit`,
+  `dependency-review` y `compose-config` en verde, más `main-source-branch`
+  en `main`;
+- la rama del PR actualizada contra la base;
+- conversaciones de revisión resueltas;
+- sin force push ni borrado de la rama.
+
+La regla no aplica a admins (`enforce_admins` desactivado): el dueño del repo
+puede mergear saltándola en una emergencia, y queda registrado en el PR.
+
+`dependency-review` necesita el *Dependency graph* activado
+(**Settings › Code security**); está activo junto con las alertas de
+Dependabot.
