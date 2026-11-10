@@ -1,4 +1,4 @@
-# PDV
+# Market
 
 Reglas para agentes y colaboradores. Este archivo es la fuente de verdad;
 `CLAUDE.md` solo apunta acá. Adaptado de las reglas de LoteosAPP. El plan
@@ -214,7 +214,7 @@ vigente está en `docs/plans/version-base.md`.
 
 ## Verificación
 
-- Frontend: `pnpm --filter @pdv/frontend typecheck`, `lint`, `test` y `build`.
+- Frontend: `pnpm --filter @market/frontend typecheck`, `lint`, `test` y `build`.
 - Backend: `go test ./...` y `go vet ./...` desde `apps/backend`.
 - Todo junto: `pnpm test` y `pnpm test:coverage` desde la raíz.
 - Entorno: `docker compose config` y `docker compose up --build`.
