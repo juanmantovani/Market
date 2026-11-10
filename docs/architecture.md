@@ -27,12 +27,11 @@ apps/backend/
     ├── app/app.go                         # composition root: config, contenedor, datos demo, rutas, servidor
     ├── business/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
-    │   ├── gateway/                       # TxManager, Clock, CategoryRepository
+    │   ├── gateway/                       # TxManager, CategoryRepository
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
     │   └── usecase/categories/            # create, list, get, update, delete
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
-        ├── clock/system.go                # reloj real (UTC)
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
         ├── repository/
         │   ├── memory/                    # Store + TxManager + un repositorio por agregado

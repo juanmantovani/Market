@@ -48,7 +48,7 @@ El código, la API y la base usan los términos en inglés; la UI, en español.
 | --- | --- |
 | `name` | Obligatorio, hasta 60 caracteres, sin espacios al borde. Único sin distinguir mayúsculas, acentos ni espacios (`NameKey`). |
 | `description` | Opcional, hasta 200 caracteres. En blanco se guarda como ausente. |
-| `createdAt` / `updatedAt` | UTC, asignados por el caso de uso con el `Clock`. |
+| `createdAt` / `updatedAt` | UTC, los asigna el caso de uso con la hora del servidor (`time.Now().UTC()`). |
 
 Permisos: listar y consultar piden `catalog:view`; crear, editar y eliminar
 piden `catalog:manage` (ver la matriz en

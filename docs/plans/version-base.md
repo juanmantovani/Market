@@ -136,7 +136,6 @@ apps/backend/
 │   │   │   └── sale.go               # Sale, SaleLine, Payment, cálculo y anulación
 │   │   ├── gateway/
 │   │   │   ├── tx_manager.go         # WithinTx(ctx, fn)
-│   │   │   ├── clock.go
 │   │   │   ├── <entidad>_repository.go
 │   │   │   └── gatewayfake/          # un fake por contrato
 │   │   └── usecase/
@@ -169,7 +168,7 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 ### Persistencia en memoria, lista para PostgreSQL
 
 - **Contratos** en `business/gateway`: un repositorio por agregado, más
-  `TxManager` y `Clock`. Toda operación de I/O recibe `context.Context`.
+  `TxManager`. Toda operación de I/O recibe `context.Context`.
 - **`repository/memory`**: un único `Store` con todas las “tablas” (maps) y un
   `sync.Mutex`. `WithinTx` toma el lock y ejecuta `fn`; cada escritura
   registra cómo deshacerse y, si `fn` devuelve error, se deshacen en orden

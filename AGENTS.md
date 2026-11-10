@@ -50,7 +50,7 @@ vigente está en `docs/plans/version-base.md`.
 - `internal/business` (dominio y casos de uso) no depende de HTTP, JSON,
   PostgreSQL, tipos de `pgx` ni de detalles del adaptador en memoria.
 - Entidades y tipos de valor en `internal/business/domain`; contratos que el
-  negocio necesita de sus adaptadores (repositorios, `TxManager`, `Clock`) en
+  negocio necesita de sus adaptadores (repositorios, `TxManager`) en
   `internal/business/gateway`; casos de uso en `internal/business/usecase`.
 - Cada caso de uso es una interfaz de un solo método `Execute` más su
   implementación, en un mismo archivo dentro de su subpaquete
