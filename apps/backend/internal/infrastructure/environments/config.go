@@ -20,6 +20,9 @@ type Server struct {
 	// proxy or the backend serving the build).
 	AllowedOrigin string
 	StorageDriver StorageDriver
+	// SeedDemoData loads sample records on startup. It defaults to true
+	// because in-memory storage starts empty on every restart.
+	SeedDemoData bool
 }
 
 // LoadServer reads the server configuration from the environment and
@@ -38,6 +41,11 @@ func LoadServer() (Server, error) {
 		problems = append(problems, `STORAGE_DRIVER must be "memory"`)
 	}
 
+	seed, err := strconv.ParseBool(envOrDefault("SEED_DEMO_DATA", "true"))
+	if err != nil {
+		problems = append(problems, "SEED_DEMO_DATA must be true or false")
+	}
+
 	if len(problems) > 0 {
 		return Server{}, errors.New(strings.Join(problems, "; "))
 	}
@@ -46,6 +54,7 @@ func LoadServer() (Server, error) {
 		Port:          port,
 		AllowedOrigin: strings.TrimRight(strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGIN")), "/"),
 		StorageDriver: driver,
+		SeedDemoData:  seed,
 	}, nil
 }
 

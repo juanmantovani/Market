@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"market/backend/internal/business/domain"
+	"market/backend/internal/infrastructure/delivery/webapp/dependencies"
 	"market/backend/internal/infrastructure/delivery/webapp/middleware"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
 	"market/backend/internal/infrastructure/delivery/webapp/server"
+	"market/backend/internal/infrastructure/demo"
 	"market/backend/internal/infrastructure/environments"
 )
 
@@ -22,14 +24,26 @@ type App struct {
 	server *http.Server
 }
 
-func New() (*App, error) {
+func New(ctx context.Context) (*App, error) {
 	cfg, err := environments.LoadServer()
 	if err != nil {
 		return nil, err
 	}
 
+	container, err := dependencies.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.SeedDemoData {
+		if err := demo.Seed(ctx, demo.Catalog{CreateCategory: container.CreateCategory}); err != nil {
+			return nil, err
+		}
+		slog.Info("demo data loaded")
+	}
+
 	mux := http.NewServeMux()
-	route.RegisterRoutes(mux)
+	route.RegisterRoutes(mux, container.Handlers())
 
 	handler := middleware.RequestLog(
 		middleware.Recover(

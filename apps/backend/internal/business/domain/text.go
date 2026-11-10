@@ -1,6 +1,9 @@
 package domain
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 var accentFolding = strings.NewReplacer(
 	"á", "a", "à", "a", "ä", "a", "â", "a", "ã", "a",
@@ -17,4 +20,36 @@ func NormalizeText(text string) string {
 	folded := accentFolding.Replace(strings.ToLower(text))
 
 	return strings.Join(strings.Fields(folded), " ")
+}
+
+// requiredText trims text and checks it is present and at most maxRunes
+// long.
+func requiredText(text string, maxRunes int, missing, tooLong *Error) (string, error) {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return "", missing
+	}
+	if utf8.RuneCountInString(trimmed) > maxRunes {
+		return "", tooLong
+	}
+
+	return trimmed, nil
+}
+
+// optionalText trims text, treating a blank value as absent, and checks it
+// is at most maxRunes long. The result never aliases the caller's string
+// pointer.
+func optionalText(text *string, maxRunes int, tooLong *Error) (*string, error) {
+	if text == nil {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*text)
+	if trimmed == "" {
+		return nil, nil
+	}
+	if utf8.RuneCountInString(trimmed) > maxRunes {
+		return nil, tooLong
+	}
+
+	return &trimmed, nil
 }
