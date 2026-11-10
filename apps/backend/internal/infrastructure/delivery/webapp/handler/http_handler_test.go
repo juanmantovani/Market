@@ -85,14 +85,16 @@ func TestAdaptBoundsTheContextToTheTimeout(t *testing.T) {
 		return nil
 	})
 
+	const timeout = 2 * time.Second
 	before := time.Now()
-	Adapt(probe, 2*time.Second)(recorder, request)
+	Adapt(probe, timeout)(recorder, request)
+	after := time.Now()
 
 	if !hasDeadline {
 		t.Fatal("handler context has no deadline")
 	}
-	if remaining := deadline.Sub(before); remaining > 2*time.Second || remaining < time.Second {
-		t.Fatalf("deadline in %v, want about 2s", remaining)
+	if deadline.Before(before.Add(timeout)) || deadline.After(after.Add(timeout)) {
+		t.Fatalf("deadline %v, want between %v and %v", deadline, before.Add(timeout), after.Add(timeout))
 	}
 }
 
