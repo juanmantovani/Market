@@ -5,7 +5,6 @@ import (
 
 	"market/backend/internal/business/gateway"
 	"market/backend/internal/business/usecase/categories"
-	"market/backend/internal/infrastructure/clock"
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
 	"market/backend/internal/infrastructure/environments"
@@ -32,13 +31,12 @@ func New(cfg environments.Server) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	systemClock := clock.System{}
 
 	return &Container{
-		CreateCategory: categories.NewCreateCategory(repos.categories, systemClock),
+		CreateCategory: categories.NewCreateCategory(repos.categories),
 		ListCategories: categories.NewListCategories(repos.categories),
 		GetCategory:    categories.NewGetCategory(repos.categories),
-		UpdateCategory: categories.NewUpdateCategory(repos.categories, systemClock),
+		UpdateCategory: categories.NewUpdateCategory(repos.categories),
 		DeleteCategory: categories.NewDeleteCategory(repos.categories),
 	}, nil
 }

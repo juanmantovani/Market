@@ -2,6 +2,7 @@ package categories
 
 import (
 	"context"
+	"time"
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
@@ -19,11 +20,10 @@ type UpdateCategory interface {
 
 type updateCategory struct {
 	repository gateway.CategoryRepository
-	clock      gateway.Clock
 }
 
-func NewUpdateCategory(repository gateway.CategoryRepository, clock gateway.Clock) UpdateCategory {
-	return &updateCategory{repository: repository, clock: clock}
+func NewUpdateCategory(repository gateway.CategoryRepository) UpdateCategory {
+	return &updateCategory{repository: repository}
 }
 
 func (useCase *updateCategory) Execute(ctx context.Context, input UpdateCategoryInput) (domain.Category, error) {
@@ -39,7 +39,7 @@ func (useCase *updateCategory) Execute(ctx context.Context, input UpdateCategory
 		return domain.Category{}, domain.FromStorage(err)
 	}
 
-	changed, err := current.Apply(input.Changes, useCase.clock.Now())
+	changed, err := current.Apply(input.Changes, time.Now().UTC())
 	if err != nil {
 		return domain.Category{}, err
 	}

@@ -7,13 +7,12 @@ import (
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/usecase/categories"
-	"market/backend/internal/infrastructure/clock"
 	"market/backend/internal/infrastructure/repository/memory"
 )
 
 func TestSeedLoadsTheDemoCatalog(t *testing.T) {
 	repository := memory.NewCategoryRepository(memory.NewStore())
-	catalog := Catalog{CreateCategory: categories.NewCreateCategory(repository, clock.System{})}
+	catalog := Catalog{CreateCategory: categories.NewCreateCategory(repository)}
 
 	if err := Seed(context.Background(), catalog); err != nil {
 		t.Fatalf("Seed() error = %v", err)
@@ -31,7 +30,7 @@ func TestSeedLoadsTheDemoCatalog(t *testing.T) {
 
 func TestSeedReportsWhichRecordFailed(t *testing.T) {
 	repository := memory.NewCategoryRepository(memory.NewStore())
-	catalog := Catalog{CreateCategory: categories.NewCreateCategory(repository, clock.System{})}
+	catalog := Catalog{CreateCategory: categories.NewCreateCategory(repository)}
 	if err := Seed(context.Background(), catalog); err != nil {
 		t.Fatalf("first Seed() error = %v", err)
 	}

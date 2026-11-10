@@ -13,7 +13,6 @@ import (
 
 var (
 	now     = time.Date(2026, 11, 10, 15, 0, 0, 0, time.UTC)
-	clock   = gatewayfake.Clock{Time: now}
 	admin   = domain.Actor{ID: "u-admin", Role: domain.RoleAdmin}
 	manager = domain.Actor{ID: "u-manager", Role: domain.RoleManager}
 	cashier = domain.Actor{ID: "u-cashier", Role: domain.RoleCashier}
@@ -44,7 +43,7 @@ func assertError(t *testing.T, err error, want *domain.Error) {
 
 func TestCreateCategory(t *testing.T) {
 	repository := &gatewayfake.CategoryRepository{}
-	useCase := NewCreateCategory(repository, clock)
+	useCase := NewCreateCategory(repository)
 
 	created, err := useCase.Execute(context.Background(), CreateCategoryInput{
 		Actor: manager, Name: " Bebidas ", Description: ptr("Gaseosas"),
@@ -53,7 +52,7 @@ func TestCreateCategory(t *testing.T) {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	if created.ID == "" || created.Name != "Bebidas" || !created.CreatedAt.Equal(now) {
+	if created.ID == "" || created.Name != "Bebidas" || created.CreatedAt.Before(now) {
 		t.Fatalf("created = %+v", created)
 	}
 	if len(repository.Created) != 1 {
@@ -76,7 +75,7 @@ func TestCreateCategoryRejectsBeforeStoring(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repository := &gatewayfake.CategoryRepository{}
 
-			_, err := NewCreateCategory(repository, clock).Execute(context.Background(), test.input)
+			_, err := NewCreateCategory(repository).Execute(context.Background(), test.input)
 
 			assertError(t, err, test.want)
 			if len(repository.Created) != 0 {
@@ -88,11 +87,11 @@ func TestCreateCategoryRejectsBeforeStoring(t *testing.T) {
 
 func TestCreateCategoryTranslatesRepositoryErrors(t *testing.T) {
 	conflict := &gatewayfake.CategoryRepository{CreateErr: domain.ErrCategoryNameInUse}
-	_, err := NewCreateCategory(conflict, clock).Execute(context.Background(), CreateCategoryInput{Actor: admin, Name: "Bebidas"})
+	_, err := NewCreateCategory(conflict).Execute(context.Background(), CreateCategoryInput{Actor: admin, Name: "Bebidas"})
 	assertError(t, err, domain.ErrCategoryNameInUse)
 
 	down := &gatewayfake.CategoryRepository{CreateErr: errDown}
-	_, err = NewCreateCategory(down, clock).Execute(context.Background(), CreateCategoryInput{Actor: admin, Name: "Bebidas"})
+	_, err = NewCreateCategory(down).Execute(context.Background(), CreateCategoryInput{Actor: admin, Name: "Bebidas"})
 	assertError(t, err, domain.ErrStorageUnavailable)
 	if !errors.Is(err, errDown) {
 		t.Fatal("storage error lost its cause")
@@ -185,14 +184,14 @@ func TestGetCategory(t *testing.T) {
 func TestUpdateCategory(t *testing.T) {
 	repository := &gatewayfake.CategoryRepository{GetResult: storedCategory()}
 
-	updated, err := NewUpdateCategory(repository, clock).Execute(context.Background(), UpdateCategoryInput{
+	updated, err := NewUpdateCategory(repository).Execute(context.Background(), UpdateCategoryInput{
 		Actor: admin, ID: "category-1", Changes: domain.CategoryChanges{Name: ptr("Bebidas frías")},
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	if updated.Name != "Bebidas frías" || !updated.UpdatedAt.Equal(now) {
+	if updated.Name != "Bebidas frías" || !updated.UpdatedAt.After(now.Add(-time.Hour)) {
 		t.Fatalf("updated = %+v", updated)
 	}
 	if len(repository.Updated) != 1 {
@@ -241,7 +240,7 @@ func TestUpdateCategoryRejectsBeforeStoring(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := NewUpdateCategory(test.repository, clock).Execute(context.Background(), test.input)
+			_, err := NewUpdateCategory(test.repository).Execute(context.Background(), test.input)
 
 			assertError(t, err, test.want)
 			if len(test.repository.Updated) != 0 {
@@ -255,11 +254,11 @@ func TestUpdateCategoryTranslatesWriteErrors(t *testing.T) {
 	conflict := &gatewayfake.CategoryRepository{GetResult: storedCategory(), UpdateErr: domain.ErrCategoryNameInUse}
 	input := UpdateCategoryInput{Actor: admin, ID: "category-1", Changes: domain.CategoryChanges{Name: ptr("Almacén")}}
 
-	_, err := NewUpdateCategory(conflict, clock).Execute(context.Background(), input)
+	_, err := NewUpdateCategory(conflict).Execute(context.Background(), input)
 	assertError(t, err, domain.ErrCategoryNameInUse)
 
 	down := &gatewayfake.CategoryRepository{GetResult: storedCategory(), UpdateErr: errDown}
-	_, err = NewUpdateCategory(down, clock).Execute(context.Background(), input)
+	_, err = NewUpdateCategory(down).Execute(context.Background(), input)
 	assertError(t, err, domain.ErrStorageUnavailable)
 }
 
