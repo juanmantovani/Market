@@ -53,8 +53,9 @@ El código, la API y la base usan los términos en inglés; la UI, en español.
 | `active` | `true` al crearla. Desactivar libera el nombre; reactivar falla con `category_name_in_use` si otra activa lo tomó. |
 | `createdAt` / `updatedAt` | UTC, asignados por el caso de uso con el `Clock`. |
 
-Permisos: **listar y consultar**, todos los roles (quien vende necesita el
-catálogo); **crear, editar, desactivar y reactivar**, `admin` y `manager`.
+Permisos: listar y consultar piden `catalog:view`; crear, editar, desactivar
+y reactivar piden `catalog:manage` (ver la matriz en
+[Actor, roles y permisos](#actor-roles-y-permisos)).
 
 Desactivar o reactivar una categoría que ya está en ese estado la devuelve
 sin cambios, así un reintento no falla. La verificación de que no tenga
@@ -64,12 +65,23 @@ Códigos de error: `category_not_found`, `category_name_required`,
 `category_name_too_long`, `category_description_too_long`,
 `category_name_in_use`, `category_update_empty`.
 
-## Actor y roles
+## Actor, roles y permisos
 
 Toda operación la ejecuta un `Actor` (`ID`, `Name`, `Role`). Roles:
 `admin`, `manager` (encargado) y `cashier` (cajero).
-`Actor.Authorize(roles...)` devuelve `forbidden` si el actor no tiene ninguno
-de los roles o no tiene `ID`.
+
+Los casos de uso piden un **permiso**, nunca un rol:
+`Actor.Authorize(domain.PermissionManageCatalog)` devuelve `forbidden` si el
+rol del actor no lo otorga o si el actor no tiene `ID`. Qué rol tiene qué
+permiso se decide en un único lugar, `domain/permission.go`:
+
+| Permiso | `admin` | `manager` | `cashier` |
+| --- | :---: | :---: | :---: |
+| `catalog:view` — ver categorías (y luego artículos) | ✅ | ✅ | ✅ |
+| `catalog:manage` — crear, editar, desactivar y reactivar | ✅ | ✅ | — |
+
+Cada feature nueva suma sus permisos a esa matriz (y a su test,
+`TestRolePermissions`), no a sus casos de uso.
 
 Mientras no haya autenticación, el middleware `DevActor` asigna a cada
 request un actor `admin` fijo.

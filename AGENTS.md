@@ -90,8 +90,12 @@ vigente está en `docs/plans/version-base.md`.
 - `internal/app` es el composition root: lee la configuración, pide el grafo a
   `dependencies`, registra rutas, construye el servidor, lo ejecuta y lo apaga
   ordenadamente.
-- Los casos de uso reciben el `Actor` (id + rol) y validan permisos. Mientras
-  no exista autenticación, un middleware de desarrollo inyecta el actor.
+- Los casos de uso reciben el `Actor` (id + rol) y piden un permiso con
+  `Actor.Authorize(domain.Permission…)`, nunca un rol. Los roles, los
+  permisos y la matriz rol → permiso viven solo en
+  `internal/business/domain` (`permission.go`); un caso de uso no decide qué
+  rol puede qué. Mientras no exista autenticación, un middleware de desarrollo
+  inyecta el actor.
 - Las operaciones de I/O reciben `context.Context` como primer parámetro.
 - Las interfaces se definen cerca de quien las consume y se mantienen chicas;
   solo se crean para un límite real.

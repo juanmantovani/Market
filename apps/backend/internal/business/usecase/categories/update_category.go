@@ -27,7 +27,7 @@ func NewUpdateCategory(repository gateway.CategoryRepository, clock gateway.Cloc
 }
 
 func (useCase *updateCategory) Execute(ctx context.Context, input UpdateCategoryInput) (domain.Category, error) {
-	if err := input.Actor.Authorize(manageRoles...); err != nil {
+	if err := input.Actor.Authorize(domain.PermissionManageCatalog); err != nil {
 		return domain.Category{}, err
 	}
 	if input.Changes.IsEmpty() {

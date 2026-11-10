@@ -25,7 +25,7 @@ func NewGetCategory(repository gateway.CategoryRepository) GetCategory {
 }
 
 func (useCase *getCategory) Execute(ctx context.Context, input GetCategoryInput) (domain.Category, error) {
-	if err := input.Actor.Authorize(readRoles...); err != nil {
+	if err := input.Actor.Authorize(domain.PermissionViewCatalog); err != nil {
 		return domain.Category{}, err
 	}
 

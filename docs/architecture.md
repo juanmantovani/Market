@@ -184,13 +184,15 @@ clientes, proveedores, vendedores).
 
 1. `domain/<entidad>.go`: entidad, constructor `New…` que valida, cambios
    parciales (`…Changes` + `Apply`), `WithActive`, errores `*domain.Error`
-   con mensajes en español y tests de tabla.
+   con mensajes en español y tests de tabla. Si la entidad necesita permisos
+   nuevos, se agregan a la matriz de `domain/permission.go` y a su test.
 2. `gateway/<entidad>_repository.go`: contrato (`Create`, `Get`, `Update`,
    `List` con filtro y página) documentando qué errores devuelve.
 3. `gateway/gatewayfake/`: fake que registra llamadas y devuelve lo
    configurado.
-4. `usecase/<feature>/`: un archivo por caso de uso (`Execute`), permisos con
-   `Actor.Authorize`, errores del adaptador con `domain.FromStorage`.
+4. `usecase/<feature>/`: un archivo por caso de uso (`Execute`) que pide su
+   permiso con `Actor.Authorize(domain.Permission…)` (nunca un rol) y
+   traduce los errores del adaptador con `domain.FromStorage`.
 5. `repository/repositorytest/<entidad>.go`: la suite de contrato (unicidad,
    no encontrado, filtros, orden, paginado, copias, concurrencia).
 6. `repository/memory/<entidad>.go`: el adaptador, con su test que corre la

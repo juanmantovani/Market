@@ -29,7 +29,7 @@ func NewListCategories(repository gateway.CategoryRepository) ListCategories {
 }
 
 func (useCase *listCategories) Execute(ctx context.Context, input ListCategoriesInput) (domain.Page[domain.Category], error) {
-	if err := input.Actor.Authorize(readRoles...); err != nil {
+	if err := input.Actor.Authorize(domain.PermissionViewCatalog); err != nil {
 		return domain.Page[domain.Category]{}, err
 	}
 

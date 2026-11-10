@@ -21,18 +21,20 @@ func TestRoleIsValid(t *testing.T) {
 func TestActorAuthorize(t *testing.T) {
 	cashier := Actor{ID: "u1", Name: "Ana", Role: RoleCashier}
 
-	if err := cashier.Authorize(RoleAdmin, RoleCashier); err != nil {
-		t.Fatalf("Authorize with a held role = %v, want nil", err)
+	if err := cashier.Authorize(PermissionViewCatalog); err != nil {
+		t.Fatalf("Authorize(granted) = %v, want nil", err)
 	}
-	if err := cashier.Authorize(RoleAdmin, RoleManager); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("Authorize without the role = %v, want ErrForbidden", err)
-	}
-	if err := cashier.Authorize(); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("Authorize with no allowed roles = %v, want ErrForbidden", err)
+	if err := cashier.Authorize(PermissionManageCatalog); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("Authorize(not granted) = %v, want ErrForbidden", err)
 	}
 
 	anonymous := Actor{Role: RoleAdmin}
-	if err := anonymous.Authorize(RoleAdmin); !errors.Is(err, ErrForbidden) {
+	if err := anonymous.Authorize(PermissionViewCatalog); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("Authorize for an actor without ID = %v, want ErrForbidden", err)
+	}
+
+	unknownRole := Actor{ID: "u2", Role: "root"}
+	if err := unknownRole.Authorize(PermissionViewCatalog); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("Authorize for an unknown role = %v, want ErrForbidden", err)
 	}
 }
