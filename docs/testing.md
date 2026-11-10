@@ -11,12 +11,22 @@ aserciones.
   ubicados en `internal/business/gateway/gatewayfake`.
 - Los repositorios en memoria se prueban contra la suite de contrato
   `internal/infrastructure/repository/repositorytest`, que después corre igual
-  contra PostgreSQL (llega con la primera entidad, Fase 1).
+  contra PostgreSQL. La primera es `CategoryRepository`.
 
 **Frontend**: Vitest + jsdom, React Testing Library,
 `@testing-library/jest-dom` y `@testing-library/user-event`. Cobertura V8.
 Las pruebas consultan la UI como una persona: roles, textos, labels, estados
 de carga, vacío y error. Nada de estado interno ni clases de Tailwind.
+
+- `renderWithProviders` (`src/test/render.tsx`) monta una pantalla con
+  QueryClient (sin reintentos) y toasts.
+- Las pantallas de ABM se prueban contra una API falsa en memoria que
+  reemplaza `fetch` y respeta las reglas del backend (unicidad, bajas
+  lógicas, orden, paginado): los tests recorren flujos completos y verifican
+  qué requests se mandaron.
+- Como el listado se dibuja como tabla y como tarjetas a la vez (jsdom no
+  aplica los breakpoints), las consultas se acotan con `within(table)` o
+  `within(list)`.
 
 ## Umbrales
 

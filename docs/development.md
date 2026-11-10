@@ -52,6 +52,7 @@ defecto.
 | `PORT` | backend | `8080` | Puerto HTTP de la API. |
 | `STORAGE_DRIVER` | backend | `memory` | Persistencia. Hoy solo `memory`: los datos se pierden al reiniciar. |
 | `CORS_ALLOWED_ORIGIN` | backend | vacío | Solo si el frontend se sirve desde otro origen que la API. |
+| `SEED_DEMO_DATA` | backend | `true` | Carga categorías de ejemplo al iniciar. `false` arranca vacío. |
 | `API_PROXY_TARGET` | frontend (Vite) | `http://localhost:8080` | Destino del proxy de `/api` y `/health`. |
 | `VITE_API_URL` | frontend | vacío | Solo si la API vive en otro origen; se suma a `connect-src` de la CSP. |
 | `WATCH_POLLING` | frontend (Vite) | vacío | `true` activa polling del watcher (lo usa Compose). |
