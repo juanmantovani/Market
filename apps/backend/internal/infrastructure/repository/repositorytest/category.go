@@ -64,7 +64,7 @@ func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.C
 		if err != nil {
 			t.Fatalf("Get() error = %v", err)
 		}
-		if got.Name != "Bebidas" || got.Description == nil || *got.Description != "Gaseosas y jugos" || !got.Active {
+		if got.Name != "Bebidas" || got.Description == nil || *got.Description != "Gaseosas y jugos" {
 			t.Fatalf("Get() = %+v", got)
 		}
 		if !got.CreatedAt.Equal(contractTime) || !got.UpdatedAt.Equal(contractTime) {
@@ -82,7 +82,7 @@ func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.C
 		}
 	})
 
-	t.Run("an active name is unique ignoring case, accents and spacing", func(t *testing.T) {
+	t.Run("a name is unique ignoring case, accents and spacing", func(t *testing.T) {
 		repository := newRepository(t)
 		mustCreate(t, repository, newCategory(t, "Lácteos", nil))
 
@@ -92,19 +92,21 @@ func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.C
 		}
 	})
 
-	t.Run("an inactive category frees its name until it is reactivated", func(t *testing.T) {
+	t.Run("delete removes the category and frees its name", func(t *testing.T) {
 		repository := newRepository(t)
-		original := mustCreate(t, repository, newCategory(t, "Kiosco", nil))
-		if _, err := repository.Update(ctx, original.WithActive(false, contractTime)); err != nil {
-			t.Fatalf("Update(deactivate) error = %v", err)
+		kiosco := mustCreate(t, repository, newCategory(t, "Kiosco", nil))
+
+		if err := repository.Delete(ctx, kiosco.ID); err != nil {
+			t.Fatalf("Delete() error = %v", err)
 		}
 
+		if _, err := repository.Get(ctx, kiosco.ID); !errors.Is(err, domain.ErrCategoryNotFound) {
+			t.Fatalf("Get(deleted) error = %v, want ErrCategoryNotFound", err)
+		}
+		if err := repository.Delete(ctx, kiosco.ID); !errors.Is(err, domain.ErrCategoryNotFound) {
+			t.Fatalf("Delete(deleted) error = %v, want ErrCategoryNotFound", err)
+		}
 		mustCreate(t, repository, newCategory(t, "kiosco", nil))
-
-		_, err := repository.Update(ctx, original)
-		if !errors.Is(err, domain.ErrCategoryNameInUse) {
-			t.Fatalf("Update(reactivate into a taken name) error = %v, want ErrCategoryNameInUse", err)
-		}
 	})
 
 	t.Run("update persists changes and keeps the name check", func(t *testing.T) {
@@ -151,16 +153,16 @@ func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.C
 		if _, err := repository.Update(ctx, ghost); !errors.Is(err, domain.ErrCategoryNotFound) {
 			t.Fatalf("Update(unknown) error = %v, want ErrCategoryNotFound", err)
 		}
+		if err := repository.Delete(ctx, ghost.ID); !errors.Is(err, domain.ErrCategoryNotFound) {
+			t.Fatalf("Delete(unknown) error = %v, want ErrCategoryNotFound", err)
+		}
 	})
 
-	t.Run("list filters by status and search, sorted by name", func(t *testing.T) {
+	t.Run("list searches and sorts by name", func(t *testing.T) {
 		repository := newRepository(t)
 		mustCreate(t, repository, newCategory(t, "Perfumería", nil))
 		mustCreate(t, repository, newCategory(t, "almacén", text("Fideos y arroz")))
-		bebidas := mustCreate(t, repository, newCategory(t, "Bebidas", text("Gaseosas")))
-		if _, err := repository.Update(ctx, bebidas.WithActive(false, contractTime)); err != nil {
-			t.Fatalf("Update(deactivate) error = %v", err)
-		}
+		mustCreate(t, repository, newCategory(t, "Bebidas", text("Gaseosas")))
 		page := domain.PageRequest{Page: 1, Limit: 10}
 
 		tests := []struct {
@@ -168,12 +170,10 @@ func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.C
 			filter gateway.CategoryFilter
 			want   []string
 		}{
-			{name: "active", filter: gateway.CategoryFilter{Status: domain.StatusActive, Page: page}, want: []string{"almacén", "Perfumería"}},
-			{name: "inactive", filter: gateway.CategoryFilter{Status: domain.StatusInactive, Page: page}, want: []string{"Bebidas"}},
-			{name: "all", filter: gateway.CategoryFilter{Status: domain.StatusAll, Page: page}, want: []string{"almacén", "Bebidas", "Perfumería"}},
-			{name: "search by name without accents", filter: gateway.CategoryFilter{Search: "PERFUMERIA", Status: domain.StatusAll, Page: page}, want: []string{"Perfumería"}},
-			{name: "search by description", filter: gateway.CategoryFilter{Search: "arroz", Status: domain.StatusAll, Page: page}, want: []string{"almacén"}},
-			{name: "no match", filter: gateway.CategoryFilter{Search: "ferretería", Status: domain.StatusAll, Page: page}, want: []string{}},
+			{name: "all, sorted ignoring case and accents", filter: gateway.CategoryFilter{Page: page}, want: []string{"almacén", "Bebidas", "Perfumería"}},
+			{name: "search by name without accents", filter: gateway.CategoryFilter{Search: "PERFUMERIA", Page: page}, want: []string{"Perfumería"}},
+			{name: "search by description", filter: gateway.CategoryFilter{Search: "arroz", Page: page}, want: []string{"almacén"}},
+			{name: "no match", filter: gateway.CategoryFilter{Search: "ferretería", Page: page}, want: []string{}},
 		}
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
@@ -197,7 +197,7 @@ func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.C
 			mustCreate(t, repository, newCategory(t, name, nil))
 		}
 
-		second, err := repository.List(ctx, gateway.CategoryFilter{Status: domain.StatusActive, Page: domain.PageRequest{Page: 2, Limit: 2}})
+		second, err := repository.List(ctx, gateway.CategoryFilter{Page: domain.PageRequest{Page: 2, Limit: 2}})
 		if err != nil {
 			t.Fatalf("List() error = %v", err)
 		}
@@ -205,7 +205,7 @@ func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.C
 			t.Fatalf("page 2 = %v %+v", names(second.Items), second)
 		}
 
-		beyond, _ := repository.List(ctx, gateway.CategoryFilter{Status: domain.StatusActive, Page: domain.PageRequest{Page: 9, Limit: 2}})
+		beyond, _ := repository.List(ctx, gateway.CategoryFilter{Page: domain.PageRequest{Page: 9, Limit: 2}})
 		if len(beyond.Items) != 0 || beyond.Total != 5 {
 			t.Fatalf("page beyond the end = %v (total %d)", names(beyond.Items), beyond.Total)
 		}

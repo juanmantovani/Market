@@ -21,8 +21,8 @@ de carga, vacío y error. Nada de estado interno ni clases de Tailwind.
 - `renderWithProviders` (`src/test/render.tsx`) monta una pantalla con
   QueryClient (sin reintentos) y toasts.
 - Las pantallas de ABM se prueban contra una API falsa en memoria que
-  reemplaza `fetch` y respeta las reglas del backend (unicidad, bajas
-  lógicas, orden, paginado): los tests recorren flujos completos y verifican
+  reemplaza `fetch` y respeta las reglas del backend (unicidad,
+  eliminación, orden, paginado): los tests recorren flujos completos y verifican
   qué requests se mandaron.
 - Como el listado se dibuja como tabla y como tarjetas a la vez (jsdom no
   aplica los breakpoints), las consultas se acotan con `within(table)` o

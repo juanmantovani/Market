@@ -8,7 +8,6 @@ export const categorySchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  active: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

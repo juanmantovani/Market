@@ -108,8 +108,10 @@ vigente está en `docs/plans/version-base.md`.
   (`infrastructure/repository/repositorytest`), que debe pasar igual contra
   memoria y contra PostgreSQL.
 - Los identificadores los asigna el repositorio (UUIDv7).
-- Las bajas de catálogo y terceros son lógicas. Los movimientos de stock y las
-  ventas nunca se borran ni se editan: se compensan.
+- Los ABM son alta, edición y eliminación; no hay activar ni desactivar.
+  Eliminar borra el registro; si otro lo referencia, falla con un conflicto
+  `<entidad>_in_use` en vez de dejarlo huérfano. Los movimientos de stock y
+  las ventas nunca se borran ni se editan: se compensan.
 - Cuando llegue PostgreSQL: `pgxpool` para acceso concurrente; migraciones SQL
   en `migrations/` con secciones `-- +goose Up` y `-- +goose Down`; nunca
   editar una migración ya aplicada, agregar una nueva.

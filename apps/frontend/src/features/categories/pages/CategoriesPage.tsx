@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { CircleAlert, Plus, SearchX, Tags } from 'lucide-react'
 import { messageFromError } from '../../../shared/api/client'
-import type { StatusFilter as Status } from '../../../shared/api/pagination'
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value'
 import { Button } from '../../../shared/ui/button'
 import { ConfirmDialog } from '../../../shared/ui/confirm-dialog'
@@ -10,16 +9,14 @@ import { FormSheet } from '../../../shared/ui/form-sheet'
 import { PageHeader } from '../../../shared/ui/page-header'
 import { Pagination } from '../../../shared/ui/pagination'
 import { SearchField } from '../../../shared/ui/search-field'
-import { StatusFilter } from '../../../shared/ui/status-filter'
 import { useToast } from '../../../shared/ui/use-toast'
 import { CategoryForm } from '../components/CategoryForm'
 import { CategoryList } from '../components/CategoryList'
 import { useCategories } from '../hooks/use-categories'
-import { useSaveCategory, useSetCategoryActive } from '../hooks/use-category-mutations'
+import { useDeleteCategory, useSaveCategory } from '../hooks/use-category-mutations'
 import { toFormValues, type Category, type CategoryFormValues } from '../types'
 
 const PAGE_SIZE = 25
-const STATUS_LABELS = { active: 'Activas', inactive: 'Inactivas', all: 'Todas' }
 
 // `open` is kept apart from what the overlay shows, so its content stays in
 // place while the closing animation runs instead of flashing empty.
@@ -28,28 +25,22 @@ type ConfirmState = { open: boolean; category: Category | null }
 
 export default function CategoriesPage() {
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<Status>('active')
   const [page, setPage] = useState(1)
   const [sheet, setSheet] = useState<SheetState>({ open: false, category: null, formKey: 0 })
   const [confirm, setConfirm] = useState<ConfirmState>({ open: false, category: null })
   const debouncedSearch = useDebouncedValue(search)
 
-  const categories = useCategories({ search: debouncedSearch, status, page, limit: PAGE_SIZE })
+  const categories = useCategories({ search: debouncedSearch, page, limit: PAGE_SIZE })
   const saveCategory = useSaveCategory()
-  const setCategoryActive = useSetCategoryActive()
+  const deleteCategory = useDeleteCategory()
   const toast = useToast()
 
   const items = categories.data?.items ?? []
-  const isFiltered = debouncedSearch.trim() !== '' || status !== 'active'
+  const isSearching = debouncedSearch.trim() !== ''
   const isEditing = sheet.category !== null
 
   function changeSearch(value: string) {
     setSearch(value)
-    setPage(1)
-  }
-
-  function changeStatus(value: Status) {
-    setStatus(value)
     setPage(1)
   }
 
@@ -72,20 +63,15 @@ export default function CategoriesPage() {
     toast.success(id ? 'Categoría actualizada' : 'Categoría creada', `«${saved.name}» ya está guardada.`)
   }
 
-  async function changeActive(category: Category, active: boolean) {
+  async function remove(category: Category) {
     try {
-      await setCategoryActive.mutateAsync({ id: category.id, active })
-      if (!active && items.length === 1 && page > 1 && status !== 'all') {
+      await deleteCategory.mutateAsync(category.id)
+      if (items.length === 1 && page > 1) {
         setPage(page - 1)
       }
-      toast.success(
-        active ? 'Categoría reactivada' : 'Categoría desactivada',
-        active
-          ? `«${category.name}» vuelve a estar disponible.`
-          : `«${category.name}» ya no aparece al cargar artículos. Podés reactivarla cuando quieras.`,
-      )
+      toast.success('Categoría eliminada', `«${category.name}» ya no existe.`)
     } catch (error) {
-      toast.error('No se pudo completar la acción', messageFromError(error))
+      toast.error('No se pudo eliminar la categoría', messageFromError(error))
     } finally {
       closeConfirm()
     }
@@ -108,11 +94,11 @@ export default function CategoriesPage() {
     }
 
     if (!categories.isPending && items.length === 0) {
-      return isFiltered ? (
+      return isSearching ? (
         <EmptyState
           icon={SearchX}
           title="No encontramos categorías"
-          description="Probá con otra búsqueda o cambiá el filtro de estado."
+          description="Probá con otra búsqueda."
         />
       ) : (
         <EmptyState
@@ -135,8 +121,7 @@ export default function CategoriesPage() {
           categories={items}
           isLoading={categories.isPending}
           onEdit={openSheet}
-          onDeactivate={(category) => setConfirm({ open: true, category })}
-          onReactivate={(category) => void changeActive(category, true)}
+          onDelete={(category) => setConfirm({ open: true, category })}
         />
         {categories.data && (
           <Pagination
@@ -163,16 +148,13 @@ export default function CategoriesPage() {
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchField
-          label="Buscar categorías"
-          placeholder="Buscar por nombre o descripción"
-          value={search}
-          onChange={changeSearch}
-          className="sm:max-w-sm"
-        />
-        <StatusFilter value={status} onChange={changeStatus} labels={STATUS_LABELS} />
-      </div>
+      <SearchField
+        label="Buscar categorías"
+        placeholder="Buscar por nombre o descripción"
+        value={search}
+        onChange={changeSearch}
+        className="sm:max-w-sm"
+      />
 
       {renderContent()}
 
@@ -198,12 +180,12 @@ export default function CategoriesPage() {
         onOpenChange={(open) => {
           if (!open) closeConfirm()
         }}
-        title={`¿Desactivar «${confirm.category?.name ?? ''}»?`}
-        description="No va a aparecer al cargar artículos. Los artículos que ya la usan no cambian, y podés reactivarla cuando quieras."
-        confirmLabel="Desactivar"
-        isPending={setCategoryActive.isPending}
+        title={`¿Eliminar «${confirm.category?.name ?? ''}»?`}
+        description="Se borra definitivamente y no se puede deshacer."
+        confirmLabel="Eliminar"
+        isPending={deleteCategory.isPending}
         onConfirm={() => {
-          if (confirm.category) void changeActive(confirm.category, false)
+          if (confirm.category) void remove(confirm.category)
         }}
       />
     </div>

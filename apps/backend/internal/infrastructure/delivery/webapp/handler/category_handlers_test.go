@@ -21,7 +21,7 @@ var (
 	handlerActor    = domain.Actor{ID: "u1", Name: "Ana", Role: domain.RoleManager}
 	handlerTime     = time.Date(2026, 11, 10, 15, 0, 0, 0, time.UTC)
 	handlerCategory = domain.Category{
-		ID: "c1", Name: "Bebidas", Description: ptr("Gaseosas"), Active: true,
+		ID: "c1", Name: "Bebidas", Description: ptr("Gaseosas"),
 		CreatedAt: handlerTime, UpdatedAt: handlerTime,
 	}
 )
@@ -57,7 +57,7 @@ func assertStatus(t *testing.T, recorder *httptest.ResponseRecorder, want int) {
 func assertCategoryBody(t *testing.T, recorder *httptest.ResponseRecorder) {
 	t.Helper()
 	got := decodeBody[dto.CategoryResponse](t, recorder)
-	if got.ID != "c1" || got.Name != "Bebidas" || got.Description == nil || *got.Description != "Gaseosas" || !got.Active || !got.CreatedAt.Equal(handlerTime) {
+	if got.ID != "c1" || got.Name != "Bebidas" || got.Description == nil || *got.Description != "Gaseosas" || !got.CreatedAt.Equal(handlerTime) {
 		t.Fatalf("body = %+v", got)
 	}
 }
@@ -70,14 +70,14 @@ func TestListCategoriesHandler(t *testing.T) {
 			return domain.Page[domain.Category]{Items: []domain.Category{handlerCategory}, Total: 31, Page: 2, Limit: 10}, nil
 		})
 
-	recorder := serve(NewListCategoriesHandler(listCategories), categoryRequest(http.MethodGet, "/api/v1/categories?q=beb&status=all&page=2&limit=10", nil))
+	recorder := serve(NewListCategoriesHandler(listCategories), categoryRequest(http.MethodGet, "/api/v1/categories?q=beb&page=2&limit=10", nil))
 
 	assertStatus(t, recorder, http.StatusOK)
 	got := decodeBody[pagination.PageResponse[dto.CategoryResponse]](t, recorder)
 	if got.Total != 31 || got.Page != 2 || got.Limit != 10 || len(got.Items) != 1 || got.Items[0].Name != "Bebidas" {
 		t.Fatalf("body = %+v", got)
 	}
-	want := categories.ListCategoriesInput{Actor: handlerActor, Search: "beb", Status: "all", Page: 2, Limit: 10}
+	want := categories.ListCategoriesInput{Actor: handlerActor, Search: "beb", Page: 2, Limit: 10}
 	if received != want {
 		t.Fatalf("input = %+v, want %+v", received, want)
 	}
@@ -193,33 +193,30 @@ func TestUpdateCategoryHandler(t *testing.T) {
 	assertStatus(t, serve(NewUpdateCategoryHandler(updateCategory), malformed), http.StatusBadRequest)
 }
 
-func TestDeactivateAndReactivateCategoryHandlers(t *testing.T) {
-	var deactivated, reactivated string
-	deactivate := useCaseFunc[categories.DeactivateCategoryInput, domain.Category](
-		func(_ context.Context, input categories.DeactivateCategoryInput) (domain.Category, error) {
-			deactivated = input.ID
-			return handlerCategory, nil
-		})
-	reactivate := useCaseFunc[categories.ReactivateCategoryInput, domain.Category](
-		func(_ context.Context, input categories.ReactivateCategoryInput) (domain.Category, error) {
-			reactivated = input.ID
-			return handlerCategory, nil
-		})
-
+func TestDeleteCategoryHandler(t *testing.T) {
+	var received categories.DeleteCategoryInput
+	deleteCategory := deleteFunc(func(_ context.Context, input categories.DeleteCategoryInput) error {
+		received = input
+		return nil
+	})
 	request := categoryRequest(http.MethodDelete, "/api/v1/categories/c1", nil)
 	request.SetPathValue("id", "c1")
-	recorder := serve(NewDeactivateCategoryHandler(deactivate), request)
-	assertStatus(t, recorder, http.StatusOK)
-	assertCategoryBody(t, recorder)
 
-	request = categoryRequest(http.MethodPost, "/api/v1/categories/c2/reactivate", nil)
-	request.SetPathValue("id", "c2")
-	recorder = serve(NewReactivateCategoryHandler(reactivate), request)
-	assertStatus(t, recorder, http.StatusOK)
+	recorder := serve(NewDeleteCategoryHandler(deleteCategory), request)
 
-	if deactivated != "c1" || reactivated != "c2" {
-		t.Fatalf("ids = %q / %q", deactivated, reactivated)
+	assertStatus(t, recorder, http.StatusNoContent)
+	if recorder.Body.Len() != 0 {
+		t.Fatalf("body = %q, want empty", recorder.Body.String())
 	}
+	if received.ID != "c1" || received.Actor != handlerActor {
+		t.Fatalf("input = %+v", received)
+	}
+}
+
+type deleteFunc func(ctx context.Context, input categories.DeleteCategoryInput) error
+
+func (fn deleteFunc) Execute(ctx context.Context, input categories.DeleteCategoryInput) error {
+	return fn(ctx, input)
 }
 
 func TestCategoryHandlersPassErrorsThrough(t *testing.T) {
@@ -229,11 +226,8 @@ func TestCategoryHandlersPassErrorsThrough(t *testing.T) {
 	forbidden := func(context.Context, categories.UpdateCategoryInput) (domain.Category, error) {
 		return domain.Category{}, domain.ErrForbidden
 	}
-	deactivateFails := func(context.Context, categories.DeactivateCategoryInput) (domain.Category, error) {
-		return domain.Category{}, domain.ErrCategoryNotFound
-	}
-	reactivateFails := func(context.Context, categories.ReactivateCategoryInput) (domain.Category, error) {
-		return domain.Category{}, domain.ErrCategoryNameInUse
+	deleteFails := func(context.Context, categories.DeleteCategoryInput) error {
+		return domain.ErrCategoryNotFound
 	}
 	listFails := func(context.Context, categories.ListCategoriesInput) (domain.Page[domain.Category], error) {
 		return domain.Page[domain.Category]{}, domain.ErrStorageUnavailable
@@ -247,8 +241,7 @@ func TestCategoryHandlersPassErrorsThrough(t *testing.T) {
 	}{
 		{name: "get", handler: NewGetCategoryHandler(useCaseFunc[categories.GetCategoryInput, domain.Category](notFound)), request: categoryRequest(http.MethodGet, "/api/v1/categories/x", nil), want: http.StatusNotFound},
 		{name: "update", handler: NewUpdateCategoryHandler(useCaseFunc[categories.UpdateCategoryInput, domain.Category](forbidden)), request: categoryRequest(http.MethodPatch, "/api/v1/categories/x", strings.NewReader(`{"name":"X"}`)), want: http.StatusForbidden},
-		{name: "deactivate", handler: NewDeactivateCategoryHandler(useCaseFunc[categories.DeactivateCategoryInput, domain.Category](deactivateFails)), request: categoryRequest(http.MethodDelete, "/api/v1/categories/x", nil), want: http.StatusNotFound},
-		{name: "reactivate", handler: NewReactivateCategoryHandler(useCaseFunc[categories.ReactivateCategoryInput, domain.Category](reactivateFails)), request: categoryRequest(http.MethodPost, "/api/v1/categories/x/reactivate", nil), want: http.StatusConflict},
+		{name: "delete", handler: NewDeleteCategoryHandler(deleteFunc(deleteFails)), request: categoryRequest(http.MethodDelete, "/api/v1/categories/x", nil), want: http.StatusNotFound},
 		{name: "list", handler: NewListCategoriesHandler(useCaseFunc[categories.ListCategoriesInput, domain.Page[domain.Category]](listFails)), request: categoryRequest(http.MethodGet, "/api/v1/categories", nil), want: http.StatusServiceUnavailable},
 	}
 	for _, test := range tests {

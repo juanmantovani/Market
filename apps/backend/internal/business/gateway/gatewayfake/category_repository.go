@@ -23,6 +23,9 @@ type CategoryRepository struct {
 	UpdateErr error
 	Updated   []domain.Category
 
+	DeleteErr  error
+	DeletedIDs []string
+
 	ListResult  domain.Page[domain.Category]
 	ListErr     error
 	ListFilters []gateway.CategoryFilter
@@ -54,6 +57,15 @@ func (fake *CategoryRepository) Update(_ context.Context, category domain.Catego
 	fake.Updated = append(fake.Updated, category)
 
 	return category, nil
+}
+
+func (fake *CategoryRepository) Delete(_ context.Context, id string) error {
+	if fake.DeleteErr != nil {
+		return fake.DeleteErr
+	}
+	fake.DeletedIDs = append(fake.DeletedIDs, id)
+
+	return nil
 }
 
 func (fake *CategoryRepository) List(_ context.Context, filter gateway.CategoryFilter) (domain.Page[domain.Category], error) {

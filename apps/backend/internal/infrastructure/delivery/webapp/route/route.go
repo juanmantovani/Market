@@ -16,12 +16,11 @@ const MaxHandlerTimeout = catalogTimeout
 
 // Handlers holds one handler per route. Each feature adds its own.
 type Handlers struct {
-	ListCategories     *handler.ListCategoriesHandler
-	GetCategory        *handler.GetCategoryHandler
-	CreateCategory     *handler.CreateCategoryHandler
-	UpdateCategory     *handler.UpdateCategoryHandler
-	DeactivateCategory *handler.DeactivateCategoryHandler
-	ReactivateCategory *handler.ReactivateCategoryHandler
+	ListCategories *handler.ListCategoriesHandler
+	GetCategory    *handler.GetCategoryHandler
+	CreateCategory *handler.CreateCategoryHandler
+	UpdateCategory *handler.UpdateCategoryHandler
+	DeleteCategory *handler.DeleteCategoryHandler
 }
 
 func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
@@ -32,6 +31,5 @@ func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
 	mux.Handle("POST /api/v1/categories", handler.Adapt(handlers.CreateCategory, catalogTimeout))
 	mux.Handle("GET /api/v1/categories/{id}", handler.Adapt(handlers.GetCategory, catalogTimeout))
 	mux.Handle("PATCH /api/v1/categories/{id}", handler.Adapt(handlers.UpdateCategory, catalogTimeout))
-	mux.Handle("DELETE /api/v1/categories/{id}", handler.Adapt(handlers.DeactivateCategory, catalogTimeout))
-	mux.Handle("POST /api/v1/categories/{id}/reactivate", handler.Adapt(handlers.ReactivateCategory, catalogTimeout))
+	mux.Handle("DELETE /api/v1/categories/{id}", handler.Adapt(handlers.DeleteCategory, catalogTimeout))
 }

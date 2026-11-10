@@ -12,17 +12,16 @@ var (
 	ErrCategoryNameRequired       = &Error{Kind: KindInvalid, Code: "category_name_required", Message: "El nombre es obligatorio"}
 	ErrCategoryNameTooLong        = &Error{Kind: KindInvalid, Code: "category_name_too_long", Message: "El nombre admite hasta 60 caracteres"}
 	ErrCategoryDescriptionTooLong = &Error{Kind: KindInvalid, Code: "category_description_too_long", Message: "La descripción admite hasta 200 caracteres"}
-	ErrCategoryNameInUse          = &Error{Kind: KindConflict, Code: "category_name_in_use", Message: "Ya hay una categoría activa con ese nombre"}
+	ErrCategoryNameInUse          = &Error{Kind: KindConflict, Code: "category_name_in_use", Message: "Ya hay una categoría con ese nombre"}
 	ErrCategoryUpdateEmpty        = &Error{Kind: KindInvalid, Code: "category_update_empty", Message: "No se enviaron cambios"}
 )
 
 // Category groups items so they are easier to find and filter. Its name is
-// unique among active categories, ignoring case, accents and spacing.
+// unique, ignoring case, accents and spacing.
 type Category struct {
 	ID          string
 	Name        string
 	Description *string
-	Active      bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -42,7 +41,6 @@ func NewCategory(name string, description *string, now time.Time) (Category, err
 	return Category{
 		Name:        validName,
 		Description: validDescription,
-		Active:      true,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}, nil
@@ -83,16 +81,6 @@ func (category Category) Apply(changes CategoryChanges, now time.Time) (Category
 	updated.UpdatedAt = now
 
 	return updated, nil
-}
-
-// WithActive returns the category activated or deactivated. Deactivating is
-// how a category is removed: it stays referenced by past records.
-func (category Category) WithActive(active bool, now time.Time) Category {
-	updated := category
-	updated.Active = active
-	updated.UpdatedAt = now
-
-	return updated
 }
 
 // NameKey is the form of the name used to detect duplicates.

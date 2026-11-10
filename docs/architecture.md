@@ -26,10 +26,10 @@ apps/backend/
 └── internal/
     ├── app/app.go                         # composition root: config, contenedor, datos demo, rutas, servidor
     ├── business/
-    │   ├── domain/                        # Error, Actor, Money, Quantity, Percent, Page, StatusFilter, Category…
+    │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager, Clock, CategoryRepository
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/categories/            # create, list, get, update, deactivate, reactivate
+    │   └── usecase/categories/            # create, list, get, update, delete
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
         ├── clock/system.go                # reloj real (UTC)
@@ -90,12 +90,12 @@ flowchart LR
   `/api/` que no exista responde `404 route_not_found` con ese mismo formato
   (también un método no soportado: se prefiere un único formato de error al
   405 en texto plano del mux).
-- Listados: `?q=&status=active|inactive|all&page=&limit=` →
+- Listados: `?q=&page=&limit=` →
   `{ "items": [], "total": 0, "page": 1, "limit": 25 }` (`PageResponse[T]`).
   `items` nunca es `null`.
-- Bajas lógicas: `DELETE` desactiva y responde la entidad;
-  `POST /{id}/reactivate` la reactiva. Pedir el estado que ya tiene no es
-  error.
+- Eliminación: `DELETE /{id}` borra el registro y responde `204` sin cuerpo;
+  un ID inexistente es `404`. Si otro registro lo referencia, responde `409`
+  (`<entidad>_in_use`).
 - `PATCH` parcial: un campo ausente o `null` no cambia; un texto opcional
   vacío lo borra.
 - `Adapt(h, timeout)` acota el contexto al timeout de la ruta y el cuerpo a
@@ -118,7 +118,7 @@ flowchart LR
   slices que guardan o devuelven (por ejemplo `cloneCategory`), para que
   nadie mute una tabla fuera del lock.
 - Las restricciones que en PostgreSQL serían índices (como el nombre único
-  entre categorías activas) las verifica el repositorio dentro del lock, y la
+  de una categoría) las verifica el repositorio dentro del lock, y la
   suite de contrato prueba que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
   PostgreSQL 18.
@@ -166,11 +166,10 @@ apps/frontend/src/
 | --- | --- |
 | `PageHeader` | Título, descripción y acción principal de la pantalla. |
 | `SearchField` | Búsqueda con ícono y botón para limpiar; se combina con `useDebouncedValue`. |
-| `StatusFilter` | Activos / Inactivos / Todos (las etiquetas concuerdan en género con la entidad). |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
 | `FormSheet` | Panel lateral en escritorio, pantalla completa en el celular. |
-| `ConfirmDialog` | Confirmación de acciones destructivas (`role="alertdialog"`). |
+| `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`). |
 | `EmptyState` | Vacío, sin resultados o error, siempre con una salida. |
 | `ToastProvider` / `useToast` | Avisos de éxito o error (Toast de Base UI, sin dependencias extra). |
 | `Field`, `Input`, `Textarea` | Campos con label, ayuda y error; 44 px de alto en el celular. |
@@ -183,18 +182,19 @@ clientes, proveedores, vendedores).
 **Backend**
 
 1. `domain/<entidad>.go`: entidad, constructor `New…` que valida, cambios
-   parciales (`…Changes` + `Apply`), `WithActive`, errores `*domain.Error`
+   parciales (`…Changes` + `Apply`), errores `*domain.Error`
    con mensajes en español y tests de tabla. Si la entidad necesita permisos
    nuevos, se agregan a la matriz de `domain/permission.go` y a su test.
 2. `gateway/<entidad>_repository.go`: contrato (`Create`, `Get`, `Update`,
-   `List` con filtro y página) documentando qué errores devuelve.
+   `Delete`, `List` con búsqueda y página) documentando qué errores devuelve.
 3. `gateway/gatewayfake/`: fake que registra llamadas y devuelve lo
    configurado.
 4. `usecase/<feature>/`: un archivo por caso de uso (`Execute`) que pide su
    permiso con `Actor.Authorize(domain.Permission…)` (nunca un rol) y
    traduce los errores del adaptador con `domain.FromStorage`.
 5. `repository/repositorytest/<entidad>.go`: la suite de contrato (unicidad,
-   no encontrado, filtros, orden, paginado, copias, concurrencia).
+   no encontrado, eliminación, búsqueda, orden, paginado, copias,
+   concurrencia).
 6. `repository/memory/<entidad>.go`: el adaptador, con su test que corre la
    suite.
 7. `dto/<feature>/`: requests, response y conversión desde el dominio.
@@ -211,8 +211,8 @@ clientes, proveedores, vendedores).
    clave de la entidad.
 4. `components/`: formulario (validación con Zod + errores del backend en el
    campo correspondiente), listado sobre `ResponsiveList`.
-5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, filtro, listado,
-   paginación, `FormSheet`, `ConfirmDialog`, toasts).
+5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, listado,
+   paginación, `FormSheet`, `ConfirmDialog` para eliminar, toasts).
 6. Ruta en `app/router.tsx` y sección en `app/navigation.ts`.
 7. Tests de la página contra una API falsa en memoria que respeta las mismas
    reglas que el backend (ver `CategoriesPage.test.tsx`).

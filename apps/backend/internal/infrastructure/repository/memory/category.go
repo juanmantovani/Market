@@ -66,13 +66,23 @@ func (repository *CategoryRepository) Update(ctx context.Context, category domai
 	return updated, err
 }
 
+func (repository *CategoryRepository) Delete(ctx context.Context, id string) error {
+	return repository.store.run(ctx, func(current *tx) error {
+		if _, ok := repository.store.categories[id]; !ok {
+			return domain.ErrCategoryNotFound
+		}
+		remove(current, repository.store.categories, id)
+		return nil
+	})
+}
+
 func (repository *CategoryRepository) List(ctx context.Context, filter gateway.CategoryFilter) (domain.Page[domain.Category], error) {
 	page := domain.Page[domain.Category]{Items: []domain.Category{}, Page: filter.Page.Page, Limit: filter.Page.Limit}
 	err := repository.store.run(ctx, func(*tx) error {
 		search := domain.NormalizeText(filter.Search)
 		var matches []domain.Category
 		for _, category := range repository.store.categories {
-			if filter.Status.Matches(category.Active) && categoryMatches(category, search) {
+			if categoryMatches(category, search) {
 				matches = append(matches, category)
 			}
 		}
@@ -92,15 +102,12 @@ func (repository *CategoryRepository) List(ctx context.Context, filter gateway.C
 	return page, err
 }
 
-// checkNameIsFree enforces what a partial unique index on the normalized
-// name of active categories enforces in PostgreSQL.
+// checkNameIsFree enforces what a unique index on the normalized name
+// enforces in PostgreSQL.
 func (repository *CategoryRepository) checkNameIsFree(category domain.Category) error {
-	if !category.Active {
-		return nil
-	}
 	key := category.NameKey()
 	for id, other := range repository.store.categories {
-		if id != category.ID && other.Active && other.NameKey() == key {
+		if id != category.ID && other.NameKey() == key {
 			return domain.ErrCategoryNameInUse
 		}
 	}

@@ -184,8 +184,8 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
   `DEFAULT uuidv7()`). El número de venta es correlativo (contador en memoria,
   secuencia en PostgreSQL).
 - **Suite de contrato (`repositorytest`)**: recibe un constructor de
-  repositorios y verifica alta, búsqueda, baja lógica, unicidad de código y
-  barras, rollback de transacción y concurrencia de stock. Corre hoy contra
+  repositorios y verifica alta, búsqueda, eliminación, unicidad de código
+  y barras, rollback de transacción y concurrencia de stock. Corre hoy contra
   memoria y mañana contra PostgreSQL sin cambios: así el reemplazo se puede
   verificar en vez de suponer.
 - **Selección**: `STORAGE_DRIVER=memory` (default). `postgres` llega en Fase 6.
@@ -199,8 +199,9 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 - Listados paginados: `?q=&page=&limit=` →
   `{ "items": [...], "total": 120, "page": 1, "limit": 25 }`; `limit` máximo 100.
 - `PATCH` parcial: un campo ausente no cambia.
-- Bajas lógicas: `DELETE` desactiva; `POST /{id}/reactivate` reactiva. Los
-  listados muestran activos salvo `?status=inactive|all`.
+- ABM = alta, edición y eliminación (sin activar/desactivar). `DELETE`
+  borra y responde `204`; si otro registro lo referencia, `409`
+  `<entidad>_in_use`.
 - `POST /api/v1/sales` exige `Idempotency-Key`.
 - Salud: `GET /health/live` (Fase 0) y `GET /health/ready`, que chequea la
   base y llega con PostgreSQL.
@@ -209,7 +210,7 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 
 | Recurso | Endpoints |
 | --- | --- |
-| Categorías | `GET` `POST /api/v1/categories` · `GET` `PATCH` `DELETE /api/v1/categories/{id}` · `POST /api/v1/categories/{id}/reactivate` |
+| Categorías | `GET` `POST /api/v1/categories` · `GET` `PATCH` `DELETE /api/v1/categories/{id}` |
 | Artículos | Mismo patrón en `/api/v1/items` (`?q=&categoryId=&lowStock=`) · `GET /api/v1/items/lookup?code=` (código o barras exacto, para el lector) |
 | Clientes | Mismo patrón en `/api/v1/customers` |
 | Proveedores | Mismo patrón en `/api/v1/suppliers` |
@@ -289,23 +290,22 @@ apps/frontend/src/
 
 ### Entidades
 
-- **Category**: `name` (único entre activas, sin distinguir mayúsculas ni
-  acentos), `description?`, `active`. No se desactiva si tiene artículos
-  activos (`category_in_use`).
+- **Category**: `name` (único, sin distinguir mayúsculas ni acentos),
+  `description?`. No se elimina si tiene artículos (`category_in_use`).
 - **Item**: `code` (SKU interno, único), `barcode?` (único si existe), `name`,
   `description?`, `categoryId`, `unit` (`unit | kg | l | m`), `salePrice`
   (> 0, IVA incluido), `cost?`, `taxRate` (0 / 10,5 / 21 / 27 %, informativo
   hasta facturar), `tracksStock` (falso para servicios), `minStock`,
-  `preferredSupplierId?`, `active`.
+  `preferredSupplierId?`.
 - **Customer**: `name`, `documentType` (`dni | cuit | cuil | none`),
   `documentNumber` (solo dígitos, único por tipo), `taxCondition`
   (`final_consumer | monotax | registered | exempt`), `email?`, `phone?`,
-  `address?`, `notes?`, `active`. Existe un cliente de sistema **Consumidor
-  Final** que no se edita ni se desactiva; una venta sin cliente lo usa.
+  `address?`, `notes?`. Existe un cliente de sistema **Consumidor Final**
+  que no se edita ni se elimina; una venta sin cliente lo usa.
 - **Supplier**: `businessName`, `cuit?` (11 dígitos normalizados, único),
-  `contactName?`, `phone?`, `email?`, `address?`, `notes?`, `active`.
+  `contactName?`, `phone?`, `email?`, `address?`, `notes?`.
 - **Seller**: `name`, `code` (corto y único, para elegirlo rápido en el POS),
-  `commissionRate?` (informativo), `active`. No es un usuario; a futuro un
+  `commissionRate?` (informativo). No es un usuario; a futuro un
   usuario podrá vincularse a un vendedor.
 - **StockLevel**: `itemId`, `quantity`, `updatedAt`.
 - **StockMovement** (inmutable): `itemId`, `type`
@@ -446,7 +446,8 @@ igual y cada ABM nuevo sale rápido:
 - Alta y edición en `FormSheet` (panel lateral en escritorio, pantalla
   completa en el celular), validación inline con Zod y errores del backend
   asociados al campo según su `code`.
-- Baja con `ConfirmDialog`; como es lógica, se puede reactivar.
+- Eliminación con `ConfirmDialog`: es definitiva, así que siempre se
+  confirma.
 
 ## 6. Testing
 
@@ -463,7 +464,7 @@ Mismas herramientas y umbrales que LoteosAPP, más dos agregados:
   contenedor real con memoria y ejecuta por HTTP alta de artículo → ingreso de
   stock → venta → anulación, verificando existencias en cada paso.
 - **Frontend**: Vitest + RTL + user-event con `fetch` simulado. Flujos
-  mínimos: venta completa con teclado, ABM (alta, edición, baja, reactivar),
+  mínimos: venta completa con teclado, ABM (alta, edición, eliminación),
   estados de carga, vacío y error.
 
 ## 7. Tooling, CI y convenciones

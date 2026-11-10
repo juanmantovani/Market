@@ -11,7 +11,6 @@ import (
 type ListCategoriesInput struct {
 	Actor  domain.Actor
 	Search string
-	Status string
 	Page   int
 	Limit  int
 }
@@ -33,10 +32,6 @@ func (useCase *listCategories) Execute(ctx context.Context, input ListCategories
 		return domain.Page[domain.Category]{}, err
 	}
 
-	status, err := domain.ParseStatusFilter(input.Status)
-	if err != nil {
-		return domain.Page[domain.Category]{}, err
-	}
 	page, err := domain.NewPageRequest(input.Page, input.Limit)
 	if err != nil {
 		return domain.Page[domain.Category]{}, err
@@ -44,7 +39,6 @@ func (useCase *listCategories) Execute(ctx context.Context, input ListCategories
 
 	result, err := useCase.repository.List(ctx, gateway.CategoryFilter{
 		Search: strings.TrimSpace(input.Search),
-		Status: status,
 		Page:   page,
 	})
 	if err != nil {

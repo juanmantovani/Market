@@ -1,10 +1,7 @@
 import { z, type ZodType } from 'zod'
 
-export type StatusFilter = 'active' | 'inactive' | 'all'
-
 export type ListParams = {
   search: string
-  status: StatusFilter
   page: number
   limit: number
 }
@@ -25,10 +22,9 @@ export function pageSchema<T>(item: ZodType<T>): ZodType<Page<T>> {
   })
 }
 
-export function listQuery({ search, status, page, limit }: ListParams): string {
+export function listQuery({ search, page, limit }: ListParams): string {
   const query = new URLSearchParams()
   if (search.trim()) query.set('q', search.trim())
-  query.set('status', status)
   query.set('page', String(page))
   query.set('limit', String(limit))
   return query.toString()

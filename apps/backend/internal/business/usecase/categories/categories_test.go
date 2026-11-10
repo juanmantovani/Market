@@ -26,11 +26,10 @@ func ptr[T any](value T) *T {
 	return &value
 }
 
-func storedCategory(active bool) domain.Category {
+func storedCategory() domain.Category {
 	return domain.Category{
 		ID:        "category-1",
 		Name:      "Bebidas",
-		Active:    active,
 		CreatedAt: now.Add(-time.Hour),
 		UpdatedAt: now.Add(-time.Hour),
 	}
@@ -54,7 +53,7 @@ func TestCreateCategory(t *testing.T) {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	if created.ID == "" || created.Name != "Bebidas" || !created.Active || !created.CreatedAt.Equal(now) {
+	if created.ID == "" || created.Name != "Bebidas" || !created.CreatedAt.Equal(now) {
 		t.Fatalf("created = %+v", created)
 	}
 	if len(repository.Created) != 1 {
@@ -101,11 +100,11 @@ func TestCreateCategoryTranslatesRepositoryErrors(t *testing.T) {
 }
 
 func TestListCategories(t *testing.T) {
-	page := domain.Page[domain.Category]{Items: []domain.Category{storedCategory(true)}, Total: 1, Page: 2, Limit: 10}
+	page := domain.Page[domain.Category]{Items: []domain.Category{storedCategory()}, Total: 1, Page: 2, Limit: 10}
 	repository := &gatewayfake.CategoryRepository{ListResult: page}
 
 	got, err := NewListCategories(repository).Execute(context.Background(), ListCategoriesInput{
-		Actor: cashier, Search: "  beb ", Status: "all", Page: 2, Limit: 10,
+		Actor: cashier, Search: "  beb ", Page: 2, Limit: 10,
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
@@ -114,20 +113,20 @@ func TestListCategories(t *testing.T) {
 	if got.Total != 1 || len(got.Items) != 1 {
 		t.Fatalf("page = %+v", got)
 	}
-	want := gateway.CategoryFilter{Search: "beb", Status: domain.StatusAll, Page: domain.PageRequest{Page: 2, Limit: 10}}
+	want := gateway.CategoryFilter{Search: "beb", Page: domain.PageRequest{Page: 2, Limit: 10}}
 	if repository.ListFilters[0] != want {
 		t.Fatalf("filter = %+v, want %+v", repository.ListFilters[0], want)
 	}
 }
 
-func TestListCategoriesDefaultsToActiveFirstPage(t *testing.T) {
+func TestListCategoriesDefaultsToTheFirstPage(t *testing.T) {
 	repository := &gatewayfake.CategoryRepository{}
 
 	if _, err := NewListCategories(repository).Execute(context.Background(), ListCategoriesInput{Actor: cashier}); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	want := gateway.CategoryFilter{Status: domain.StatusActive, Page: domain.PageRequest{Page: 1, Limit: domain.DefaultPageLimit}}
+	want := gateway.CategoryFilter{Page: domain.PageRequest{Page: 1, Limit: domain.DefaultPageLimit}}
 	if repository.ListFilters[0] != want {
 		t.Fatalf("filter = %+v, want %+v", repository.ListFilters[0], want)
 	}
@@ -140,7 +139,6 @@ func TestListCategoriesRejectsInvalidInput(t *testing.T) {
 		want  *domain.Error
 	}{
 		{name: "no actor", input: ListCategoriesInput{}, want: domain.ErrForbidden},
-		{name: "status", input: ListCategoriesInput{Actor: admin, Status: "deleted"}, want: domain.ErrInvalidStatusFilter},
 		{name: "limit", input: ListCategoriesInput{Actor: admin, Limit: 500}, want: domain.ErrInvalidPage},
 	}
 	for _, test := range tests {
@@ -166,7 +164,7 @@ func TestListCategoriesTranslatesStorageErrors(t *testing.T) {
 }
 
 func TestGetCategory(t *testing.T) {
-	repository := &gatewayfake.CategoryRepository{GetResult: storedCategory(true)}
+	repository := &gatewayfake.CategoryRepository{GetResult: storedCategory()}
 
 	got, err := NewGetCategory(repository).Execute(context.Background(), GetCategoryInput{Actor: cashier, ID: "category-1"})
 	if err != nil {
@@ -185,7 +183,7 @@ func TestGetCategory(t *testing.T) {
 }
 
 func TestUpdateCategory(t *testing.T) {
-	repository := &gatewayfake.CategoryRepository{GetResult: storedCategory(true)}
+	repository := &gatewayfake.CategoryRepository{GetResult: storedCategory()}
 
 	updated, err := NewUpdateCategory(repository, clock).Execute(context.Background(), UpdateCategoryInput{
 		Actor: admin, ID: "category-1", Changes: domain.CategoryChanges{Name: ptr("Bebidas frías")},
@@ -211,13 +209,13 @@ func TestUpdateCategoryRejectsBeforeStoring(t *testing.T) {
 	}{
 		{
 			name:       "cashier",
-			repository: &gatewayfake.CategoryRepository{GetResult: storedCategory(true)},
+			repository: &gatewayfake.CategoryRepository{GetResult: storedCategory()},
 			input:      UpdateCategoryInput{Actor: cashier, ID: "category-1", Changes: domain.CategoryChanges{Name: ptr("X")}},
 			want:       domain.ErrForbidden,
 		},
 		{
 			name:       "no changes",
-			repository: &gatewayfake.CategoryRepository{GetResult: storedCategory(true)},
+			repository: &gatewayfake.CategoryRepository{GetResult: storedCategory()},
 			input:      UpdateCategoryInput{Actor: admin, ID: "category-1"},
 			want:       domain.ErrCategoryUpdateEmpty,
 		},
@@ -229,7 +227,7 @@ func TestUpdateCategoryRejectsBeforeStoring(t *testing.T) {
 		},
 		{
 			name:       "invalid name",
-			repository: &gatewayfake.CategoryRepository{GetResult: storedCategory(true)},
+			repository: &gatewayfake.CategoryRepository{GetResult: storedCategory()},
 			input:      UpdateCategoryInput{Actor: admin, ID: "category-1", Changes: domain.CategoryChanges{Name: ptr("")}},
 			want:       domain.ErrCategoryNameRequired,
 		},
@@ -254,66 +252,43 @@ func TestUpdateCategoryRejectsBeforeStoring(t *testing.T) {
 }
 
 func TestUpdateCategoryTranslatesWriteErrors(t *testing.T) {
-	conflict := &gatewayfake.CategoryRepository{GetResult: storedCategory(true), UpdateErr: domain.ErrCategoryNameInUse}
+	conflict := &gatewayfake.CategoryRepository{GetResult: storedCategory(), UpdateErr: domain.ErrCategoryNameInUse}
 	input := UpdateCategoryInput{Actor: admin, ID: "category-1", Changes: domain.CategoryChanges{Name: ptr("Almacén")}}
 
 	_, err := NewUpdateCategory(conflict, clock).Execute(context.Background(), input)
 	assertError(t, err, domain.ErrCategoryNameInUse)
 
-	down := &gatewayfake.CategoryRepository{GetResult: storedCategory(true), UpdateErr: errDown}
+	down := &gatewayfake.CategoryRepository{GetResult: storedCategory(), UpdateErr: errDown}
 	_, err = NewUpdateCategory(down, clock).Execute(context.Background(), input)
 	assertError(t, err, domain.ErrStorageUnavailable)
 }
 
-func TestDeactivateCategory(t *testing.T) {
-	repository := &gatewayfake.CategoryRepository{GetResult: storedCategory(true)}
+func TestDeleteCategory(t *testing.T) {
+	repository := &gatewayfake.CategoryRepository{}
 
-	got, err := NewDeactivateCategory(repository, clock).Execute(context.Background(), DeactivateCategoryInput{Actor: manager, ID: "category-1"})
+	err := NewDeleteCategory(repository).Execute(context.Background(), DeleteCategoryInput{Actor: manager, ID: "category-1"})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	if got.Active || !got.UpdatedAt.Equal(now) || len(repository.Updated) != 1 {
-		t.Fatalf("got %+v after %d updates", got, len(repository.Updated))
+	if len(repository.DeletedIDs) != 1 || repository.DeletedIDs[0] != "category-1" {
+		t.Fatalf("deleted IDs = %v, want [category-1]", repository.DeletedIDs)
 	}
 }
 
-func TestReactivateCategory(t *testing.T) {
-	repository := &gatewayfake.CategoryRepository{GetResult: storedCategory(false)}
-
-	got, err := NewReactivateCategory(repository, clock).Execute(context.Background(), ReactivateCategoryInput{Actor: admin, ID: "category-1"})
-	if err != nil {
-		t.Fatalf("Execute() error = %v", err)
-	}
-
-	if !got.Active || len(repository.Updated) != 1 {
-		t.Fatalf("got %+v after %d updates", got, len(repository.Updated))
-	}
-}
-
-func TestSetActiveIsIdempotent(t *testing.T) {
-	alreadyInactive := &gatewayfake.CategoryRepository{GetResult: storedCategory(false)}
-	got, err := NewDeactivateCategory(alreadyInactive, clock).Execute(context.Background(), DeactivateCategoryInput{Actor: admin, ID: "category-1"})
-	if err != nil || got.Active || len(alreadyInactive.Updated) != 0 {
-		t.Fatalf("deactivating an inactive category: %+v, %v, %d updates", got, err, len(alreadyInactive.Updated))
-	}
-
-	alreadyActive := &gatewayfake.CategoryRepository{GetResult: storedCategory(true)}
-	got, err = NewReactivateCategory(alreadyActive, clock).Execute(context.Background(), ReactivateCategoryInput{Actor: admin, ID: "category-1"})
-	if err != nil || !got.Active || len(alreadyActive.Updated) != 0 {
-		t.Fatalf("reactivating an active category: %+v, %v, %d updates", got, err, len(alreadyActive.Updated))
-	}
-}
-
-func TestSetActiveErrors(t *testing.T) {
-	_, err := NewDeactivateCategory(&gatewayfake.CategoryRepository{}, clock).Execute(context.Background(), DeactivateCategoryInput{Actor: cashier, ID: "category-1"})
+func TestDeleteCategoryErrors(t *testing.T) {
+	untouched := &gatewayfake.CategoryRepository{}
+	err := NewDeleteCategory(untouched).Execute(context.Background(), DeleteCategoryInput{Actor: cashier, ID: "category-1"})
 	assertError(t, err, domain.ErrForbidden)
+	if len(untouched.DeletedIDs) != 0 {
+		t.Fatal("a cashier deleted a category")
+	}
 
-	missing := &gatewayfake.CategoryRepository{GetErr: domain.ErrCategoryNotFound}
-	_, err = NewDeactivateCategory(missing, clock).Execute(context.Background(), DeactivateCategoryInput{Actor: admin, ID: "x"})
+	missing := &gatewayfake.CategoryRepository{DeleteErr: domain.ErrCategoryNotFound}
+	err = NewDeleteCategory(missing).Execute(context.Background(), DeleteCategoryInput{Actor: admin, ID: "x"})
 	assertError(t, err, domain.ErrCategoryNotFound)
 
-	nameTaken := &gatewayfake.CategoryRepository{GetResult: storedCategory(false), UpdateErr: domain.ErrCategoryNameInUse}
-	_, err = NewReactivateCategory(nameTaken, clock).Execute(context.Background(), ReactivateCategoryInput{Actor: admin, ID: "category-1"})
-	assertError(t, err, domain.ErrCategoryNameInUse)
+	down := &gatewayfake.CategoryRepository{DeleteErr: errDown}
+	err = NewDeleteCategory(down).Execute(context.Background(), DeleteCategoryInput{Actor: admin, ID: "category-1"})
+	assertError(t, err, domain.ErrStorageUnavailable)
 }

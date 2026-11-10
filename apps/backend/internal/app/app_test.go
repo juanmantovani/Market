@@ -45,10 +45,16 @@ func TestNewSeedsDemoDataAndServesTheCategoryAPI(t *testing.T) {
 		t.Fatalf("POST duplicate = %d, want 409", duplicate.Code)
 	}
 
-	deactivated := httptest.NewRecorder()
-	api.ServeHTTP(deactivated, httptest.NewRequest(http.MethodDelete, "/api/v1/categories/"+page.Items[0].ID, nil))
-	if deactivated.Code != http.StatusOK || !strings.Contains(deactivated.Body.String(), `"active":false`) {
-		t.Fatalf("DELETE = %d %s", deactivated.Code, deactivated.Body.String())
+	deleted := httptest.NewRecorder()
+	api.ServeHTTP(deleted, httptest.NewRequest(http.MethodDelete, "/api/v1/categories/"+page.Items[0].ID, nil))
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("DELETE = %d %s", deleted.Code, deleted.Body.String())
+	}
+
+	gone := httptest.NewRecorder()
+	api.ServeHTTP(gone, httptest.NewRequest(http.MethodGet, "/api/v1/categories/"+page.Items[0].ID, nil))
+	if gone.Code != http.StatusNotFound {
+		t.Fatalf("GET after DELETE = %d, want 404", gone.Code)
 	}
 }
 

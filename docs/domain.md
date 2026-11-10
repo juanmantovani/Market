@@ -41,25 +41,22 @@ El código, la API y la base usan los términos en inglés; la UI, en español.
   máximo 100; fuera de rango es `invalid_page`.
 - **`NormalizeText`**: minúsculas, sin acentos y con espacios colapsados.
   Base de búsquedas y de unicidad de nombres.
-- **`StatusFilter`**: `active` (por defecto), `inactive` o `all`. Catálogo y
-  terceros nunca se borran: se desactivan.
 
 ## Categorías
 
 | Campo | Regla |
 | --- | --- |
-| `name` | Obligatorio, hasta 60 caracteres, sin espacios al borde. Único entre las categorías **activas**, sin distinguir mayúsculas, acentos ni espacios (`NameKey`). |
+| `name` | Obligatorio, hasta 60 caracteres, sin espacios al borde. Único sin distinguir mayúsculas, acentos ni espacios (`NameKey`). |
 | `description` | Opcional, hasta 200 caracteres. En blanco se guarda como ausente. |
-| `active` | `true` al crearla. Desactivar libera el nombre; reactivar falla con `category_name_in_use` si otra activa lo tomó. |
 | `createdAt` / `updatedAt` | UTC, asignados por el caso de uso con el `Clock`. |
 
-Permisos: listar y consultar piden `catalog:view`; crear, editar, desactivar
-y reactivar piden `catalog:manage` (ver la matriz en
+Permisos: listar y consultar piden `catalog:view`; crear, editar y eliminar
+piden `catalog:manage` (ver la matriz en
 [Actor, roles y permisos](#actor-roles-y-permisos)).
 
-Desactivar o reactivar una categoría que ya está en ese estado la devuelve
-sin cambios, así un reintento no falla. La verificación de que no tenga
-artículos activos antes de desactivarla llega con los artículos.
+Eliminar borra la categoría y libera su nombre; no se puede deshacer. Cuando
+existan artículos, eliminar una categoría que tenga artículos va a fallar con
+`category_in_use` (`409`).
 
 Códigos de error: `category_not_found`, `category_name_required`,
 `category_name_too_long`, `category_description_too_long`,
@@ -78,7 +75,7 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | Permiso | `admin` | `manager` | `cashier` |
 | --- | :---: | :---: | :---: |
 | `catalog:view` — ver categorías (y luego artículos) | ✅ | ✅ | ✅ |
-| `catalog:manage` — crear, editar, desactivar y reactivar | ✅ | ✅ | — |
+| `catalog:manage` — crear, editar y eliminar | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

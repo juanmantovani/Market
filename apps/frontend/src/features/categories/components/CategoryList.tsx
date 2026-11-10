@@ -1,14 +1,12 @@
-import { Archive, ArchiveRestore, Pencil } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '../../../shared/ui/button'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
 import type { Category } from '../types'
-import { CategoryStatusBadge } from './CategoryStatusBadge'
 
 type CategoryActionsProps = {
   category: Category
   onEdit: (category: Category) => void
-  onDeactivate: (category: Category) => void
-  onReactivate: (category: Category) => void
+  onDelete: (category: Category) => void
 }
 
 type CategoryListProps = Omit<CategoryActionsProps, 'category'> & {
@@ -16,7 +14,7 @@ type CategoryListProps = Omit<CategoryActionsProps, 'category'> & {
   isLoading: boolean
 }
 
-function IconActions({ category, onEdit, onDeactivate, onReactivate }: CategoryActionsProps) {
+function IconActions({ category, onEdit, onDelete }: CategoryActionsProps) {
   return (
     <div className="flex justify-end gap-1">
       <Button
@@ -29,36 +27,24 @@ function IconActions({ category, onEdit, onDeactivate, onReactivate }: CategoryA
       >
         <Pencil aria-hidden />
       </Button>
-      {category.active ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={`Desactivar ${category.name}`}
-          title="Desactivar"
-          onClick={() => onDeactivate(category)}
-        >
-          <Archive aria-hidden />
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={`Reactivar ${category.name}`}
-          title="Reactivar"
-          onClick={() => onReactivate(category)}
-        >
-          <ArchiveRestore aria-hidden />
-        </Button>
-      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        aria-label={`Eliminar ${category.name}`}
+        title="Eliminar"
+        onClick={() => onDelete(category)}
+      >
+        <Trash2 aria-hidden />
+      </Button>
     </div>
   )
 }
 
-function LabeledActions({ category, onEdit, onDeactivate, onReactivate }: CategoryActionsProps) {
+function LabeledActions({ category, onEdit, onDelete }: CategoryActionsProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex gap-2">
       <Button
         type="button"
         variant="outline"
@@ -69,29 +55,16 @@ function LabeledActions({ category, onEdit, onDeactivate, onReactivate }: Catego
         <Pencil aria-hidden />
         Editar
       </Button>
-      {category.active ? (
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 flex-1"
-          aria-label={`Desactivar ${category.name}`}
-          onClick={() => onDeactivate(category)}
-        >
-          <Archive aria-hidden />
-          Desactivar
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 flex-1"
-          aria-label={`Reactivar ${category.name}`}
-          onClick={() => onReactivate(category)}
-        >
-          <ArchiveRestore aria-hidden />
-          Reactivar
-        </Button>
-      )}
+      <Button
+        type="button"
+        variant="outline"
+        className="h-11 flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        aria-label={`Eliminar ${category.name}`}
+        onClick={() => onDelete(category)}
+      >
+        <Trash2 aria-hidden />
+        Eliminar
+      </Button>
     </div>
   )
 }
@@ -108,7 +81,6 @@ export function CategoryList({ categories, isLoading, ...actions }: CategoryList
         </span>
       ),
     },
-    { header: 'Estado', cell: (category) => <CategoryStatusBadge active={category.active} /> },
     {
       header: 'Acciones',
       className: 'text-right',
@@ -125,14 +97,11 @@ export function CategoryList({ categories, isLoading, ...actions }: CategoryList
       getKey={(category) => category.id}
       renderCard={(category) => (
         <div className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="font-medium">{category.name}</span>
-              {category.description && (
-                <span className="text-sm text-muted-foreground">{category.description}</span>
-              )}
-            </div>
-            <CategoryStatusBadge active={category.active} />
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="font-medium">{category.name}</span>
+            {category.description && (
+              <span className="text-sm text-muted-foreground">{category.description}</span>
+            )}
           </div>
           <LabeledActions category={category} {...actions} />
         </div>

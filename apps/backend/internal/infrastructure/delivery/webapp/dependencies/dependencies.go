@@ -16,12 +16,11 @@ import (
 // only builds objects; reading configuration, registering routes and running
 // the server belong to internal/app.
 type Container struct {
-	CreateCategory     categories.CreateCategory
-	ListCategories     categories.ListCategories
-	GetCategory        categories.GetCategory
-	UpdateCategory     categories.UpdateCategory
-	DeactivateCategory categories.DeactivateCategory
-	ReactivateCategory categories.ReactivateCategory
+	CreateCategory categories.CreateCategory
+	ListCategories categories.ListCategories
+	GetCategory    categories.GetCategory
+	UpdateCategory categories.UpdateCategory
+	DeleteCategory categories.DeleteCategory
 }
 
 type repositories struct {
@@ -36,12 +35,11 @@ func New(cfg environments.Server) (*Container, error) {
 	systemClock := clock.System{}
 
 	return &Container{
-		CreateCategory:     categories.NewCreateCategory(repos.categories, systemClock),
-		ListCategories:     categories.NewListCategories(repos.categories),
-		GetCategory:        categories.NewGetCategory(repos.categories),
-		UpdateCategory:     categories.NewUpdateCategory(repos.categories, systemClock),
-		DeactivateCategory: categories.NewDeactivateCategory(repos.categories, systemClock),
-		ReactivateCategory: categories.NewReactivateCategory(repos.categories, systemClock),
+		CreateCategory: categories.NewCreateCategory(repos.categories, systemClock),
+		ListCategories: categories.NewListCategories(repos.categories),
+		GetCategory:    categories.NewGetCategory(repos.categories),
+		UpdateCategory: categories.NewUpdateCategory(repos.categories, systemClock),
+		DeleteCategory: categories.NewDeleteCategory(repos.categories),
 	}, nil
 }
 
@@ -58,11 +56,10 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 // Handlers wraps every use case in its route's handler.
 func (container *Container) Handlers() route.Handlers {
 	return route.Handlers{
-		ListCategories:     handler.NewListCategoriesHandler(container.ListCategories),
-		GetCategory:        handler.NewGetCategoryHandler(container.GetCategory),
-		CreateCategory:     handler.NewCreateCategoryHandler(container.CreateCategory),
-		UpdateCategory:     handler.NewUpdateCategoryHandler(container.UpdateCategory),
-		DeactivateCategory: handler.NewDeactivateCategoryHandler(container.DeactivateCategory),
-		ReactivateCategory: handler.NewReactivateCategoryHandler(container.ReactivateCategory),
+		ListCategories: handler.NewListCategoriesHandler(container.ListCategories),
+		GetCategory:    handler.NewGetCategoryHandler(container.GetCategory),
+		CreateCategory: handler.NewCreateCategoryHandler(container.CreateCategory),
+		UpdateCategory: handler.NewUpdateCategoryHandler(container.UpdateCategory),
+		DeleteCategory: handler.NewDeleteCategoryHandler(container.DeleteCategory),
 	}
 }

@@ -17,7 +17,7 @@ func NewListCategoriesHandler(listCategories categories.ListCategories) *ListCat
 	return &ListCategoriesHandler{listCategories: listCategories}
 }
 
-// Handle serves GET /api/v1/categories?q=&status=&page=&limit=.
+// Handle serves GET /api/v1/categories?q=&page=&limit=.
 func (handler *ListCategoriesHandler) Handle(w http.ResponseWriter, request *http.Request) error {
 	page, limit, err := pageQuery(request)
 	if err != nil {
@@ -28,7 +28,6 @@ func (handler *ListCategoriesHandler) Handle(w http.ResponseWriter, request *htt
 	result, err := handler.listCategories.Execute(request.Context(), categories.ListCategoriesInput{
 		Actor:  actorFrom(request),
 		Search: query.Get("q"),
-		Status: query.Get("status"),
 		Page:   page,
 		Limit:  limit,
 	})

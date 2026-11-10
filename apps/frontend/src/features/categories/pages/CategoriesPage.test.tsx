@@ -14,14 +14,13 @@ function json(body: unknown, status = 200) {
 }
 
 // A small in-memory stand-in for /api/v1/categories that follows the same
-// rules as the backend: active names are unique, deletes deactivate, lists
+// rules as the backend: names are unique, deletes remove the record, lists
 // are sorted by name and paginated.
 function fakeCategoryApi(initial: Array<Partial<Category> & { name: string }> = []) {
   let sequence = 0
   const categories: Category[] = initial.map((category) => ({
     id: `c${++sequence}`,
     description: null,
-    active: true,
     createdAt: NOW,
     updatedAt: NOW,
     ...category,
@@ -29,11 +28,8 @@ function fakeCategoryApi(initial: Array<Partial<Category> & { name: string }> = 
   const requests: Array<{ method: string; path: string; body: unknown }> = []
   const failures: Failure[] = []
 
-  const nameTaken = (name: string, exceptId?: string) =>
-    categories.some(
-      (category) =>
-        category.active && category.id !== exceptId && category.name.toLowerCase() === name.toLowerCase(),
-    )
+  const nameTaken = (name: string) =>
+    categories.some((category) => category.name.toLowerCase() === name.toLowerCase())
 
   vi.stubGlobal(
     'fetch',
@@ -48,11 +44,9 @@ function fakeCategoryApi(initial: Array<Partial<Category> & { name: string }> = 
 
       if (url.pathname === '/api/v1/categories' && method === 'GET') {
         const search = (url.searchParams.get('q') ?? '').toLowerCase()
-        const status = url.searchParams.get('status') ?? 'active'
         const page = Number(url.searchParams.get('page') ?? 1)
         const limit = Number(url.searchParams.get('limit') ?? 25)
         const matches = categories
-          .filter((category) => status === 'all' || category.active === (status === 'active'))
           .filter((category) => category.name.toLowerCase().includes(search))
           .sort((a, b) => a.name.localeCompare(b.name))
         return json({
@@ -65,13 +59,12 @@ function fakeCategoryApi(initial: Array<Partial<Category> & { name: string }> = 
 
       if (url.pathname === '/api/v1/categories' && method === 'POST') {
         if (nameTaken(body.name)) {
-          return json({ code: 'category_name_in_use', message: 'Ya hay una categoría activa con ese nombre' }, 409)
+          return json({ code: 'category_name_in_use', message: 'Ya hay una categoría con ese nombre' }, 409)
         }
         const created: Category = {
           id: `c${++sequence}`,
           name: body.name,
           description: body.description,
-          active: true,
           createdAt: NOW,
           updatedAt: NOW,
         }
@@ -79,19 +72,19 @@ function fakeCategoryApi(initial: Array<Partial<Category> & { name: string }> = 
         return json(created, 201)
       }
 
-      const match = url.pathname.match(/^\/api\/v1\/categories\/([^/]+)(\/reactivate)?$/)
-      const category = categories.find((candidate) => candidate.id === match?.[1])
-      if (!category) return json({ code: 'category_not_found', message: 'La categoría no existe' }, 404)
+      const id = url.pathname.match(/^\/api\/v1\/categories\/([^/]+)$/)?.[1]
+      const index = categories.findIndex((candidate) => candidate.id === id)
+      if (index === -1) return json({ code: 'category_not_found', message: 'La categoría no existe' }, 404)
 
-      if (method === 'PATCH') {
-        category.name = body.name
-        category.description = body.description || null
-      } else if (method === 'DELETE') {
-        category.active = false
-      } else if (method === 'POST' && match?.[2]) {
-        category.active = true
+      if (method === 'DELETE') {
+        categories.splice(index, 1)
+        return new Response(null, { status: 204 })
       }
-      return json(category)
+      if (method === 'PATCH') {
+        categories[index].name = body.name
+        categories[index].description = body.description || null
+      }
+      return json(categories[index])
     }),
   )
 
@@ -123,27 +116,20 @@ afterEach(() => {
 })
 
 describe('CategoriesPage', () => {
-  it('lists the active categories sorted by name, as a table and as cards', async () => {
-    fakeCategoryApi([
-      { name: 'Limpieza', description: 'Artículos de limpieza' },
-      { name: 'Almacén' },
-      { name: 'Bebidas', active: false },
-    ])
+  it('lists the categories sorted by name, as a table and as cards', async () => {
+    fakeCategoryApi([{ name: 'Limpieza', description: 'Artículos de limpieza' }, { name: 'Almacén' }])
     renderWithProviders(<CategoriesPage />)
 
     expect(screen.getByRole('status', { name: 'Cargando categorías' })).toBeInTheDocument()
     const rows = await table()
     expect(rowNames(rows)).toEqual(['Almacén', 'Limpieza'])
     expect(rows.getByText('Artículos de limpieza')).toBeInTheDocument()
-    expect(rows.getAllByText('Activa')).toHaveLength(2)
 
-    const cards = within(screen.getByRole('list', { name: 'Categorías' }))
-    expect(cards.getAllByRole('listitem')).toHaveLength(2)
-    expect(cards.getByRole('button', { name: 'Editar Almacén' })).toBeInTheDocument()
+    expect(cards().getAllByRole('listitem')).toHaveLength(2)
+    expect(cards().getByRole('button', { name: 'Editar Almacén' })).toBeInTheDocument()
+    expect(cards().getByRole('button', { name: 'Eliminar Almacén' })).toBeInTheDocument()
 
     expect(screen.getByText('1–2 de 2')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Activas' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Todas' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('invites to create the first category when there are none', async () => {
@@ -199,7 +185,7 @@ describe('CategoriesPage', () => {
     await user.type(sheet.getByLabelText('Nombre'), 'bebidas')
     await user.click(sheet.getByRole('button', { name: 'Crear categoría' }))
 
-    expect(await sheet.findByText('Ya hay una categoría activa con ese nombre')).toBeInTheDocument()
+    expect(await sheet.findByText('Ya hay una categoría con ese nombre')).toBeInTheDocument()
     expect(sheet.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('dialog', { name: 'Nueva categoría' })).toBeInTheDocument()
   })
@@ -255,46 +241,30 @@ describe('CategoriesPage', () => {
     expect(api.writes()).toEqual([])
   })
 
-  it('deactivates a category only after confirming', async () => {
+  it('deletes a category only after confirming', async () => {
     const api = fakeCategoryApi([{ name: 'Bebidas' }, { name: 'Kiosco' }])
     const user = userEvent.setup()
     renderWithProviders(<CategoriesPage />)
 
-    await user.click((await table()).getByRole('button', { name: 'Desactivar Kiosco' }))
+    await user.click((await table()).getByRole('button', { name: 'Eliminar Kiosco' }))
     let dialog = within(await screen.findByRole('alertdialog'))
-    expect(dialog.getByText('¿Desactivar «Kiosco»?')).toBeInTheDocument()
+    expect(dialog.getByText('¿Eliminar «Kiosco»?')).toBeInTheDocument()
+    expect(dialog.getByText('Se borra definitivamente y no se puede deshacer.')).toBeInTheDocument()
     await user.click(dialog.getByRole('button', { name: 'Cancelar' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(api.writes()).toEqual([])
 
-    await user.click((await table()).getByRole('button', { name: 'Desactivar Kiosco' }))
+    await user.click((await table()).getByRole('button', { name: 'Eliminar Kiosco' }))
     dialog = within(await screen.findByRole('alertdialog'))
-    await user.click(dialog.getByRole('button', { name: 'Desactivar' }))
+    await user.click(dialog.getByRole('button', { name: 'Eliminar' }))
 
-    expect(await screen.findByText('Categoría desactivada')).toBeInTheDocument()
+    expect(await screen.findByText('Categoría eliminada')).toBeInTheDocument()
     expect(api.writes()).toEqual([{ method: 'DELETE', path: '/api/v1/categories/c2', body: undefined }])
     await waitFor(async () => expect(rowNames(await table())).toEqual(['Bebidas']))
   })
 
-  it('reactivates a category from the inactive filter', async () => {
-    const api = fakeCategoryApi([{ name: 'Bebidas', active: false }, { name: 'Almacén' }])
-    const user = userEvent.setup()
-    renderWithProviders(<CategoriesPage />)
-    await table()
-
-    await user.click(screen.getByRole('button', { name: 'Inactivas' }))
-    const rows = await table()
-    await waitFor(() => expect(rowNames(rows)).toEqual(['Bebidas']))
-    expect(rows.getByText('Inactiva')).toBeInTheDocument()
-
-    await user.click(rows.getByRole('button', { name: 'Reactivar Bebidas' }))
-
-    expect(await screen.findByText('Categoría reactivada')).toBeInTheDocument()
-    expect(api.writes()).toEqual([{ method: 'POST', path: '/api/v1/categories/c1/reactivate', body: undefined }])
-  })
-
   it('offers the same actions on the phone cards', async () => {
-    const api = fakeCategoryApi([{ name: 'Bebidas' }, { name: 'Kiosco', active: false }])
+    const api = fakeCategoryApi([{ name: 'Bebidas' }, { name: 'Kiosco' }])
     const user = userEvent.setup()
     renderWithProviders(<CategoriesPage />)
     await table()
@@ -304,35 +274,40 @@ describe('CategoriesPage', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
 
-    await user.click(cards().getByRole('button', { name: 'Desactivar Bebidas' }))
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Desactivar' }))
-    await waitFor(() => expect(api.categories[0].active).toBe(false))
+    await user.click(cards().getByRole('button', { name: 'Eliminar Bebidas' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }))
 
-    await user.click(screen.getByRole('button', { name: 'Inactivas' }))
-    await waitFor(() => expect(cards().getAllByRole('listitem')).toHaveLength(2))
-    await user.click(cards().getByRole('button', { name: 'Reactivar Kiosco' }))
-
-    await waitFor(() => expect(api.categories[1].active).toBe(true))
-    expect(api.writes().map((request) => `${request.method} ${request.path}`)).toEqual([
-      'DELETE /api/v1/categories/c1',
-      'POST /api/v1/categories/c2/reactivate',
-    ])
+    await waitFor(() => expect(cards().getAllByRole('listitem')).toHaveLength(1))
+    expect(api.writes()).toEqual([{ method: 'DELETE', path: '/api/v1/categories/c1', body: undefined }])
   })
 
-  it('reports a failed status change as a toast', async () => {
-    const api = fakeCategoryApi([{ name: 'Bebidas', active: false }, { name: 'bebidas' }])
+  it('reports a failed deletion as a toast', async () => {
+    const api = fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+
+    await user.click((await table()).getByRole('button', { name: 'Eliminar Bebidas' }))
+    api.failNext({ status: 503, code: 'storage_unavailable', message: 'El almacenamiento no está disponible' })
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }))
+
+    expect((await screen.findAllByText('No se pudo eliminar la categoría'))[0]).toBeInTheDocument()
+    expect(screen.getAllByText('El almacenamiento no está disponible')[0]).toBeInTheDocument()
+    expect(api.categories).toHaveLength(1)
+  })
+
+  it('goes back a page after deleting the last category of the page', async () => {
+    fakeCategoryApi(Array.from({ length: 26 }, (_, index) => ({ name: `Categoría ${String(index + 1).padStart(2, '0')}` })))
     const user = userEvent.setup()
     renderWithProviders(<CategoriesPage />)
     await table()
 
-    await user.click(screen.getByRole('button', { name: 'Todas' }))
-    const rows = await table()
-    await waitFor(() => expect(rows.getAllByRole('row')).toHaveLength(3))
-    api.failNext({ status: 409, code: 'category_name_in_use', message: 'Ya hay una categoría activa con ese nombre' })
-    await user.click(rows.getByRole('button', { name: 'Reactivar Bebidas' }))
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(await screen.findByText('26–26 de 26')).toBeInTheDocument()
 
-    expect((await screen.findAllByText('No se pudo completar la acción'))[0]).toBeInTheDocument()
-    expect(screen.getAllByText('Ya hay una categoría activa con ese nombre')[0]).toBeInTheDocument()
+    await user.click((await table()).getByRole('button', { name: 'Eliminar Categoría 26' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }))
+
+    expect(await screen.findByText('1–25 de 25')).toBeInTheDocument()
   })
 
   it('searches by name and explains when nothing matches', async () => {

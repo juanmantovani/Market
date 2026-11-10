@@ -30,8 +30,8 @@ func TestNewCategory(t *testing.T) {
 	if category.Description == &description {
 		t.Error("Description aliases the caller's pointer")
 	}
-	if !category.Active || !category.CreatedAt.Equal(categoryTime) || !category.UpdatedAt.Equal(categoryTime) {
-		t.Errorf("category = %+v, want active with both timestamps set", category)
+	if !category.CreatedAt.Equal(categoryTime) || !category.UpdatedAt.Equal(categoryTime) {
+		t.Errorf("category = %+v, want both timestamps set", category)
 	}
 	if category.ID != "" {
 		t.Errorf("ID = %q, want empty until the repository assigns it", category.ID)
@@ -120,20 +120,6 @@ func TestCategoryApplyRejectsInvalidChanges(t *testing.T) {
 				t.Fatalf("Apply() error = %v, want %v", err, test.want)
 			}
 		})
-	}
-}
-
-func TestCategoryWithActive(t *testing.T) {
-	original, _ := NewCategory("Bebidas", nil, categoryTime)
-	later := categoryTime.Add(time.Minute)
-
-	inactive := original.WithActive(false, later)
-
-	if inactive.Active || !inactive.UpdatedAt.Equal(later) {
-		t.Fatalf("WithActive(false) = %+v", inactive)
-	}
-	if !original.Active {
-		t.Fatal("WithActive mutated the original category")
 	}
 }
 

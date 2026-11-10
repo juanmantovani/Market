@@ -1,11 +1,12 @@
+import { z } from 'zod'
 import { apiFetch } from '../../../shared/api/client'
 import { listQuery, type ListParams } from '../../../shared/api/pagination'
 import { categoryPageSchema, categorySchema, type CategoryFormValues } from '../types'
 
 const CATEGORIES_PATH = '/api/v1/categories'
 
-function categoryPath(id: string, suffix = '') {
-  return `${CATEGORIES_PATH}/${encodeURIComponent(id)}${suffix}`
+function categoryPath(id: string) {
+  return `${CATEGORIES_PATH}/${encodeURIComponent(id)}`
 }
 
 export function listCategories(params: ListParams, signal?: AbortSignal) {
@@ -27,10 +28,7 @@ export function updateCategory(id: string, values: CategoryFormValues) {
   })
 }
 
-export function deactivateCategory(id: string) {
-  return apiFetch(categoryPath(id), categorySchema, { method: 'DELETE' })
-}
-
-export function reactivateCategory(id: string) {
-  return apiFetch(categoryPath(id, '/reactivate'), categorySchema, { method: 'POST' })
+// The backend answers 204 with an empty body.
+export function deleteCategory(id: string) {
+  return apiFetch(categoryPath(id), z.undefined(), { method: 'DELETE' })
 }
