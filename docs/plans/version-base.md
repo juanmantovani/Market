@@ -17,8 +17,8 @@ reglas de trabajo que LoteosAPP. La versión base tiene que:
 - tener una **interfaz amigable, simple y moderna**, usable desde el celular y
   pensada para cobrar rápido en el mostrador.
 
-Nombre del proyecto: **PDV** (punto de venta). Módulo Go `pdv/backend`,
-paquete `@pdv/frontend`.
+Nombre del proyecto: **Market** (punto de venta). Módulo Go `market/backend`,
+paquete `@market/frontend`.
 
 ### Incluye (v0.1)
 
@@ -171,10 +171,12 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 - **Contratos** en `business/gateway`: un repositorio por agregado, más
   `TxManager` y `Clock`. Toda operación de I/O recibe `context.Context`.
 - **`repository/memory`**: un único `Store` con todas las “tablas” (maps) y un
-  `sync.Mutex`. `WithinTx` toma el lock, guarda una copia del estado y ejecuta
-  `fn`; si `fn` devuelve error, restaura la copia. Da las mismas garantías que
-  una transacción serializable. Los repositorios toman el lock por su cuenta
-  salvo que el `ctx` ya esté dentro de una transacción.
+  `sync.Mutex`. `WithinTx` toma el lock y ejecuta `fn`; cada escritura
+  registra cómo deshacerse y, si `fn` devuelve error, se deshacen en orden
+  inverso. Da las mismas garantías que una transacción serializable. Los
+  repositorios toman el lock por su cuenta salvo que el `ctx` ya esté dentro
+  de una transacción. *(Implementado en la Fase 0 con registro de deshacer en
+  lugar de copiar todo el estado: ver `docs/architecture.md`.)*
 - **PostgreSQL (Fase 6)**: `WithinTx` abre un `pgx.Tx` y lo guarda en el
   `ctx`; los repositorios usan esa transacción o el pool. Las lecturas de
   stock dentro de una venta usan `SELECT … FOR UPDATE`.
@@ -200,7 +202,8 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 - Bajas lógicas: `DELETE` desactiva; `POST /{id}/reactivate` reactiva. Los
   listados muestran activos salvo `?status=inactive|all`.
 - `POST /api/v1/sales` exige `Idempotency-Key`.
-- Salud: `GET /health/live` y `GET /health/ready`.
+- Salud: `GET /health/live` (Fase 0) y `GET /health/ready`, que chequea la
+  base y llega con PostgreSQL.
 
 ### Endpoints de la versión base
 
@@ -465,10 +468,10 @@ Mismas herramientas y umbrales que LoteosAPP, más dos agregados:
 
 ## 7. Tooling, CI y convenciones
 
-- **Versiones**: Go 1.26.x (instalado 1.26.4; LoteosAPP usa 1.26.6, conviene
-  el último parche), Node ≥ 20.19 (instalado 22; CI con 24), pnpm ≥ 10
-  (instalado 11), React 19, Vite 8, TypeScript, Tailwind 4, Vitest 4: las
-  mismas líneas que LoteosAPP.
+- **Versiones**: Go 1.27.3 (último estable; `GOTOOLCHAIN=auto` lo descarga
+  si falta), Node ≥ 20.19 (CI con 24), pnpm 11, React 19, Vite 8,
+  TypeScript 7, Tailwind 4, Vitest 4. Salvo Go, las mismas líneas que
+  LoteosAPP.
 - **Scripts raíz**: `pnpm dev` (frontend), `pnpm dev:backend`, `pnpm build`,
   `pnpm test`, `pnpm test:coverage`, `pnpm typecheck`, `pnpm lint`.
 - **Docker Compose**: `backend` + `frontend`. `db` y `migrate` se agregan en
@@ -498,15 +501,20 @@ en escritorio.
   `domain.md` (glosario y reglas), `development.md`, `testing.md`, `ci.md`.
 - **Backend**: `main`, `app`, `environments`, `server`, `response`,
   `handler.Adapt` + `decodeJSON`, middlewares (actor de desarrollo, log,
-  recover), rutas de salud, tipos base de dominio (`Error`, `Money`,
-  `Quantity`, `Actor`, `Page`, normalización de texto) y `memory.Store` +
-  `TxManager`, todo con tests.
+  recover), `/health/live`, tipos base de dominio (`Error`, `Money`,
+  `Quantity`, `Percent`, `Actor`, `Page`, normalización de texto) y
+  `memory.Store` + `TxManager`, todo con tests.
 - **Frontend**: Vite + React + TS + Tailwind 4 + shadcn, tokens claro/oscuro,
   ESLint con `no-raw-tailwind-colors`, plugin CSP, router, `AppLayout`
-  (sidebar, barra inferior, tema), QueryClient, `apiFetch`, kit base de UI
-  (`PageHeader`, `EmptyState`, `ResponsiveList`, `ConfirmDialog`,
-  `FormSheet`, `SearchField`) y setup de Vitest.
+  (sidebar, barra inferior, tema, estado del servidor), QueryClient,
+  `apiFetch` con Zod, `PageHeader`, `EmptyState`, página 404 y setup de
+  Vitest.
 - `git init` con `main` y `develop`.
+
+Ajustes respecto de la propuesta original, para no crear abstracciones sin
+uso (regla de `AGENTS.md`): el contenedor `dependencies`, los datos demo y el
+kit de ABM (`ResponsiveList`, `ConfirmDialog`, `FormSheet`, `SearchField`)
+pasan a la Fase 1, donde tienen su primer uso real.
 
 ### Fase 1 — Catálogo
 
@@ -578,8 +586,8 @@ flowchart LR
 
 Cada una tiene un valor por defecto para no frenar el trabajo:
 
-1. ~~Nombre y ubicación del repo~~ — resuelto: **PDV**, repo público
-   [juanmantovani/PDV](https://github.com/juanmantovani/PDV) con `main` y
+1. ~~Nombre y ubicación del repo~~ — resuelto: **Market**, repo público
+   [juanmantovani/Market](https://github.com/juanmantovani/Market) con `main` y
    `develop`.
 2. **Vender sin stock**. Por defecto: no, configurable con
    `STOCK_ALLOW_NEGATIVE`.
@@ -596,8 +604,6 @@ Cada una tiene un valor por defecto para no frenar el trabajo:
 
 - **La memoria se pierde al reiniciar** → datos demo al iniciar; adelantar la
   Fase 6 si se quiere probar con datos reales.
-- **Copiar todo el estado en cada transacción en memoria escala mal** →
-  aceptable para desarrollo y demo; desaparece con PostgreSQL.
 - **Comportamiento distinto entre memoria y PostgreSQL** → suite de contrato
   compartida.
 - **El alcance del POS crece rápido** → cada fase cierra con su criterio de

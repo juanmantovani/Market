@@ -1,0 +1,20 @@
+{
+  "name": "market",
+  "private": true,
+  "packageManager": "pnpm@11.21.0",
+  "scripts": {
+    "dev": "pnpm --filter @market/frontend dev",
+    "dev:backend": "cd apps/backend && go run ./cmd/server",
+    "build": "pnpm --filter @market/frontend build",
+    "test": "pnpm test:backend && pnpm test:frontend",
+    "test:backend": "cd apps/backend && go test ./...",
+    "test:backend:coverage": "pnpm test:backend:coverage:profile && node scripts/check-go-coverage.mjs",
+    "test:backend:coverage:profile": "cd apps/backend && go test -count=1 -coverprofile coverage.out ./internal/business/domain ./internal/infrastructure/delivery/webapp/handler ./internal/infrastructure/delivery/webapp/middleware ./internal/infrastructure/delivery/webapp/response ./internal/infrastructure/delivery/webapp/route ./internal/infrastructure/delivery/webapp/server ./internal/infrastructure/environments ./internal/infrastructure/repository/memory && go tool cover -func coverage.out",
+    "test:frontend": "pnpm --filter @market/frontend test",
+    "test:frontend:coverage": "pnpm --filter @market/frontend test:coverage",
+    "test:coverage": "pnpm test:backend:coverage && pnpm test:frontend:coverage",
+    "typecheck": "pnpm --filter @market/frontend typecheck",
+    "lint": "pnpm --filter @market/frontend lint",
+    "preview": "pnpm --filter @market/frontend preview"
+  }
+}
