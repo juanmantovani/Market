@@ -12,7 +12,7 @@ documenta lo que **existe hoy** y las decisiones vigentes.
 ```mermaid
 flowchart LR
     browser["Navegador"] -->|"/ (Vite)"| frontend["Frontend React/Vite"]
-    frontend -->|"/api, /health (mismo origen)"| backend["Backend Go"]
+    frontend -->|"/api (mismo origen)"| backend["Backend Go"]
     backend --> usecases["Casos de uso"]
     usecases --> gateway["Contratos (gateway)"]
     memory["repository/memory"] -.implementa.-> gateway
@@ -100,7 +100,8 @@ flowchart LR
 - `Adapt(h, timeout)` acota el contexto al timeout de la ruta y el cuerpo a
   1 MiB (`handler.MaxBodyBytes`). Los deadlines del `http.Server` derivan del
   mayor timeout registrado (`route.MaxHandlerTimeout`).
-- `GET /health/live` responde `{ "status": "ok" }`. `/health/ready` (con
+- `GET /health/live` responde `{ "status": "ok" }` para chequeos de
+  infraestructura (Docker, un balanceador); la app no lo consulta. `/health/ready` (con
   chequeo de la base) llega con PostgreSQL.
 
 ### Persistencia en memoria
@@ -134,14 +135,13 @@ apps/frontend/src/
 │   ├── router.tsx            # Inicio, /categorias y página 404
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── navigation.ts         # secciones del menú; cada fase suma la suya
-│   ├── ServerStatus.tsx      # estado del backend (GET /health/live cada 30 s)
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
 ├── features/
 │   ├── dashboard/pages/DashboardPage.tsx
 │   └── categories/           # api/, hooks/, components/, pages/, types.ts
 ├── shared/
-│   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys, health
+│   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
 │   ├── hooks/                # useDebouncedValue
 │   ├── lib/utils.ts          # cn

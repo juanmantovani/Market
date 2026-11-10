@@ -25,7 +25,7 @@ pnpm dev:backend   # API en http://localhost:8080
 pnpm dev           # frontend en http://localhost:5173
 ```
 
-El frontend llama a `/api` y `/health` en su mismo origen; el proxy de Vite
+El frontend llama a `/api` en su mismo origen; el proxy de Vite
 los reenvía al backend (`API_PROXY_TARGET`, por defecto
 `http://localhost:8080`). Por eso no hace falta CORS en desarrollo.
 
@@ -53,7 +53,7 @@ defecto.
 | `STORAGE_DRIVER` | backend | `memory` | Persistencia. Hoy solo `memory`: los datos se pierden al reiniciar. |
 | `CORS_ALLOWED_ORIGIN` | backend | vacío | Solo si el frontend se sirve desde otro origen que la API. |
 | `SEED_DEMO_DATA` | backend | `true` | Carga categorías de ejemplo al iniciar. `false` arranca vacío. |
-| `API_PROXY_TARGET` | frontend (Vite) | `http://localhost:8080` | Destino del proxy de `/api` y `/health`. |
+| `API_PROXY_TARGET` | frontend (Vite) | `http://localhost:8080` | Destino del proxy de `/api`. |
 | `VITE_API_URL` | frontend | vacío | Solo si la API vive en otro origen; se suma a `connect-src` de la CSP. |
 | `WATCH_POLLING` | frontend (Vite) | vacío | `true` activa polling del watcher (lo usa Compose). |
 

@@ -19,18 +19,8 @@ function renderApp(path = '/') {
   return router
 }
 
-function stubHealth(ok: boolean) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(() =>
-      ok
-        ? Promise.resolve(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
-        : Promise.reject(new TypeError('Failed to fetch')),
-    ),
-  )
-}
-
 beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn())
   window.localStorage.clear()
   document.documentElement.classList.remove('dark')
 })
@@ -41,7 +31,6 @@ afterEach(() => {
 
 describe('AppLayout', () => {
   it('shows the home page with the main navigation', async () => {
-    stubHealth(true)
     renderApp()
 
     expect(screen.getByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
@@ -51,23 +40,14 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: 'Saltar al contenido' })).toHaveAttribute('href', '#main')
   })
 
-  it('reports when the server is online', async () => {
-    stubHealth(true)
+  it('renders the layout without calling the server', () => {
     renderApp()
 
-    expect(await screen.findByText('En línea')).toBeInTheDocument()
-  })
-
-  it('reports when the server cannot be reached', async () => {
-    stubHealth(false)
-    renderApp()
-
-    expect(screen.getByText('Conectando…')).toBeInTheDocument()
-    expect(await screen.findByText('Sin conexión')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('collapses the sidebar and remembers the choice', async () => {
-    stubHealth(true)
     const user = userEvent.setup()
     renderApp()
 
@@ -84,7 +64,6 @@ describe('AppLayout', () => {
   })
 
   it('cycles the theme between light, dark and automatic', async () => {
-    stubHealth(true)
     const user = userEvent.setup()
     renderApp()
 
@@ -100,7 +79,6 @@ describe('AppLayout', () => {
   })
 
   it('shows a friendly page for unknown addresses', async () => {
-    stubHealth(true)
     const user = userEvent.setup()
     const router = renderApp('/no-existe')
 

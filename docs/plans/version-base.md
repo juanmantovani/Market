@@ -506,7 +506,7 @@ en escritorio.
   `memory.Store` + `TxManager`, todo con tests.
 - **Frontend**: Vite + React + TS + Tailwind 4 + shadcn, tokens claro/oscuro,
   ESLint con `no-raw-tailwind-colors`, plugin CSP, router, `AppLayout`
-  (sidebar, barra inferior, tema, estado del servidor), QueryClient,
+  (sidebar, barra inferior, tema), QueryClient,
   `apiFetch` con Zod, `PageHeader`, `EmptyState`, página 404 y setup de
   Vitest.
 - `git init` con `main` y `develop`.
