@@ -16,19 +16,22 @@ import { CategoryForm } from '../components/CategoryForm'
 import { CategoryList } from '../components/CategoryList'
 import { useCategories } from '../hooks/use-categories'
 import { useSaveCategory, useSetCategoryActive } from '../hooks/use-category-mutations'
-import { toFormValues, type Category } from '../types'
+import { toFormValues, type Category, type CategoryFormValues } from '../types'
 
 const PAGE_SIZE = 25
 const STATUS_LABELS = { active: 'Activas', inactive: 'Inactivas', all: 'Todas' }
 
-type Editing = { mode: 'create' } | { mode: 'edit'; category: Category } | null
+// `open` is kept apart from what the overlay shows, so its content stays in
+// place while the closing animation runs instead of flashing empty.
+type SheetState = { open: boolean; category: Category | null; formKey: number }
+type ConfirmState = { open: boolean; category: Category | null }
 
 export default function CategoriesPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<Status>('active')
   const [page, setPage] = useState(1)
-  const [editing, setEditing] = useState<Editing>(null)
-  const [toDeactivate, setToDeactivate] = useState<Category | null>(null)
+  const [sheet, setSheet] = useState<SheetState>({ open: false, category: null, formKey: 0 })
+  const [confirm, setConfirm] = useState<ConfirmState>({ open: false, category: null })
   const debouncedSearch = useDebouncedValue(search)
 
   const categories = useCategories({ search: debouncedSearch, status, page, limit: PAGE_SIZE })
@@ -38,6 +41,7 @@ export default function CategoriesPage() {
 
   const items = categories.data?.items ?? []
   const isFiltered = debouncedSearch.trim() !== '' || status !== 'active'
+  const isEditing = sheet.category !== null
 
   function changeSearch(value: string) {
     setSearch(value)
@@ -49,10 +53,22 @@ export default function CategoriesPage() {
     setPage(1)
   }
 
-  async function save(values: Parameters<typeof saveCategory.mutateAsync>[0]['values']) {
-    const id = editing?.mode === 'edit' ? editing.category.id : undefined
+  function openSheet(category: Category | null) {
+    setSheet((current) => ({ open: true, category, formKey: current.formKey + 1 }))
+  }
+
+  function closeSheet() {
+    setSheet((current) => ({ ...current, open: false }))
+  }
+
+  function closeConfirm() {
+    setConfirm((current) => ({ ...current, open: false }))
+  }
+
+  async function save(values: CategoryFormValues) {
+    const id = sheet.category?.id
     const saved = await saveCategory.mutateAsync({ id, values })
-    setEditing(null)
+    closeSheet()
     toast.success(id ? 'Categoría actualizada' : 'Categoría creada', `«${saved.name}» ya está guardada.`)
   }
 
@@ -71,16 +87,9 @@ export default function CategoriesPage() {
     } catch (error) {
       toast.error('No se pudo completar la acción', messageFromError(error))
     } finally {
-      setToDeactivate(null)
+      closeConfirm()
     }
   }
-
-  const newCategoryButton = (
-    <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => setEditing({ mode: 'create' })}>
-      <Plus aria-hidden />
-      Nueva categoría
-    </Button>
-  )
 
   function renderContent() {
     if (categories.isError) {
@@ -111,7 +120,7 @@ export default function CategoriesPage() {
           title="Todavía no hay categorías"
           description="Las categorías agrupan los artículos para encontrarlos rápido en la venta y en el stock."
           action={
-            <Button type="button" size="lg" onClick={() => setEditing({ mode: 'create' })}>
+            <Button type="button" size="lg" onClick={() => openSheet(null)}>
               <Plus aria-hidden />
               Crear la primera
             </Button>
@@ -125,8 +134,8 @@ export default function CategoriesPage() {
         <CategoryList
           categories={items}
           isLoading={categories.isPending}
-          onEdit={(category) => setEditing({ mode: 'edit', category })}
-          onDeactivate={setToDeactivate}
+          onEdit={openSheet}
+          onDeactivate={(category) => setConfirm({ open: true, category })}
           onReactivate={(category) => void changeActive(category, true)}
         />
         {categories.data && (
@@ -146,7 +155,12 @@ export default function CategoriesPage() {
       <PageHeader
         title="Categorías"
         description="Agrupan los artículos para buscarlos y filtrarlos."
-        actions={newCategoryButton}
+        actions={
+          <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openSheet(null)}>
+            <Plus aria-hidden />
+            Nueva categoría
+          </Button>
+        }
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -163,35 +177,33 @@ export default function CategoriesPage() {
       {renderContent()}
 
       <FormSheet
-        open={editing !== null}
+        open={sheet.open}
         onOpenChange={(open) => {
-          if (!open) setEditing(null)
+          if (!open) closeSheet()
         }}
-        title={editing?.mode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}
-        description={editing?.mode === 'edit' ? editing.category.name : 'Completá los datos para crearla.'}
+        title={isEditing ? 'Editar categoría' : 'Nueva categoría'}
+        description={sheet.category?.name ?? 'Completá los datos para crearla.'}
       >
-        {editing && (
-          <CategoryForm
-            key={editing.mode === 'edit' ? editing.category.id : 'new'}
-            initialValues={toFormValues(editing.mode === 'edit' ? editing.category : null)}
-            submitLabel={editing.mode === 'edit' ? 'Guardar cambios' : 'Crear categoría'}
-            onSubmit={save}
-            onCancel={() => setEditing(null)}
-          />
-        )}
+        <CategoryForm
+          key={sheet.formKey}
+          initialValues={toFormValues(sheet.category)}
+          submitLabel={isEditing ? 'Guardar cambios' : 'Crear categoría'}
+          onSubmit={save}
+          onCancel={closeSheet}
+        />
       </FormSheet>
 
       <ConfirmDialog
-        open={toDeactivate !== null}
+        open={confirm.open}
         onOpenChange={(open) => {
-          if (!open) setToDeactivate(null)
+          if (!open) closeConfirm()
         }}
-        title={`¿Desactivar «${toDeactivate?.name ?? ''}»?`}
+        title={`¿Desactivar «${confirm.category?.name ?? ''}»?`}
         description="No va a aparecer al cargar artículos. Los artículos que ya la usan no cambian, y podés reactivarla cuando quieras."
         confirmLabel="Desactivar"
         isPending={setCategoryActive.isPending}
         onConfirm={() => {
-          if (toDeactivate) void changeActive(toDeactivate, false)
+          if (confirm.category) void changeActive(confirm.category, false)
         }}
       />
     </div>
