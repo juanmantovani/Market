@@ -7,6 +7,7 @@ import (
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/usecase/categories"
+	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
 	"market/backend/internal/infrastructure/repository/memory"
 )
@@ -14,23 +15,34 @@ import (
 type repositories struct {
 	categories *memory.CategoryRepository
 	items      *memory.ItemRepository
+	customers  *memory.CustomerRepository
 }
 
-func newCatalog() (Catalog, repositories) {
+func newUseCases() (UseCases, repositories) {
 	store := memory.NewStore()
-	repos := repositories{categories: memory.NewCategoryRepository(store), items: memory.NewItemRepository(store)}
+	repos := repositories{
+		categories: memory.NewCategoryRepository(store),
+		items:      memory.NewItemRepository(store),
+		customers:  memory.NewCustomerRepository(store),
+	}
 
-	return Catalog{
+	return UseCases{
 		CreateCategory: categories.NewCreateCategory(repos.categories),
 		CreateItem:     items.NewCreateItem(repos.items),
+		CreateCustomer: customers.NewCreateCustomer(repos.customers),
 	}, repos
 }
 
 func TestSeedLoadsTheDemoCatalog(t *testing.T) {
-	catalog, repos := newCatalog()
+	useCases, repos := newUseCases()
 
-	if err := Seed(context.Background(), catalog); err != nil {
+	if err := Seed(context.Background(), useCases); err != nil {
 		t.Fatalf("Seed() error = %v", err)
+	}
+
+	customerPage, err := customers.NewListCustomers(repos.customers).Execute(context.Background(), customers.ListCustomersInput{Actor: seeder})
+	if err != nil || customerPage.Total != len(demoCustomers) {
+		t.Fatalf("seeded %d customers (%v), want %d", customerPage.Total, err, len(demoCustomers))
 	}
 
 	categoryPage, err := categories.NewListCategories(repos.categories).Execute(context.Background(), categories.ListCategoriesInput{Actor: seeder})
@@ -50,12 +62,12 @@ func TestSeedLoadsTheDemoCatalog(t *testing.T) {
 }
 
 func TestSeedReportsWhichRecordFailed(t *testing.T) {
-	catalog, _ := newCatalog()
-	if err := Seed(context.Background(), catalog); err != nil {
+	useCases, _ := newUseCases()
+	if err := Seed(context.Background(), useCases); err != nil {
 		t.Fatalf("first Seed() error = %v", err)
 	}
 
-	err := Seed(context.Background(), catalog)
+	err := Seed(context.Background(), useCases)
 
 	if !errors.Is(err, domain.ErrCategoryNameInUse) {
 		t.Fatalf("second Seed() error = %v, want ErrCategoryNameInUse", err)
@@ -63,14 +75,31 @@ func TestSeedReportsWhichRecordFailed(t *testing.T) {
 }
 
 func TestSeedReportsAFailedItem(t *testing.T) {
-	catalog, _ := newCatalog()
-	catalog.CreateItem = failingCreateItem{}
+	useCases, _ := newUseCases()
+	useCases.CreateItem = failingCreateItem{}
 
-	err := Seed(context.Background(), catalog)
+	err := Seed(context.Background(), useCases)
 
 	if !errors.Is(err, domain.ErrStorageUnavailable) {
 		t.Fatalf("Seed() error = %v, want ErrStorageUnavailable", err)
 	}
+}
+
+func TestSeedReportsAFailedCustomer(t *testing.T) {
+	useCases, _ := newUseCases()
+	useCases.CreateCustomer = failingCreateCustomer{}
+
+	err := Seed(context.Background(), useCases)
+
+	if !errors.Is(err, domain.ErrStorageUnavailable) {
+		t.Fatalf("Seed() error = %v, want ErrStorageUnavailable", err)
+	}
+}
+
+type failingCreateCustomer struct{}
+
+func (failingCreateCustomer) Execute(context.Context, customers.CreateCustomerInput) (domain.Customer, error) {
+	return domain.Customer{}, domain.ErrStorageUnavailable
 }
 
 type failingCreateItem struct{}

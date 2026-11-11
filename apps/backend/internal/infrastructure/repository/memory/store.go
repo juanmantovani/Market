@@ -22,12 +22,14 @@ type Store struct {
 
 	categories map[string]domain.Category
 	items      map[string]domain.Item
+	customers  map[string]domain.Customer
 }
 
 func NewStore() *Store {
 	return &Store{
 		categories: map[string]domain.Category{},
 		items:      map[string]domain.Item{},
+		customers:  map[string]domain.Customer{},
 	}
 }
 

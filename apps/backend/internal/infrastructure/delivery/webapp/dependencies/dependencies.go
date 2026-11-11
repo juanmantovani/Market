@@ -5,6 +5,7 @@ import (
 
 	"market/backend/internal/business/gateway"
 	"market/backend/internal/business/usecase/categories"
+	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
@@ -27,11 +28,18 @@ type Container struct {
 	GetItem    items.GetItem
 	UpdateItem items.UpdateItem
 	DeleteItem items.DeleteItem
+
+	CreateCustomer customers.CreateCustomer
+	ListCustomers  customers.ListCustomers
+	GetCustomer    customers.GetCustomer
+	UpdateCustomer customers.UpdateCustomer
+	DeleteCustomer customers.DeleteCustomer
 }
 
 type repositories struct {
 	categories gateway.CategoryRepository
 	items      gateway.ItemRepository
+	customers  gateway.CustomerRepository
 }
 
 func New(cfg environments.Server) (*Container, error) {
@@ -52,6 +60,12 @@ func New(cfg environments.Server) (*Container, error) {
 		GetItem:    items.NewGetItem(repos.items),
 		UpdateItem: items.NewUpdateItem(repos.items),
 		DeleteItem: items.NewDeleteItem(repos.items),
+
+		CreateCustomer: customers.NewCreateCustomer(repos.customers),
+		ListCustomers:  customers.NewListCustomers(repos.customers),
+		GetCustomer:    customers.NewGetCustomer(repos.customers),
+		UpdateCustomer: customers.NewUpdateCustomer(repos.customers),
+		DeleteCustomer: customers.NewDeleteCustomer(repos.customers),
 	}, nil
 }
 
@@ -62,6 +76,7 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 		return repositories{
 			categories: memory.NewCategoryRepository(store),
 			items:      memory.NewItemRepository(store),
+			customers:  memory.NewCustomerRepository(store),
 		}, nil
 	default:
 		return repositories{}, fmt.Errorf("unsupported storage driver %q", driver)
@@ -82,5 +97,11 @@ func (container *Container) Handlers() route.Handlers {
 		CreateItem: handler.NewCreateItemHandler(container.CreateItem),
 		UpdateItem: handler.NewUpdateItemHandler(container.UpdateItem),
 		DeleteItem: handler.NewDeleteItemHandler(container.DeleteItem),
+
+		ListCustomers:  handler.NewListCustomersHandler(container.ListCustomers),
+		GetCustomer:    handler.NewGetCustomerHandler(container.GetCustomer),
+		CreateCustomer: handler.NewCreateCustomerHandler(container.CreateCustomer),
+		UpdateCustomer: handler.NewUpdateCustomerHandler(container.UpdateCustomer),
+		DeleteCustomer: handler.NewDeleteCustomerHandler(container.DeleteCustomer),
 	}
 }

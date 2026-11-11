@@ -9,14 +9,17 @@ import (
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/usecase/categories"
+	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
 )
 
 var seeder = domain.Actor{ID: "demo", Name: "Datos demo", Role: domain.RoleAdmin}
 
-type Catalog struct {
+// UseCases are the use cases the seed loads data through.
+type UseCases struct {
 	CreateCategory categories.CreateCategory
 	CreateItem     items.CreateItem
+	CreateCustomer customers.CreateCustomer
 }
 
 type demoCategory struct {
@@ -65,11 +68,28 @@ var demoItems = []demoItem{
 	{"Kiosco", "KIO-001", "7790000000110", "Alfajor triple", domain.UnitPiece, 110_000, 70_000, 2100, domain.WholeQuantity(20)},
 }
 
-func Seed(ctx context.Context, catalog Catalog) error {
+type demoCustomer struct {
+	name         string
+	documentType domain.DocumentType
+	document     string
+	taxCondition domain.TaxCondition
+	email        string
+	phone        string
+}
+
+var demoCustomers = []demoCustomer{
+	{"Ana Pérez", domain.DocumentDNI, "28456789", domain.TaxFinalConsumer, "", "351 555-0101"},
+	{"Carlos Gómez", domain.DocumentDNI, "30111222", domain.TaxFinalConsumer, "carlos.gomez@example.com", ""},
+	{"Kiosco La Esquina SRL", domain.DocumentCUIT, "30712345678", domain.TaxRegistered, "compras@laesquina.example.com", "351 555-0303"},
+	{"María López", domain.DocumentCUIT, "27234567894", domain.TaxMonotax, "maria.lopez@example.com", "351 555-0404"},
+	{"Juan (cliente del barrio)", domain.DocumentNone, "", domain.TaxFinalConsumer, "", ""},
+}
+
+func Seed(ctx context.Context, useCases UseCases) error {
 	categoryIDs := map[string]string{}
 	for _, category := range demoCategories {
 		description := category.description
-		created, err := catalog.CreateCategory.Execute(ctx, categories.CreateCategoryInput{
+		created, err := useCases.CreateCategory.Execute(ctx, categories.CreateCategoryInput{
 			Actor:       seeder,
 			Name:        category.name,
 			Description: &description,
@@ -82,7 +102,7 @@ func Seed(ctx context.Context, catalog Catalog) error {
 
 	for _, item := range demoItems {
 		barcode, cost := item.barcode, item.cost
-		_, err := catalog.CreateItem.Execute(ctx, items.CreateItemInput{
+		_, err := useCases.CreateItem.Execute(ctx, items.CreateItemInput{
 			Actor: seeder,
 			Fields: domain.ItemFields{
 				Code:        item.code,
@@ -99,6 +119,24 @@ func Seed(ctx context.Context, catalog Catalog) error {
 		})
 		if err != nil {
 			return fmt.Errorf("seeding item %q: %w", item.code, err)
+		}
+	}
+
+	for _, customer := range demoCustomers {
+		email, phone := customer.email, customer.phone
+		_, err := useCases.CreateCustomer.Execute(ctx, customers.CreateCustomerInput{
+			Actor: seeder,
+			Fields: domain.CustomerFields{
+				Name:           customer.name,
+				DocumentType:   customer.documentType,
+				DocumentNumber: customer.document,
+				TaxCondition:   customer.taxCondition,
+				Email:          &email,
+				Phone:          &phone,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("seeding customer %q: %w", customer.name, err)
 		}
 	}
 

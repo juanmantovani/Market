@@ -36,7 +36,11 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	if cfg.SeedDemoData {
-		if err := demo.Seed(ctx, demo.Catalog{CreateCategory: container.CreateCategory, CreateItem: container.CreateItem}); err != nil {
+		if err := demo.Seed(ctx, demo.UseCases{
+			CreateCategory: container.CreateCategory,
+			CreateItem:     container.CreateItem,
+			CreateCustomer: container.CreateCustomer,
+		}); err != nil {
 			return nil, err
 		}
 		slog.Info("demo data loaded")
