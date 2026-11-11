@@ -13,19 +13,25 @@ const (
 	PermissionViewCustomers   Permission = "customers:view"
 	PermissionCreateCustomers Permission = "customers:create"
 	PermissionManageCustomers Permission = "customers:manage"
+
+	PermissionViewSuppliers   Permission = "suppliers:view"
+	PermissionManageSuppliers Permission = "suppliers:manage"
 )
 
 // rolePermissions is the only place that grants permissions. Anyone who
 // sells reads the catalog and registers customers at the counter; only
-// managers maintain the catalog and edit or delete customers.
+// managers maintain the catalog, edit or delete customers and deal with
+// suppliers.
 var rolePermissions = map[Role][]Permission{
 	RoleAdmin: {
 		PermissionViewCatalog, PermissionManageCatalog,
 		PermissionViewCustomers, PermissionCreateCustomers, PermissionManageCustomers,
+		PermissionViewSuppliers, PermissionManageSuppliers,
 	},
 	RoleManager: {
 		PermissionViewCatalog, PermissionManageCatalog,
 		PermissionViewCustomers, PermissionCreateCustomers, PermissionManageCustomers,
+		PermissionViewSuppliers, PermissionManageSuppliers,
 	},
 	RoleCashier: {
 		PermissionViewCatalog,

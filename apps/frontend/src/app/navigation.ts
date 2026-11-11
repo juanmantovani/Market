@@ -1,16 +1,20 @@
-import { House, Package, Tags, Users, type LucideIcon } from 'lucide-react'
+import { House, Package, Tags, Truck, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
   label: string
   icon: LucideIcon
   end?: boolean
+  // The phone's bottom bar fits four buttons: these sections plus "Más",
+  // which opens the rest.
+  inMobileBar?: boolean
 }
 
 // Each phase adds its section here once its route exists.
 export const NAVIGATION: readonly NavItem[] = [
-  { to: '/', label: 'Inicio', icon: House, end: true },
-  { to: '/articulos', label: 'Artículos', icon: Package },
+  { to: '/', label: 'Inicio', icon: House, end: true, inMobileBar: true },
+  { to: '/articulos', label: 'Artículos', icon: Package, inMobileBar: true },
   { to: '/categorias', label: 'Categorías', icon: Tags },
-  { to: '/clientes', label: 'Clientes', icon: Users },
+  { to: '/clientes', label: 'Clientes', icon: Users, inMobileBar: true },
+  { to: '/proveedores', label: 'Proveedores', icon: Truck },
 ]

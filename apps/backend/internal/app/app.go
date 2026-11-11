@@ -40,6 +40,7 @@ func New(ctx context.Context) (*App, error) {
 			CreateCategory: container.CreateCategory,
 			CreateItem:     container.CreateItem,
 			CreateCustomer: container.CreateCustomer,
+			CreateSupplier: container.CreateSupplier,
 		}); err != nil {
 			return nil, err
 		}

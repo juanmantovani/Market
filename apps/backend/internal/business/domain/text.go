@@ -1,9 +1,14 @@
 package domain
 
 import (
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
+
+const MaxEmailLength = 254
+
+var emailShape = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
 var accentFolding = strings.NewReplacer(
 	"á", "a", "à", "a", "ä", "a", "â", "a", "ã", "a",
@@ -49,6 +54,23 @@ func optionalText(text *string, maxRunes int, tooLong *Error) (*string, error) {
 	}
 	if utf8.RuneCountInString(trimmed) > maxRunes {
 		return nil, tooLong
+	}
+
+	return &trimmed, nil
+}
+
+// validateEmail trims an optional email and checks it looks like one. Empty
+// means no email.
+func validateEmail(email *string, invalid *Error) (*string, error) {
+	if email == nil {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*email)
+	if trimmed == "" {
+		return nil, nil
+	}
+	if utf8.RuneCountInString(trimmed) > MaxEmailLength || !emailShape.MatchString(trimmed) {
+		return nil, invalid
 	}
 
 	return &trimmed, nil

@@ -9,6 +9,7 @@ import (
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/suppliers"
 	"market/backend/internal/infrastructure/repository/memory"
 )
 
@@ -16,6 +17,7 @@ type repositories struct {
 	categories *memory.CategoryRepository
 	items      *memory.ItemRepository
 	customers  *memory.CustomerRepository
+	suppliers  *memory.SupplierRepository
 }
 
 func newUseCases() (UseCases, repositories) {
@@ -24,12 +26,14 @@ func newUseCases() (UseCases, repositories) {
 		categories: memory.NewCategoryRepository(store),
 		items:      memory.NewItemRepository(store),
 		customers:  memory.NewCustomerRepository(store),
+		suppliers:  memory.NewSupplierRepository(store),
 	}
 
 	return UseCases{
 		CreateCategory: categories.NewCreateCategory(repos.categories),
 		CreateItem:     items.NewCreateItem(repos.items),
 		CreateCustomer: customers.NewCreateCustomer(repos.customers),
+		CreateSupplier: suppliers.NewCreateSupplier(repos.suppliers),
 	}, repos
 }
 
@@ -43,6 +47,11 @@ func TestSeedLoadsTheDemoCatalog(t *testing.T) {
 	customerPage, err := customers.NewListCustomers(repos.customers).Execute(context.Background(), customers.ListCustomersInput{Actor: seeder})
 	if err != nil || customerPage.Total != len(demoCustomers) {
 		t.Fatalf("seeded %d customers (%v), want %d", customerPage.Total, err, len(demoCustomers))
+	}
+
+	supplierPage, err := suppliers.NewListSuppliers(repos.suppliers).Execute(context.Background(), suppliers.ListSuppliersInput{Actor: seeder})
+	if err != nil || supplierPage.Total != len(demoSuppliers) {
+		t.Fatalf("seeded %d suppliers (%v), want %d", supplierPage.Total, err, len(demoSuppliers))
 	}
 
 	categoryPage, err := categories.NewListCategories(repos.categories).Execute(context.Background(), categories.ListCategoriesInput{Actor: seeder})
@@ -94,6 +103,23 @@ func TestSeedReportsAFailedCustomer(t *testing.T) {
 	if !errors.Is(err, domain.ErrStorageUnavailable) {
 		t.Fatalf("Seed() error = %v, want ErrStorageUnavailable", err)
 	}
+}
+
+func TestSeedReportsAFailedSupplier(t *testing.T) {
+	useCases, _ := newUseCases()
+	useCases.CreateSupplier = failingCreateSupplier{}
+
+	err := Seed(context.Background(), useCases)
+
+	if !errors.Is(err, domain.ErrStorageUnavailable) {
+		t.Fatalf("Seed() error = %v, want ErrStorageUnavailable", err)
+	}
+}
+
+type failingCreateSupplier struct{}
+
+func (failingCreateSupplier) Execute(context.Context, suppliers.CreateSupplierInput) (domain.Supplier, error) {
+	return domain.Supplier{}, domain.ErrStorageUnavailable
 }
 
 type failingCreateCustomer struct{}
