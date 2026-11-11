@@ -42,12 +42,43 @@ El código, la API y la base usan los términos en inglés; la UI, en español.
 - **`NormalizeText`**: minúsculas, sin acentos y con espacios colapsados.
   Base de búsquedas y de unicidad de nombres.
 
-## Actor y roles
+## Categorías
+
+| Campo | Regla |
+| --- | --- |
+| `name` | Obligatorio, hasta 60 caracteres, sin espacios al borde. Único sin distinguir mayúsculas, acentos ni espacios (`NameKey`). |
+| `description` | Opcional, hasta 200 caracteres. En blanco se guarda como ausente. |
+| `createdAt` / `updatedAt` | UTC, los asigna el caso de uso con la hora del servidor (`time.Now().UTC()`). |
+
+Permisos: listar y consultar piden `catalog:view`; crear, editar y eliminar
+piden `catalog:manage` (ver la matriz en
+[Actor, roles y permisos](#actor-roles-y-permisos)).
+
+Eliminar borra la categoría y libera su nombre; no se puede deshacer. Cuando
+existan artículos, eliminar una categoría que tenga artículos va a fallar con
+`category_in_use` (`409`).
+
+Códigos de error: `category_not_found`, `category_name_required`,
+`category_name_too_long`, `category_description_too_long`,
+`category_name_in_use`, `category_update_empty`.
+
+## Actor, roles y permisos
 
 Toda operación la ejecuta un `Actor` (`ID`, `Name`, `Role`). Roles:
 `admin`, `manager` (encargado) y `cashier` (cajero).
-`Actor.Authorize(roles...)` devuelve `forbidden` si el actor no tiene ninguno
-de los roles o no tiene `ID`.
+
+Los casos de uso piden un **permiso**, nunca un rol:
+`Actor.Authorize(domain.PermissionManageCatalog)` devuelve `forbidden` si el
+rol del actor no lo otorga o si el actor no tiene `ID`. Qué rol tiene qué
+permiso se decide en un único lugar, `domain/permission.go`:
+
+| Permiso | `admin` | `manager` | `cashier` |
+| --- | :---: | :---: | :---: |
+| `catalog:view` — ver categorías (y luego artículos) | ✅ | ✅ | ✅ |
+| `catalog:manage` — crear, editar y eliminar | ✅ | ✅ | — |
+
+Cada feature nueva suma sus permisos a esa matriz (y a su test,
+`TestRolePermissions`), no a sus casos de uso.
 
 Mientras no haya autenticación, el middleware `DevActor` asigna a cada
 request un actor `admin` fijo.

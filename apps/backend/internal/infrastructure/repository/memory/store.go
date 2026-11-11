@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
 )
 
@@ -14,14 +15,18 @@ var _ gateway.TxManager = (*Store)(nil)
 // Writes register an undo step; if the transaction fails, the steps run in
 // reverse and the tables end up exactly as they were.
 //
-// Tables keep values, never pointers, and repositories copy any slice they
-// store or return, so callers can't mutate a table behind the lock.
+// Tables keep values, and repositories copy any pointer or slice they store
+// or return, so callers can't mutate a table behind the lock.
 type Store struct {
 	mu sync.Mutex
+
+	categories map[string]domain.Category
 }
 
 func NewStore() *Store {
-	return &Store{}
+	return &Store{
+		categories: map[string]domain.Category{},
+	}
 }
 
 type txKey struct{}

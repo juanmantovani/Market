@@ -50,7 +50,7 @@ vigente está en `docs/plans/version-base.md`.
 - `internal/business` (dominio y casos de uso) no depende de HTTP, JSON,
   PostgreSQL, tipos de `pgx` ni de detalles del adaptador en memoria.
 - Entidades y tipos de valor en `internal/business/domain`; contratos que el
-  negocio necesita de sus adaptadores (repositorios, `TxManager`, `Clock`) en
+  negocio necesita de sus adaptadores (repositorios, `TxManager`) en
   `internal/business/gateway`; casos de uso en `internal/business/usecase`.
 - Cada caso de uso es una interfaz de un solo método `Execute` más su
   implementación, en un mismo archivo dentro de su subpaquete
@@ -90,8 +90,12 @@ vigente está en `docs/plans/version-base.md`.
 - `internal/app` es el composition root: lee la configuración, pide el grafo a
   `dependencies`, registra rutas, construye el servidor, lo ejecuta y lo apaga
   ordenadamente.
-- Los casos de uso reciben el `Actor` (id + rol) y validan permisos. Mientras
-  no exista autenticación, un middleware de desarrollo inyecta el actor.
+- Los casos de uso reciben el `Actor` (id + rol) y piden un permiso con
+  `Actor.Authorize(domain.Permission…)`, nunca un rol. Los roles, los
+  permisos y la matriz rol → permiso viven solo en
+  `internal/business/domain` (`permission.go`); un caso de uso no decide qué
+  rol puede qué. Mientras no exista autenticación, un middleware de desarrollo
+  inyecta el actor.
 - Las operaciones de I/O reciben `context.Context` como primer parámetro.
 - Las interfaces se definen cerca de quien las consume y se mantienen chicas;
   solo se crean para un límite real.
@@ -104,8 +108,10 @@ vigente está en `docs/plans/version-base.md`.
   (`infrastructure/repository/repositorytest`), que debe pasar igual contra
   memoria y contra PostgreSQL.
 - Los identificadores los asigna el repositorio (UUIDv7).
-- Las bajas de catálogo y terceros son lógicas. Los movimientos de stock y las
-  ventas nunca se borran ni se editan: se compensan.
+- Los ABM son alta, edición y eliminación; no hay activar ni desactivar.
+  Eliminar borra el registro; si otro lo referencia, falla con un conflicto
+  `<entidad>_in_use` en vez de dejarlo huérfano. Los movimientos de stock y
+  las ventas nunca se borran ni se editan: se compensan.
 - Cuando llegue PostgreSQL: `pgxpool` para acceso concurrente; migraciones SQL
   en `migrations/` con secciones `-- +goose Up` y `-- +goose Down`; nunca
   editar una migración ya aplicada, agregar una nueva.
@@ -146,7 +152,9 @@ vigente está en `docs/plans/version-base.md`.
   colores crudos de Tailwind (`text-red-500`); lo hace cumplir la regla ESLint
   `local/no-raw-tailwind-colors`. Soportar modo claro y oscuro.
 - Reutilizar el patrón de ABM (`PageHeader`, `SearchField`, `ResponsiveList`,
-  `FormSheet`, `ConfirmDialog`, `EmptyState`) en vez de armar pantallas ad hoc.
+  `FormDialog`, `ConfirmDialog`, `EmptyState`) en vez de armar pantallas ad hoc.
+- El alta y la edición de cualquier entidad se hacen en un modal
+  (`FormDialog`), nunca en una página aparte ni en un panel lateral.
 - Accesibilidad WCAG 2.2 AA: labels reales, foco visible, navegación completa
   por teclado, objetivos táctiles de al menos 44 px.
 - La pantalla de venta se opera completa con teclado y lector de código de

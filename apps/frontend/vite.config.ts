@@ -28,7 +28,6 @@ export default defineConfig(({ mode, command }) => {
     server: {
       proxy: {
         '/api': proxyTarget,
-        '/health': proxyTarget,
       },
       watch: env.WATCH_POLLING === 'true' ? { usePolling: true, interval: 200 } : undefined,
     },

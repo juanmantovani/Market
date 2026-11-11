@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Outlet } from 'react-router'
 import BrandMark from './BrandMark'
 import MobileNav from './MobileNav'
-import ServerStatus from './ServerStatus'
 import Sidebar from './Sidebar'
 import { readSidebarCollapsed, storeSidebarCollapsed } from './sidebar-preference'
 import ThemeToggle from './ThemeToggle'
@@ -34,7 +33,6 @@ export default function AppLayout() {
             Market
           </span>
           <div className="ml-auto flex items-center gap-2">
-            <ServerStatus />
             <ThemeToggle />
           </div>
         </header>

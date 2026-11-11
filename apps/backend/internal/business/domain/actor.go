@@ -25,19 +25,10 @@ type Actor struct {
 	Role Role
 }
 
-func (actor Actor) HasRole(roles ...Role) bool {
-	for _, role := range roles {
-		if actor.Role == role {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Authorize returns ErrForbidden unless the actor holds one of roles.
-func (actor Actor) Authorize(roles ...Role) error {
-	if actor.ID == "" || !actor.HasRole(roles...) {
+// Authorize returns ErrForbidden unless the actor's role grants permission.
+// An actor without ID is never authorized.
+func (actor Actor) Authorize(permission Permission) error {
+	if actor.ID == "" || !actor.Role.Can(permission) {
 		return ErrForbidden
 	}
 

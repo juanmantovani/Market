@@ -14,7 +14,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	application, err := app.New()
+	application, err := app.New(ctx)
 	if err != nil {
 		slog.Error("backend startup failed", "error", err)
 		os.Exit(1)

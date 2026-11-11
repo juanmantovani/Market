@@ -1,4 +1,4 @@
-import { House, type LucideIcon } from 'lucide-react'
+import { House, Tags, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -8,4 +8,7 @@ export type NavItem = {
 }
 
 // Each phase adds its section here once its route exists.
-export const NAVIGATION: readonly NavItem[] = [{ to: '/', label: 'Inicio', icon: House, end: true }]
+export const NAVIGATION: readonly NavItem[] = [
+  { to: '/', label: 'Inicio', icon: House, end: true },
+  { to: '/categorias', label: 'Categorías', icon: Tags },
+]
