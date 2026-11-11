@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -92,6 +92,29 @@ describe('AppLayout', () => {
     expect(router.state.location.pathname).toBe('/clientes')
     expect(screen.getByRole('heading', { name: 'Clientes', level: 1 })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Todavía no hay clientes' })).toBeInTheDocument()
+  })
+
+  it('keeps the phone bar short and opens the other sections from Más', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [], total: 0, page: 1, limit: 25 }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const user = userEvent.setup()
+    const router = renderApp()
+    const mobileNav = within(screen.getByRole('navigation', { name: 'Navegación móvil' }))
+
+    expect(mobileNav.getAllByRole('link').map((link) => link.textContent)).toEqual(['Inicio', 'Artículos', 'Clientes'])
+    const more = mobileNav.getByRole('button', { name: 'Más' })
+    await user.click(more)
+
+    const sections = within(await screen.findByRole('dialog', { name: 'Más secciones' }))
+    expect(sections.getAllByRole('link').map((link) => link.textContent)).toEqual(['Categorías', 'Proveedores'])
+    await user.click(sections.getByRole('link', { name: 'Proveedores' }))
+
+    expect(router.state.location.pathname).toBe('/proveedores')
+    expect(screen.getByRole('heading', { name: 'Proveedores', level: 1 })).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Más secciones' })).not.toBeInTheDocument())
   })
 
   it('shows a friendly page for unknown addresses', async () => {
