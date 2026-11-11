@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { pageSchema } from '../../shared/api/pagination'
+import { documentDigits, formatCuit, formatDni } from '../../shared/lib/document'
 
 export const DOCUMENT_TYPES = [
   { value: 'dni', label: 'DNI' },
@@ -40,11 +41,6 @@ export type Customer = z.infer<typeof customerSchema>
 export const customerPageSchema = pageSchema(customerSchema)
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-// Like the backend, "20-12345678-9" and "20123456789" are the same CUIT.
-function documentDigits(value: string): string {
-  return value.trim().replace(/[\s./-]/g, '')
-}
 
 export function documentTypeLabel(type: DocumentType): string {
   return DOCUMENT_TYPES.find((option) => option.value === type)?.label ?? type
@@ -141,15 +137,9 @@ export const CUSTOMER_FIELD_ERRORS: Record<string, CustomerField> = {
   customer_notes_too_long: 'notes',
 }
 
-// Writes a stored document the way people read it: DNI 28.456.789,
-// CUIT 30-71234567-8. Anything with an unexpected length is left as is.
 export function formatDocumentNumber(type: DocumentType, digits: string): string {
-  if (type === 'dni' && /^\d{7,8}$/.test(digits)) {
-    return digits.replace(/\B(?=(\d{3})+$)/g, '.')
-  }
-  if ((type === 'cuit' || type === 'cuil') && /^\d{11}$/.test(digits)) {
-    return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
-  }
+  if (type === 'dni') return formatDni(digits)
+  if (type === 'cuit' || type === 'cuil') return formatCuit(digits)
   return digits
 }
 
