@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/shared/ui/dialog'
 
@@ -9,15 +10,17 @@ type FormDialogProps = {
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
+  // `wide` fits forms laid out in two columns.
+  size?: 'default' | 'wide'
   children: ReactNode
 }
 
 // The modal every entity uses to create and edit. Focus is trapped while
 // open, Escape or the backdrop close it, and long forms scroll inside it.
-export function FormDialog({ open, onOpenChange, title, description, children }: FormDialogProps) {
+export function FormDialog({ open, onOpenChange, title, description, size = 'default', children }: FormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next)}>
-      <DialogContent className="flex max-w-lg flex-col rounded-2xl">
+      <DialogContent className={cn('flex flex-col rounded-2xl', size === 'wide' ? 'max-w-2xl' : 'max-w-lg')}>
         <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
           <div className="flex flex-col gap-1">
             <DialogTitle>{title}</DialogTitle>

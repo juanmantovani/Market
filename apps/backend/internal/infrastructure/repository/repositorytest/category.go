@@ -48,9 +48,31 @@ func names(categories []domain.Category) []string {
 }
 
 // CategoryRepository runs the gateway.CategoryRepository contract.
-// newRepository must return an empty repository each time it's called.
-func CategoryRepository(t *testing.T, newRepository func(t *testing.T) gateway.CategoryRepository) {
+func CategoryRepository(t *testing.T, newRepositories NewRepositories) {
 	ctx := context.Background()
+	newRepository := func(t *testing.T) gateway.CategoryRepository {
+		return newRepositories(t).Categories
+	}
+
+	t.Run("a category with items cannot be deleted", func(t *testing.T) {
+		repositories := newRepositories(t)
+		almacen := mustCreate(t, repositories.Categories, newCategory(t, "Almacén", nil))
+		item := mustCreateItem(t, repositories.Items, newItem(t, almacen.ID, "YER-1", "Yerba"))
+
+		if err := repositories.Categories.Delete(ctx, almacen.ID); !errors.Is(err, domain.ErrCategoryInUse) {
+			t.Fatalf("Delete(category with items) error = %v, want ErrCategoryInUse", err)
+		}
+		if _, err := repositories.Categories.Get(ctx, almacen.ID); err != nil {
+			t.Fatalf("the category is gone after a refused delete: %v", err)
+		}
+
+		if err := repositories.Items.Delete(ctx, item.ID); err != nil {
+			t.Fatalf("Items.Delete() error = %v", err)
+		}
+		if err := repositories.Categories.Delete(ctx, almacen.ID); err != nil {
+			t.Fatalf("Delete(category without items) error = %v", err)
+		}
+	})
 
 	t.Run("create assigns an id and get returns the stored category", func(t *testing.T) {
 		repository := newRepository(t)

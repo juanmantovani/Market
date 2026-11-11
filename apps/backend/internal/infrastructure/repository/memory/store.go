@@ -21,11 +21,13 @@ type Store struct {
 	mu sync.Mutex
 
 	categories map[string]domain.Category
+	items      map[string]domain.Item
 }
 
 func NewStore() *Store {
 	return &Store{
 		categories: map[string]domain.Category{},
+		items:      map[string]domain.Item{},
 	}
 }
 

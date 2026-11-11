@@ -45,14 +45,35 @@ func TestNewSeedsDemoDataAndServesTheCategoryAPI(t *testing.T) {
 		t.Fatalf("POST duplicate = %d, want 409", duplicate.Code)
 	}
 
+	bebidasItems := httptest.NewRecorder()
+	api.ServeHTTP(bebidasItems, httptest.NewRequest(http.MethodGet, "/api/v1/items?categoryId="+page.Items[0].ID, nil))
+	if bebidasItems.Code != http.StatusOK || !strings.Contains(bebidasItems.Body.String(), `"total":2`) {
+		t.Fatalf("GET items of Bebidas = %d %s", bebidasItems.Code, bebidasItems.Body.String())
+	}
+
+	inUse := httptest.NewRecorder()
+	api.ServeHTTP(inUse, httptest.NewRequest(http.MethodDelete, "/api/v1/categories/"+page.Items[0].ID, nil))
+	if inUse.Code != http.StatusConflict || !strings.Contains(inUse.Body.String(), "category_in_use") {
+		t.Fatalf("DELETE category with items = %d %s, want 409 category_in_use", inUse.Code, inUse.Body.String())
+	}
+
+	created := httptest.NewRecorder()
+	api.ServeHTTP(created, httptest.NewRequest(http.MethodPost, "/api/v1/categories", strings.NewReader(`{"name":"Ferretería"}`)))
+	var ferreteria struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(created.Body).Decode(&ferreteria); err != nil || created.Code != http.StatusCreated {
+		t.Fatalf("POST category = %d, %v", created.Code, err)
+	}
+
 	deleted := httptest.NewRecorder()
-	api.ServeHTTP(deleted, httptest.NewRequest(http.MethodDelete, "/api/v1/categories/"+page.Items[0].ID, nil))
+	api.ServeHTTP(deleted, httptest.NewRequest(http.MethodDelete, "/api/v1/categories/"+ferreteria.ID, nil))
 	if deleted.Code != http.StatusNoContent {
-		t.Fatalf("DELETE = %d %s", deleted.Code, deleted.Body.String())
+		t.Fatalf("DELETE empty category = %d %s", deleted.Code, deleted.Body.String())
 	}
 
 	gone := httptest.NewRecorder()
-	api.ServeHTTP(gone, httptest.NewRequest(http.MethodGet, "/api/v1/categories/"+page.Items[0].ID, nil))
+	api.ServeHTTP(gone, httptest.NewRequest(http.MethodGet, "/api/v1/categories/"+ferreteria.ID, nil))
 	if gone.Code != http.StatusNotFound {
 		t.Fatalf("GET after DELETE = %d, want 404", gone.Code)
 	}

@@ -5,6 +5,7 @@ import (
 
 	"market/backend/internal/business/gateway"
 	"market/backend/internal/business/usecase/categories"
+	"market/backend/internal/business/usecase/items"
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
 	"market/backend/internal/infrastructure/environments"
@@ -20,10 +21,17 @@ type Container struct {
 	GetCategory    categories.GetCategory
 	UpdateCategory categories.UpdateCategory
 	DeleteCategory categories.DeleteCategory
+
+	CreateItem items.CreateItem
+	ListItems  items.ListItems
+	GetItem    items.GetItem
+	UpdateItem items.UpdateItem
+	DeleteItem items.DeleteItem
 }
 
 type repositories struct {
 	categories gateway.CategoryRepository
+	items      gateway.ItemRepository
 }
 
 func New(cfg environments.Server) (*Container, error) {
@@ -38,6 +46,12 @@ func New(cfg environments.Server) (*Container, error) {
 		GetCategory:    categories.NewGetCategory(repos.categories),
 		UpdateCategory: categories.NewUpdateCategory(repos.categories),
 		DeleteCategory: categories.NewDeleteCategory(repos.categories),
+
+		CreateItem: items.NewCreateItem(repos.items),
+		ListItems:  items.NewListItems(repos.items),
+		GetItem:    items.NewGetItem(repos.items),
+		UpdateItem: items.NewUpdateItem(repos.items),
+		DeleteItem: items.NewDeleteItem(repos.items),
 	}, nil
 }
 
@@ -45,7 +59,10 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 	switch driver {
 	case environments.StorageMemory:
 		store := memory.NewStore()
-		return repositories{categories: memory.NewCategoryRepository(store)}, nil
+		return repositories{
+			categories: memory.NewCategoryRepository(store),
+			items:      memory.NewItemRepository(store),
+		}, nil
 	default:
 		return repositories{}, fmt.Errorf("unsupported storage driver %q", driver)
 	}
@@ -59,5 +76,11 @@ func (container *Container) Handlers() route.Handlers {
 		CreateCategory: handler.NewCreateCategoryHandler(container.CreateCategory),
 		UpdateCategory: handler.NewUpdateCategoryHandler(container.UpdateCategory),
 		DeleteCategory: handler.NewDeleteCategoryHandler(container.DeleteCategory),
+
+		ListItems:  handler.NewListItemsHandler(container.ListItems),
+		GetItem:    handler.NewGetItemHandler(container.GetItem),
+		CreateItem: handler.NewCreateItemHandler(container.CreateItem),
+		UpdateItem: handler.NewUpdateItemHandler(container.UpdateItem),
+		DeleteItem: handler.NewDeleteItemHandler(container.DeleteItem),
 	}
 }

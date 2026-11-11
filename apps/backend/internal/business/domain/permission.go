@@ -12,7 +12,8 @@ const (
 )
 
 // rolePermissions is the only place that grants permissions. Anyone who
-// sells needs to read the catalog; only managers maintain it.
+// sells needs to read the catalog (categories and items); only managers
+// maintain it.
 var rolePermissions = map[Role][]Permission{
 	RoleAdmin:   {PermissionViewCatalog, PermissionManageCatalog},
 	RoleManager: {PermissionViewCatalog, PermissionManageCatalog},

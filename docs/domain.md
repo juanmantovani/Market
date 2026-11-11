@@ -54,13 +54,42 @@ Permisos: listar y consultar piden `catalog:view`; crear, editar y eliminar
 piden `catalog:manage` (ver la matriz en
 [Actor, roles y permisos](#actor-roles-y-permisos)).
 
-Eliminar borra la categoría y libera su nombre; no se puede deshacer. Cuando
-existan artículos, eliminar una categoría que tenga artículos va a fallar con
-`category_in_use` (`409`).
+Eliminar borra la categoría y libera su nombre; no se puede deshacer. Si la
+categoría tiene artículos, falla con `category_in_use` (`409`): hay que
+cambiarles la categoría (o eliminarlos) antes.
 
 Códigos de error: `category_not_found`, `category_name_required`,
 `category_name_too_long`, `category_description_too_long`,
-`category_name_in_use`, `category_update_empty`.
+`category_name_in_use`, `category_update_empty`, `category_in_use`.
+
+## Artículos
+
+| Campo | Regla |
+| --- | --- |
+| `code` | Código interno (SKU). Obligatorio, hasta 30 caracteres, único sin distinguir mayúsculas ni acentos. |
+| `barcode` | Opcional. Sin espacios, hasta 32 caracteres, único si se carga (dos artículos pueden no tener). |
+| `name` | Obligatorio, hasta 100 caracteres. |
+| `description` | Opcional, hasta 500 caracteres. |
+| `categoryId` | Obligatoria y tiene que existir (`item_category_not_found` si no). |
+| `unit` | `unit` (por unidad), `kg`, `l` o `m`. |
+| `salePrice` | Centavos, mayor a 0 y hasta `MaxItemAmount` (mil millones de pesos). **Incluye IVA.** |
+| `cost` | Centavos, opcional, entre 0 y `MaxItemAmount`. |
+| `taxRate` | Alícuota de IVA en centésimas de punto: `0`, `1050`, `2100` o `2700`. Informativa hasta facturar. |
+| `tracksStock` | Si el artículo controla stock (un servicio no). |
+| `minStock` | Milésimas de la unidad, entre 0 y un millón de unidades; entero si se vende por unidad. Umbral de la alerta de stock bajo (Fase 3). |
+
+Editar reemplaza todos los campos (`PUT`): el formulario siempre manda el
+artículo completo, y así un opcional enviado como `null` se borra.
+
+Permisos: los de catálogo (`catalog:view` para listar y consultar,
+`catalog:manage` para crear, editar y eliminar).
+
+Códigos de error: `item_not_found`, `item_code_required`,
+`item_code_too_long`, `item_code_in_use`, `item_barcode_invalid`,
+`item_barcode_in_use`, `item_name_required`, `item_name_too_long`,
+`item_description_too_long`, `item_category_required`,
+`item_category_not_found`, `item_unit_invalid`, `item_price_invalid`,
+`item_cost_invalid`, `item_tax_rate_invalid`, `item_min_stock_invalid`.
 
 ## Actor, roles y permisos
 
@@ -74,8 +103,8 @@ permiso se decide en un único lugar, `domain/permission.go`:
 
 | Permiso | `admin` | `manager` | `cashier` |
 | --- | :---: | :---: | :---: |
-| `catalog:view` — ver categorías (y luego artículos) | ✅ | ✅ | ✅ |
-| `catalog:manage` — crear, editar y eliminar | ✅ | ✅ | — |
+| `catalog:view` — ver categorías y artículos | ✅ | ✅ | ✅ |
+| `catalog:manage` — crear, editar y eliminar categorías y artículos | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

@@ -29,7 +29,7 @@ apps/backend/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager, CategoryRepository
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/categories/            # create, list, get, update, delete
+    │   └── usecase/                       # categories, items: create, list, get, update, delete
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
@@ -38,7 +38,7 @@ apps/backend/
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
-            ├── dto/                       # health, pagination (PageResponse[T]), categories
+            ├── dto/                       # health, pagination (PageResponse[T]), categories, items
             ├── handler/                   # un handler por ruta + Adapt, decodeJSON, pageQuery
             ├── middleware/                # DevActor, Recover, RequestLog
             ├── response/                  # WriteJSON, WriteError (único mapeo Kind → status)
@@ -95,8 +95,12 @@ flowchart LR
 - Eliminación: `DELETE /{id}` borra el registro y responde `204` sin cuerpo;
   un ID inexistente es `404`. Si otro registro lo referencia, responde `409`
   (`<entidad>_in_use`).
-- `PATCH` parcial: un campo ausente o `null` no cambia; un texto opcional
-  vacío lo borra.
+- Edición: categorías usan `PATCH` parcial (un campo ausente o `null` no
+  cambia; un texto opcional vacío lo borra). Artículos usan `PUT`, que
+  reemplaza todos los campos: su formulario siempre manda el artículo
+  completo y así un opcional en `null` se borra.
+- Montos y cantidades viajan como enteros: centavos, centésimas de punto
+  porcentual y milésimas de unidad.
 - `Adapt(h, timeout)` acota el contexto al timeout de la ruta y el cuerpo a
   1 MiB (`handler.MaxBodyBytes`). Los deadlines del `http.Server` derivan del
   mayor timeout registrado (`route.MaxHandlerTimeout`).
@@ -117,8 +121,10 @@ flowchart LR
 - Las tablas guardan valores, y los repositorios copian los punteros y
   slices que guardan o devuelven (por ejemplo `cloneCategory`), para que
   nadie mute una tabla fuera del lock.
-- Las restricciones que en PostgreSQL serían índices (como el nombre único
-  de una categoría) las verifica el repositorio dentro del lock, y la
+- Las restricciones que en PostgreSQL serían índices o claves foráneas
+  (nombre único de categoría, código y código de barras únicos, la
+  categoría de un artículo tiene que existir y no se puede borrar mientras
+  tenga artículos) las verifica el repositorio dentro del lock, y la
   suite de contrato prueba que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
   PostgreSQL 18.
@@ -132,26 +138,34 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # Inicio, /categorias y página 404
+│   ├── router.tsx            # Inicio, /articulos, /categorias y página 404
+│   ├── ItemsRoute.tsx        # compone artículos con las categorías (ver abajo)
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── navigation.ts         # secciones del menú; cada fase suma la suya
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
 ├── features/
 │   ├── dashboard/pages/DashboardPage.tsx
-│   └── categories/           # api/, hooks/, components/, pages/, types.ts
+│   ├── categories/           # api/, hooks/, components/, pages/, types.ts
+│   └── items/                # ídem; recibe las categorías por props
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
 │   ├── hooks/                # useDebouncedValue
-│   ├── lib/utils.ts          # cn
+│   ├── lib/                  # cn, money (centavos ↔ texto), quantity (milésimas ↔ texto)
 │   └── ui/                   # primitivos shadcn/Base UI + kit de ABM (ver abajo)
 ├── test/                     # setup de Vitest y renderWithProviders
 ├── index.css                 # tokens de tema claro/oscuro (oklch)
 └── main.tsx
 ```
 
-- `app → features → shared`; una feature no importa a otra.
+- `app → features → shared`; una feature no importa a otra. Ejemplo:
+  artículos necesita las categorías para el filtro y el formulario;
+  `app/ItemsRoute` las obtiene con `useCategoryOptions` (de categorías) y se
+  las pasa a `ItemsPage` por props.
+- `formatMoney`/`parseMoney` y `formatQuantity`/`parseQuantity` son los
+  únicos que convierten montos y cantidades entre enteros y texto. Leen lo
+  que se tipea en Argentina (`1.234,50`).
 - `apiFetch(path, schema, options)` valida cada respuesta con un esquema Zod:
   si el contrato con el backend se desalinea, falla con `invalid_response`
   en vez de renderizar valores indefinidos.
@@ -167,7 +181,8 @@ apps/frontend/src/
 | `SearchField` | Búsqueda con ícono y botón para limpiar; se combina con `useDebouncedValue`. |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
-| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. |
+| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. |
+| `NativeSelect` | `<select>` nativo con estilo: teclado, lector de pantalla y selector del celular funcionan sin más. |
 | `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`). |
 | `EmptyState` | Vacío, sin resultados o error, siempre con una salida. |
 | `ToastProvider` / `useToast` | Avisos de éxito o error (Toast de Base UI, sin dependencias extra). |

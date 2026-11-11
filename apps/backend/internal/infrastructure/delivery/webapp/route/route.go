@@ -21,6 +21,12 @@ type Handlers struct {
 	CreateCategory *handler.CreateCategoryHandler
 	UpdateCategory *handler.UpdateCategoryHandler
 	DeleteCategory *handler.DeleteCategoryHandler
+
+	ListItems  *handler.ListItemsHandler
+	GetItem    *handler.GetItemHandler
+	CreateItem *handler.CreateItemHandler
+	UpdateItem *handler.UpdateItemHandler
+	DeleteItem *handler.DeleteItemHandler
 }
 
 func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
@@ -32,4 +38,10 @@ func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
 	mux.Handle("GET /api/v1/categories/{id}", handler.Adapt(handlers.GetCategory, catalogTimeout))
 	mux.Handle("PATCH /api/v1/categories/{id}", handler.Adapt(handlers.UpdateCategory, catalogTimeout))
 	mux.Handle("DELETE /api/v1/categories/{id}", handler.Adapt(handlers.DeleteCategory, catalogTimeout))
+
+	mux.Handle("GET /api/v1/items", handler.Adapt(handlers.ListItems, catalogTimeout))
+	mux.Handle("POST /api/v1/items", handler.Adapt(handlers.CreateItem, catalogTimeout))
+	mux.Handle("GET /api/v1/items/{id}", handler.Adapt(handlers.GetItem, catalogTimeout))
+	mux.Handle("PUT /api/v1/items/{id}", handler.Adapt(handlers.UpdateItem, catalogTimeout))
+	mux.Handle("DELETE /api/v1/items/{id}", handler.Adapt(handlers.DeleteItem, catalogTimeout))
 }
