@@ -237,7 +237,7 @@ apps/frontend/src/
 │   ├── api/                   # client.ts (apiFetch, ApiError), pagination.ts, query-keys.ts
 │   ├── config/env.ts
 │   ├── ui/                    # shadcn + PageHeader, EmptyState, ResponsiveList, ConfirmDialog,
-│   │                          #   FormSheet, SearchField, MoneyInput, QuantityInput
+│   │                          #   FormDialog, SearchField, MoneyInput, QuantityInput
 │   ├── lib/                   # cn, formatMoney, formatQuantity, formatDate, normalizeText, idempotencyKey
 │   └── hooks/                 # useDebouncedValue, useHotkeys
 ├── index.css                  # tokens de tema claro/oscuro
@@ -442,9 +442,9 @@ igual y cada ABM nuevo sale rápido:
 - `SearchField` con debounce y filtros (activos/inactivos, categoría).
 - `ResponsiveList`: tabla desde `md:` y tarjetas en el celular, con
   paginación.
-- Alta y edición en `FormSheet` (panel lateral en escritorio, pantalla
-  completa en el celular), validación inline con Zod y errores del backend
-  asociados al campo según su `code`.
+- Alta y edición en un modal (`FormDialog`), igual para todas las entidades,
+  con validación inline con Zod y errores del backend asociados al campo
+  según su `code`.
 - Eliminación con `ConfirmDialog`: es definitiva, así que siempre se
   confirma.
 
@@ -513,7 +513,7 @@ en escritorio.
 
 Ajustes respecto de la propuesta original, para no crear abstracciones sin
 uso (regla de `AGENTS.md`): el contenedor `dependencies`, los datos demo y el
-kit de ABM (`ResponsiveList`, `ConfirmDialog`, `FormSheet`, `SearchField`)
+kit de ABM (`ResponsiveList`, `ConfirmDialog`, `FormDialog`, `SearchField`)
 pasan a la Fase 1, donde tienen su primer uso real.
 
 ### Fase 1 — Catálogo

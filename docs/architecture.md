@@ -167,7 +167,7 @@ apps/frontend/src/
 | `SearchField` | Búsqueda con ícono y botón para limpiar; se combina con `useDebouncedValue`. |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
-| `FormSheet` | Panel lateral en escritorio, pantalla completa en el celular. |
+| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. |
 | `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`). |
 | `EmptyState` | Vacío, sin resultados o error, siempre con una salida. |
 | `ToastProvider` / `useToast` | Avisos de éxito o error (Toast de Base UI, sin dependencias extra). |
@@ -211,7 +211,8 @@ clientes, proveedores, vendedores).
 4. `components/`: formulario (validación con Zod + errores del backend en el
    campo correspondiente), listado sobre `ResponsiveList`.
 5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, listado,
-   paginación, `FormSheet`, `ConfirmDialog` para eliminar, toasts).
+   paginación, `FormDialog` para crear y editar, `ConfirmDialog` para
+   eliminar, toasts).
 6. Ruta en `app/router.tsx` y sección en `app/navigation.ts`.
 7. Tests de la página contra una API falsa en memoria que respeta las mismas
    reglas que el backend (ver `CategoriesPage.test.tsx`).

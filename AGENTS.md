@@ -152,7 +152,9 @@ vigente está en `docs/plans/version-base.md`.
   colores crudos de Tailwind (`text-red-500`); lo hace cumplir la regla ESLint
   `local/no-raw-tailwind-colors`. Soportar modo claro y oscuro.
 - Reutilizar el patrón de ABM (`PageHeader`, `SearchField`, `ResponsiveList`,
-  `FormSheet`, `ConfirmDialog`, `EmptyState`) en vez de armar pantallas ad hoc.
+  `FormDialog`, `ConfirmDialog`, `EmptyState`) en vez de armar pantallas ad hoc.
+- El alta y la edición de cualquier entidad se hacen en un modal
+  (`FormDialog`), nunca en una página aparte ni en un panel lateral.
 - Accesibilidad WCAG 2.2 AA: labels reales, foco visible, navegación completa
   por teclado, objetivos táctiles de al menos 44 px.
 - La pantalla de venta se opera completa con teclado y lector de código de

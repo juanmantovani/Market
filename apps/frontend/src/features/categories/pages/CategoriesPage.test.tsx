@@ -140,10 +140,10 @@ describe('CategoriesPage', () => {
     expect(await screen.findByRole('heading', { name: 'Todavía no hay categorías' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Crear la primera' }))
 
-    const sheet = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
-    await user.type(sheet.getByLabelText('Nombre'), '  Panadería ')
-    await user.type(sheet.getByLabelText(/Descripción/), 'Pan y facturas')
-    await user.click(sheet.getByRole('button', { name: 'Crear categoría' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
+    await user.type(form.getByLabelText('Nombre'), '  Panadería ')
+    await user.type(form.getByLabelText(/Descripción/), 'Pan y facturas')
+    await user.click(form.getByRole('button', { name: 'Crear categoría' }))
 
     expect(await screen.findByText('Categoría creada')).toBeInTheDocument()
     expect(api.writes()).toEqual([
@@ -160,18 +160,18 @@ describe('CategoriesPage', () => {
     await table()
 
     await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
-    const sheet = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
-    await user.type(sheet.getByLabelText('Nombre'), '   ')
-    await user.type(sheet.getByLabelText(/Descripción/), 'x'.repeat(201))
-    await user.click(sheet.getByRole('button', { name: 'Crear categoría' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
+    await user.type(form.getByLabelText('Nombre'), '   ')
+    await user.type(form.getByLabelText(/Descripción/), 'x'.repeat(201))
+    await user.click(form.getByRole('button', { name: 'Crear categoría' }))
 
-    expect(sheet.getByText('El nombre es obligatorio')).toBeInTheDocument()
-    expect(sheet.getByText('La descripción admite hasta 200 caracteres')).toBeInTheDocument()
-    expect(sheet.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true')
+    expect(form.getByText('El nombre es obligatorio')).toBeInTheDocument()
+    expect(form.getByText('La descripción admite hasta 200 caracteres')).toBeInTheDocument()
+    expect(form.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true')
     expect(api.writes()).toEqual([])
 
-    await user.type(sheet.getByLabelText('Nombre'), 'Kiosco')
-    expect(sheet.queryByText('El nombre es obligatorio')).not.toBeInTheDocument()
+    await user.type(form.getByLabelText('Nombre'), 'Kiosco')
+    expect(form.queryByText('El nombre es obligatorio')).not.toBeInTheDocument()
   })
 
   it('shows a duplicated name next to the name field', async () => {
@@ -181,12 +181,12 @@ describe('CategoriesPage', () => {
     await table()
 
     await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
-    const sheet = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
-    await user.type(sheet.getByLabelText('Nombre'), 'bebidas')
-    await user.click(sheet.getByRole('button', { name: 'Crear categoría' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
+    await user.type(form.getByLabelText('Nombre'), 'bebidas')
+    await user.click(form.getByRole('button', { name: 'Crear categoría' }))
 
-    expect(await sheet.findByText('Ya hay una categoría con ese nombre')).toBeInTheDocument()
-    expect(sheet.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true')
+    expect(await form.findByText('Ya hay una categoría con ese nombre')).toBeInTheDocument()
+    expect(form.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('dialog', { name: 'Nueva categoría' })).toBeInTheDocument()
   })
 
@@ -197,12 +197,12 @@ describe('CategoriesPage', () => {
     await table()
 
     await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
-    const sheet = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
-    await user.type(sheet.getByLabelText('Nombre'), 'Kiosco')
+    const form = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
+    await user.type(form.getByLabelText('Nombre'), 'Kiosco')
     api.failNext({ status: 503, code: 'storage_unavailable', message: 'El almacenamiento no está disponible' })
-    await user.click(sheet.getByRole('button', { name: 'Crear categoría' }))
+    await user.click(form.getByRole('button', { name: 'Crear categoría' }))
 
-    expect(await sheet.findByRole('alert')).toHaveTextContent('El almacenamiento no está disponible')
+    expect(await form.findByRole('alert')).toHaveTextContent('El almacenamiento no está disponible')
   })
 
   it('edits a category with its current values prefilled', async () => {
@@ -211,15 +211,15 @@ describe('CategoriesPage', () => {
     renderWithProviders(<CategoriesPage />)
 
     await user.click((await table()).getByRole('button', { name: 'Editar Bebidas' }))
-    const sheet = within(await screen.findByRole('dialog', { name: 'Editar categoría' }))
-    expect(sheet.getByLabelText('Nombre')).toHaveValue('Bebidas')
-    expect(sheet.getByLabelText(/Descripción/)).toHaveValue('Gaseosas')
-    expect(sheet.getByText('8/200 caracteres')).toBeInTheDocument()
+    const form = within(await screen.findByRole('dialog', { name: 'Editar categoría' }))
+    expect(form.getByLabelText('Nombre')).toHaveValue('Bebidas')
+    expect(form.getByLabelText(/Descripción/)).toHaveValue('Gaseosas')
+    expect(form.getByText('8/200 caracteres')).toBeInTheDocument()
 
-    await user.clear(sheet.getByLabelText('Nombre'))
-    await user.type(sheet.getByLabelText('Nombre'), 'Bebidas frías')
-    await user.clear(sheet.getByLabelText(/Descripción/))
-    await user.click(sheet.getByRole('button', { name: 'Guardar cambios' }))
+    await user.clear(form.getByLabelText('Nombre'))
+    await user.type(form.getByLabelText('Nombre'), 'Bebidas frías')
+    await user.clear(form.getByLabelText(/Descripción/))
+    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await screen.findByText('Categoría actualizada')).toBeInTheDocument()
     expect(api.writes()).toEqual([
@@ -234,8 +234,8 @@ describe('CategoriesPage', () => {
     renderWithProviders(<CategoriesPage />)
 
     await user.click((await table()).getByRole('button', { name: 'Editar Bebidas' }))
-    const sheet = within(await screen.findByRole('dialog', { name: 'Editar categoría' }))
-    await user.click(sheet.getByRole('button', { name: 'Cancelar' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar categoría' }))
+    await user.click(form.getByRole('button', { name: 'Cancelar' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
     expect(api.writes()).toEqual([])

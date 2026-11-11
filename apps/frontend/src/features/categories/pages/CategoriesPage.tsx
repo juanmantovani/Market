@@ -5,7 +5,7 @@ import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value'
 import { Button } from '../../../shared/ui/button'
 import { ConfirmDialog } from '../../../shared/ui/confirm-dialog'
 import { EmptyState } from '../../../shared/ui/empty-state'
-import { FormSheet } from '../../../shared/ui/form-sheet'
+import { FormDialog } from '../../../shared/ui/form-dialog'
 import { PageHeader } from '../../../shared/ui/page-header'
 import { Pagination } from '../../../shared/ui/pagination'
 import { SearchField } from '../../../shared/ui/search-field'
@@ -20,13 +20,13 @@ const PAGE_SIZE = 25
 
 // `open` is kept apart from what the overlay shows, so its content stays in
 // place while the closing animation runs instead of flashing empty.
-type SheetState = { open: boolean; category: Category | null; formKey: number }
+type FormState = { open: boolean; category: Category | null; formKey: number }
 type ConfirmState = { open: boolean; category: Category | null }
 
 export default function CategoriesPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [sheet, setSheet] = useState<SheetState>({ open: false, category: null, formKey: 0 })
+  const [form, setForm] = useState<FormState>({ open: false, category: null, formKey: 0 })
   const [confirm, setConfirm] = useState<ConfirmState>({ open: false, category: null })
   const debouncedSearch = useDebouncedValue(search)
 
@@ -37,19 +37,19 @@ export default function CategoriesPage() {
 
   const items = categories.data?.items ?? []
   const isSearching = debouncedSearch.trim() !== ''
-  const isEditing = sheet.category !== null
+  const isEditing = form.category !== null
 
   function changeSearch(value: string) {
     setSearch(value)
     setPage(1)
   }
 
-  function openSheet(category: Category | null) {
-    setSheet((current) => ({ open: true, category, formKey: current.formKey + 1 }))
+  function openForm(category: Category | null) {
+    setForm((current) => ({ open: true, category, formKey: current.formKey + 1 }))
   }
 
-  function closeSheet() {
-    setSheet((current) => ({ ...current, open: false }))
+  function closeForm() {
+    setForm((current) => ({ ...current, open: false }))
   }
 
   function closeConfirm() {
@@ -57,9 +57,9 @@ export default function CategoriesPage() {
   }
 
   async function save(values: CategoryFormValues) {
-    const id = sheet.category?.id
+    const id = form.category?.id
     const saved = await saveCategory.mutateAsync({ id, values })
-    closeSheet()
+    closeForm()
     toast.success(id ? 'Categoría actualizada' : 'Categoría creada', `«${saved.name}» ya está guardada.`)
   }
 
@@ -106,7 +106,7 @@ export default function CategoriesPage() {
           title="Todavía no hay categorías"
           description="Las categorías agrupan los artículos para encontrarlos rápido en la venta y en el stock."
           action={
-            <Button type="button" size="lg" onClick={() => openSheet(null)}>
+            <Button type="button" size="lg" onClick={() => openForm(null)}>
               <Plus aria-hidden />
               Crear la primera
             </Button>
@@ -120,7 +120,7 @@ export default function CategoriesPage() {
         <CategoryList
           categories={items}
           isLoading={categories.isPending}
-          onEdit={openSheet}
+          onEdit={openForm}
           onDelete={(category) => setConfirm({ open: true, category })}
         />
         {categories.data && (
@@ -141,7 +141,7 @@ export default function CategoriesPage() {
         title="Categorías"
         description="Agrupan los artículos para buscarlos y filtrarlos."
         actions={
-          <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openSheet(null)}>
+          <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
             Nueva categoría
           </Button>
@@ -158,22 +158,22 @@ export default function CategoriesPage() {
 
       {renderContent()}
 
-      <FormSheet
-        open={sheet.open}
+      <FormDialog
+        open={form.open}
         onOpenChange={(open) => {
-          if (!open) closeSheet()
+          if (!open) closeForm()
         }}
         title={isEditing ? 'Editar categoría' : 'Nueva categoría'}
-        description={sheet.category?.name ?? 'Completá los datos para crearla.'}
+        description={form.category?.name ?? 'Completá los datos para crearla.'}
       >
         <CategoryForm
-          key={sheet.formKey}
-          initialValues={toFormValues(sheet.category)}
+          key={form.formKey}
+          initialValues={toFormValues(form.category)}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear categoría'}
           onSubmit={save}
-          onCancel={closeSheet}
+          onCancel={closeForm}
         />
-      </FormSheet>
+      </FormDialog>
 
       <ConfirmDialog
         open={confirm.open}
