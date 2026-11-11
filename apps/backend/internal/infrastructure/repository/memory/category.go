@@ -71,6 +71,12 @@ func (repository *CategoryRepository) Delete(ctx context.Context, id string) err
 		if _, ok := repository.store.categories[id]; !ok {
 			return domain.ErrCategoryNotFound
 		}
+		// What a foreign key from items enforces in PostgreSQL.
+		for _, item := range repository.store.items {
+			if item.CategoryID == id {
+				return domain.ErrCategoryInUse
+			}
+		}
 		remove(current, repository.store.categories, id)
 		return nil
 	})

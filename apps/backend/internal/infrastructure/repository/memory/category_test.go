@@ -6,23 +6,35 @@ import (
 	"regexp"
 	"testing"
 
-	"market/backend/internal/business/gateway"
 	"market/backend/internal/infrastructure/repository/repositorytest"
 )
 
-func TestCategoryRepositoryContract(t *testing.T) {
-	repositorytest.CategoryRepository(t, func(*testing.T) gateway.CategoryRepository {
-		return NewCategoryRepository(NewStore())
-	})
+func newRepositories(*testing.T) repositorytest.Repositories {
+	store := NewStore()
+	return repositorytest.Repositories{
+		Categories: NewCategoryRepository(store),
+		Items:      NewItemRepository(store),
+	}
 }
 
-func TestCategoryRepositoryHonorsCancellation(t *testing.T) {
+func TestCategoryRepositoryContract(t *testing.T) {
+	repositorytest.CategoryRepository(t, newRepositories)
+}
+
+func TestItemRepositoryContract(t *testing.T) {
+	repositorytest.ItemRepository(t, newRepositories)
+}
+
+func TestRepositoriesHonorCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+	repositories := newRepositories(t)
 
-	_, err := NewCategoryRepository(NewStore()).Get(ctx, "any")
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("Get() error = %v, want context.Canceled", err)
+	if _, err := repositories.Categories.Get(ctx, "any"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Categories.Get() error = %v, want context.Canceled", err)
+	}
+	if _, err := repositories.Items.Get(ctx, "any"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Items.Get() error = %v, want context.Canceled", err)
 	}
 }
 

@@ -25,7 +25,7 @@ type CategoryRepository interface {
 	// name of another category.
 	Update(ctx context.Context, category domain.Category) (domain.Category, error)
 	// Delete removes a category for good. It returns ErrCategoryNotFound for
-	// an unknown ID.
+	// an unknown ID and ErrCategoryInUse while items belong to it.
 	Delete(ctx context.Context, id string) error
 	// List returns one page sorted by name.
 	List(ctx context.Context, filter CategoryFilter) (domain.Page[domain.Category], error)
