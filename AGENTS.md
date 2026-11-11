@@ -123,6 +123,8 @@ vigente está en `docs/plans/version-base.md`.
 - `Money` es un entero en centavos; `Quantity` es un entero en milésimas.
 - El backend recalcula todo importe; el frontend solo muestra una vista
   previa con las mismas reglas.
+- En el frontend, `shared/lib/money` y `shared/lib/quantity` son los únicos
+  que convierten montos y cantidades entre enteros y texto.
 
 ## Arquitectura del frontend
 
