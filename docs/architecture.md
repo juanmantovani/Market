@@ -27,9 +27,9 @@ apps/backend/
     ├── app/app.go                         # composition root: config, contenedor, datos demo, rutas, servidor
     ├── business/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
-    │   ├── gateway/                       # TxManager, CategoryRepository
+    │   ├── gateway/                       # TxManager y un contrato de repositorio por agregado
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/                       # categories, items: create, list, get, update, delete
+    │   └── usecase/                       # categories, items, customers: create, list, get, update, delete
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
@@ -38,7 +38,7 @@ apps/backend/
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
-            ├── dto/                       # health, pagination (PageResponse[T]), categories, items
+            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers
             ├── handler/                   # un handler por ruta + Adapt, decodeJSON, pageQuery
             ├── middleware/                # DevActor, Recover, RequestLog
             ├── response/                  # WriteJSON, WriteError (único mapeo Kind → status)
@@ -96,9 +96,9 @@ flowchart LR
   un ID inexistente es `404`. Si otro registro lo referencia, responde `409`
   (`<entidad>_in_use`).
 - Edición: categorías usan `PATCH` parcial (un campo ausente o `null` no
-  cambia; un texto opcional vacío lo borra). Artículos usan `PUT`, que
-  reemplaza todos los campos: su formulario siempre manda el artículo
-  completo y así un opcional en `null` se borra.
+  cambia; un texto opcional vacío lo borra). Artículos y clientes usan
+  `PUT`, que reemplaza todos los campos: su formulario siempre manda el
+  registro completo y así un opcional en `null` se borra.
 - Montos y cantidades viajan como enteros: centavos, centésimas de punto
   porcentual y milésimas de unidad.
 - `Adapt(h, timeout)` acota el contexto al timeout de la ruta y el cuerpo a
@@ -124,7 +124,7 @@ flowchart LR
 - Las restricciones que en PostgreSQL serían índices o claves foráneas
   (nombre único de categoría, código y código de barras únicos, la
   categoría de un artículo tiene que existir y no se puede borrar mientras
-  tenga artículos) las verifica el repositorio dentro del lock, y la
+  tenga artículos, un documento por cliente) las verifica el repositorio dentro del lock, y la
   suite de contrato prueba que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
   PostgreSQL 18.
@@ -138,7 +138,7 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # Inicio, /articulos, /categorias y página 404
+│   ├── router.tsx            # Inicio, /articulos, /categorias, /clientes y página 404
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías (ver abajo)
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── navigation.ts         # secciones del menú; cada fase suma la suya
@@ -147,7 +147,8 @@ apps/frontend/src/
 ├── features/
 │   ├── dashboard/pages/DashboardPage.tsx
 │   ├── categories/           # api/, hooks/, components/, pages/, types.ts
-│   └── items/                # ídem; recibe las categorías por props
+│   ├── items/                # ídem; recibe las categorías por props
+│   └── customers/            # ídem
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
@@ -196,7 +197,8 @@ clientes, proveedores, vendedores).
 **Backend**
 
 1. `domain/<entidad>.go`: entidad, constructor `New…` que valida, cambios
-   parciales (`…Changes` + `Apply`), errores `*domain.Error`
+   parciales (`…Changes` + `Apply`, para `PATCH`) o reemplazo completo
+   (`Replace`, para `PUT`), errores `*domain.Error`
    con mensajes en español y tests de tabla. Si la entidad necesita permisos
    nuevos, se agregan a la matriz de `domain/permission.go` y a su test.
 2. `gateway/<entidad>_repository.go`: contrato (`Create`, `Get`, `Update`,
