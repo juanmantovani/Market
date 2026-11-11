@@ -27,6 +27,11 @@ de carga, vacío y error. Nada de estado interno ni clases de Tailwind.
 - Como el listado se dibuja como tabla y como tarjetas a la vez (jsdom no
   aplica los breakpoints), las consultas se acotan con `within(table)` o
   `within(list)`.
+- Los tests de página tipean en formularios reales y, con cobertura y todos
+  los workers ocupados, tardan varios segundos: el límite por test es de
+  15 s (`testTimeout`) y los `findBy…` esperan hasta 3 s
+  (`asyncUtilTimeout`). Si un test se acerca a ese límite, conviene
+  partirlo antes que subirlo.
 
 ## Umbrales
 

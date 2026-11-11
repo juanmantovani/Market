@@ -34,6 +34,9 @@ export default defineConfig(({ mode, command }) => {
     test: {
       environment: 'jsdom',
       setupFiles: './src/test/setup.ts',
+      // Page tests type into real forms; with coverage on and every worker
+      // busy they take several seconds each, beyond Vitest's 5 s default.
+      testTimeout: 15_000,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html', 'lcov'],

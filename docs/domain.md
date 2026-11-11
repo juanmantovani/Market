@@ -91,6 +91,37 @@ Códigos de error: `item_not_found`, `item_code_required`,
 `item_category_not_found`, `item_unit_invalid`, `item_price_invalid`,
 `item_cost_invalid`, `item_tax_rate_invalid`, `item_min_stock_invalid`.
 
+## Clientes
+
+| Campo | Regla |
+| --- | --- |
+| `name` | Nombre o razón social. Obligatorio, hasta 120 caracteres. |
+| `documentType` | `dni`, `cuit`, `cuil` o `none` (sin documento). |
+| `documentNumber` | Se guarda solo con dígitos: `20-12345678-9` y `20123456789` son el mismo CUIT. DNI de 7 u 8 dígitos; CUIT y CUIL de 11 (no se verifica el dígito verificador). Vacío si no hay documento. Único por tipo: dos clientes sin documento nunca chocan. |
+| `taxCondition` | Condición frente al IVA: `final_consumer`, `monotax`, `registered` o `exempt`. Las tres últimas exigen CUIT. |
+| `email` | Opcional, con forma de email, hasta 254 caracteres. |
+| `phone` | Opcional, hasta 30 caracteres. |
+| `address` | Opcional, hasta 200 caracteres. |
+| `notes` | Opcional, hasta 500 caracteres. |
+
+Editar reemplaza todos los campos (`PUT`), como en artículos. La búsqueda
+encuentra por nombre, por los dígitos del documento (`40.111` encuentra el
+DNI 40111222), por email y por teléfono.
+
+Permisos: `customers:view` para listar y consultar, `customers:create` para
+dar de alta (el cajero también, para cargar un cliente durante una venta) y
+`customers:manage` para editar y eliminar.
+
+El cliente de sistema **Consumidor Final** que propone el plan llega con
+ventas (Fase 4), que es quien lo usa.
+
+Códigos de error: `customer_not_found`, `customer_name_required`,
+`customer_name_too_long`, `customer_document_type_invalid`,
+`customer_document_invalid`, `customer_document_in_use`,
+`customer_tax_condition_invalid`, `customer_tax_condition_requires_cuit`,
+`customer_email_invalid`, `customer_phone_too_long`,
+`customer_address_too_long`, `customer_notes_too_long`.
+
 ## Actor, roles y permisos
 
 Toda operación la ejecuta un `Actor` (`ID`, `Name`, `Role`). Roles:
@@ -105,6 +136,9 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | --- | :---: | :---: | :---: |
 | `catalog:view` — ver categorías y artículos | ✅ | ✅ | ✅ |
 | `catalog:manage` — crear, editar y eliminar categorías y artículos | ✅ | ✅ | — |
+| `customers:view` — ver clientes | ✅ | ✅ | ✅ |
+| `customers:create` — dar de alta clientes | ✅ | ✅ | ✅ |
+| `customers:manage` — editar y eliminar clientes | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

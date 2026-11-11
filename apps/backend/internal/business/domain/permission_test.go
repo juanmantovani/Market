@@ -5,11 +5,14 @@ import "testing"
 // TestRolePermissions pins the whole matrix: changing who may do what must
 // show up as a change here.
 func TestRolePermissions(t *testing.T) {
-	permissions := []Permission{PermissionViewCatalog, PermissionManageCatalog}
+	permissions := []Permission{
+		PermissionViewCatalog, PermissionManageCatalog,
+		PermissionViewCustomers, PermissionCreateCustomers, PermissionManageCustomers,
+	}
 	want := map[Role][]Permission{
-		RoleAdmin:   {PermissionViewCatalog, PermissionManageCatalog},
-		RoleManager: {PermissionViewCatalog, PermissionManageCatalog},
-		RoleCashier: {PermissionViewCatalog},
+		RoleAdmin:   permissions,
+		RoleManager: permissions,
+		RoleCashier: {PermissionViewCatalog, PermissionViewCustomers, PermissionCreateCustomers},
 		"root":      {},
 	}
 

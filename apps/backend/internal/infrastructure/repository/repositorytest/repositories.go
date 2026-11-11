@@ -12,6 +12,7 @@ import (
 type Repositories struct {
 	Categories gateway.CategoryRepository
 	Items      gateway.ItemRepository
+	Customers  gateway.CustomerRepository
 }
 
 // NewRepositories must return empty repositories each time it's called.
