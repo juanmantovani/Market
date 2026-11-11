@@ -78,6 +78,22 @@ describe('AppLayout', () => {
     expect(document.documentElement).not.toHaveClass('dark')
   })
 
+  it('opens the customers section from the navigation', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [], total: 0, page: 1, limit: 25 }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const user = userEvent.setup()
+    const router = renderApp()
+
+    await user.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Clientes' }))
+
+    expect(router.state.location.pathname).toBe('/clientes')
+    expect(screen.getByRole('heading', { name: 'Clientes', level: 1 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Todavía no hay clientes' })).toBeInTheDocument()
+  })
+
   it('shows a friendly page for unknown addresses', async () => {
     const user = userEvent.setup()
     const router = renderApp('/no-existe')

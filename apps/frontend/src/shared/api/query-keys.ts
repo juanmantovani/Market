@@ -9,4 +9,8 @@ export const queryKeys = {
     all: ['items'] as const,
     list: (params: ListParams & { categoryId: string }) => ['items', 'list', params] as const,
   },
+  customers: {
+    all: ['customers'] as const,
+    list: (params: ListParams) => ['customers', 'list', params] as const,
+  },
 }

@@ -1,4 +1,4 @@
-import { House, Package, Tags, type LucideIcon } from 'lucide-react'
+import { House, Package, Tags, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -12,4 +12,5 @@ export const NAVIGATION: readonly NavItem[] = [
   { to: '/', label: 'Inicio', icon: House, end: true },
   { to: '/articulos', label: 'Artículos', icon: Package },
   { to: '/categorias', label: 'Categorías', icon: Tags },
+  { to: '/clientes', label: 'Clientes', icon: Users },
 ]
