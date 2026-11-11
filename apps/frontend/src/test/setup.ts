@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
 class ResizeObserverStub {
@@ -7,6 +7,9 @@ class ResizeObserverStub {
   unobserve() {}
   disconnect() {}
 }
+
+// findBy* waits 1 s by default, too little for a page under a loaded run.
+configure({ asyncUtilTimeout: 3_000 })
 
 globalThis.ResizeObserver = ResizeObserverStub
 
