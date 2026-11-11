@@ -11,6 +11,7 @@ import (
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/suppliers"
 )
 
 var seeder = domain.Actor{ID: "demo", Name: "Datos demo", Role: domain.RoleAdmin}
@@ -20,6 +21,7 @@ type UseCases struct {
 	CreateCategory categories.CreateCategory
 	CreateItem     items.CreateItem
 	CreateCustomer customers.CreateCustomer
+	CreateSupplier suppliers.CreateSupplier
 }
 
 type demoCategory struct {
@@ -85,6 +87,21 @@ var demoCustomers = []demoCustomer{
 	{"Juan (cliente del barrio)", domain.DocumentNone, "", domain.TaxFinalConsumer, "", ""},
 }
 
+type demoSupplier struct {
+	businessName string
+	cuit         string
+	contactName  string
+	phone        string
+	email        string
+}
+
+var demoSuppliers = []demoSupplier{
+	{"Distribuidora del Centro SA", "30701234561", "Laura Díaz", "351 555-2000", "pedidos@delcentro.example.com"},
+	{"Lácteos del Sur SRL", "30709876543", "Martín Ruiz", "351 555-2100", ""},
+	{"Mayorista Norte SA", "30715555559", "", "", "ventas@mayoristanorte.example.com"},
+	{"Panificadora La Espiga", "", "Rosa", "351 555-2200", ""},
+}
+
 func Seed(ctx context.Context, useCases UseCases) error {
 	categoryIDs := map[string]string{}
 	for _, category := range demoCategories {
@@ -137,6 +154,23 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		})
 		if err != nil {
 			return fmt.Errorf("seeding customer %q: %w", customer.name, err)
+		}
+	}
+
+	for _, supplier := range demoSuppliers {
+		cuit, contactName, phone, email := supplier.cuit, supplier.contactName, supplier.phone, supplier.email
+		_, err := useCases.CreateSupplier.Execute(ctx, suppliers.CreateSupplierInput{
+			Actor: seeder,
+			Fields: domain.SupplierFields{
+				BusinessName: supplier.businessName,
+				CUIT:         &cuit,
+				ContactName:  &contactName,
+				Phone:        &phone,
+				Email:        &email,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("seeding supplier %q: %w", supplier.businessName, err)
 		}
 	}
 

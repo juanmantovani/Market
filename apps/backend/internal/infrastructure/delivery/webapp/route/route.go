@@ -33,6 +33,12 @@ type Handlers struct {
 	CreateCustomer *handler.CreateCustomerHandler
 	UpdateCustomer *handler.UpdateCustomerHandler
 	DeleteCustomer *handler.DeleteCustomerHandler
+
+	ListSuppliers  *handler.ListSuppliersHandler
+	GetSupplier    *handler.GetSupplierHandler
+	CreateSupplier *handler.CreateSupplierHandler
+	UpdateSupplier *handler.UpdateSupplierHandler
+	DeleteSupplier *handler.DeleteSupplierHandler
 }
 
 func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
@@ -56,4 +62,10 @@ func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
 	mux.Handle("GET /api/v1/customers/{id}", handler.Adapt(handlers.GetCustomer, catalogTimeout))
 	mux.Handle("PUT /api/v1/customers/{id}", handler.Adapt(handlers.UpdateCustomer, catalogTimeout))
 	mux.Handle("DELETE /api/v1/customers/{id}", handler.Adapt(handlers.DeleteCustomer, catalogTimeout))
+
+	mux.Handle("GET /api/v1/suppliers", handler.Adapt(handlers.ListSuppliers, catalogTimeout))
+	mux.Handle("POST /api/v1/suppliers", handler.Adapt(handlers.CreateSupplier, catalogTimeout))
+	mux.Handle("GET /api/v1/suppliers/{id}", handler.Adapt(handlers.GetSupplier, catalogTimeout))
+	mux.Handle("PUT /api/v1/suppliers/{id}", handler.Adapt(handlers.UpdateSupplier, catalogTimeout))
+	mux.Handle("DELETE /api/v1/suppliers/{id}", handler.Adapt(handlers.DeleteSupplier, catalogTimeout))
 }

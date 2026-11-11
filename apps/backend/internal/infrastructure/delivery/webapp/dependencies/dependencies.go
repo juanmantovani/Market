@@ -7,6 +7,7 @@ import (
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/suppliers"
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
 	"market/backend/internal/infrastructure/environments"
@@ -34,12 +35,19 @@ type Container struct {
 	GetCustomer    customers.GetCustomer
 	UpdateCustomer customers.UpdateCustomer
 	DeleteCustomer customers.DeleteCustomer
+
+	CreateSupplier suppliers.CreateSupplier
+	ListSuppliers  suppliers.ListSuppliers
+	GetSupplier    suppliers.GetSupplier
+	UpdateSupplier suppliers.UpdateSupplier
+	DeleteSupplier suppliers.DeleteSupplier
 }
 
 type repositories struct {
 	categories gateway.CategoryRepository
 	items      gateway.ItemRepository
 	customers  gateway.CustomerRepository
+	suppliers  gateway.SupplierRepository
 }
 
 func New(cfg environments.Server) (*Container, error) {
@@ -66,6 +74,12 @@ func New(cfg environments.Server) (*Container, error) {
 		GetCustomer:    customers.NewGetCustomer(repos.customers),
 		UpdateCustomer: customers.NewUpdateCustomer(repos.customers),
 		DeleteCustomer: customers.NewDeleteCustomer(repos.customers),
+
+		CreateSupplier: suppliers.NewCreateSupplier(repos.suppliers),
+		ListSuppliers:  suppliers.NewListSuppliers(repos.suppliers),
+		GetSupplier:    suppliers.NewGetSupplier(repos.suppliers),
+		UpdateSupplier: suppliers.NewUpdateSupplier(repos.suppliers),
+		DeleteSupplier: suppliers.NewDeleteSupplier(repos.suppliers),
 	}, nil
 }
 
@@ -77,6 +91,7 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 			categories: memory.NewCategoryRepository(store),
 			items:      memory.NewItemRepository(store),
 			customers:  memory.NewCustomerRepository(store),
+			suppliers:  memory.NewSupplierRepository(store),
 		}, nil
 	default:
 		return repositories{}, fmt.Errorf("unsupported storage driver %q", driver)
@@ -103,5 +118,11 @@ func (container *Container) Handlers() route.Handlers {
 		CreateCustomer: handler.NewCreateCustomerHandler(container.CreateCustomer),
 		UpdateCustomer: handler.NewUpdateCustomerHandler(container.UpdateCustomer),
 		DeleteCustomer: handler.NewDeleteCustomerHandler(container.DeleteCustomer),
+
+		ListSuppliers:  handler.NewListSuppliersHandler(container.ListSuppliers),
+		GetSupplier:    handler.NewGetSupplierHandler(container.GetSupplier),
+		CreateSupplier: handler.NewCreateSupplierHandler(container.CreateSupplier),
+		UpdateSupplier: handler.NewUpdateSupplierHandler(container.UpdateSupplier),
+		DeleteSupplier: handler.NewDeleteSupplierHandler(container.DeleteSupplier),
 	}
 }

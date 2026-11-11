@@ -13,6 +13,7 @@ type Repositories struct {
 	Categories gateway.CategoryRepository
 	Items      gateway.ItemRepository
 	Customers  gateway.CustomerRepository
+	Suppliers  gateway.SupplierRepository
 }
 
 // NewRepositories must return empty repositories each time it's called.

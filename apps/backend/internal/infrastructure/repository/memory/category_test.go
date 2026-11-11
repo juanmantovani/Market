@@ -15,6 +15,7 @@ func newRepositories(*testing.T) repositorytest.Repositories {
 		Categories: NewCategoryRepository(store),
 		Items:      NewItemRepository(store),
 		Customers:  NewCustomerRepository(store),
+		Suppliers:  NewSupplierRepository(store),
 	}
 }
 
@@ -28,6 +29,10 @@ func TestItemRepositoryContract(t *testing.T) {
 
 func TestCustomerRepositoryContract(t *testing.T) {
 	repositorytest.CustomerRepository(t, newRepositories)
+}
+
+func TestSupplierRepositoryContract(t *testing.T) {
+	repositorytest.SupplierRepository(t, newRepositories)
 }
 
 func TestRepositoriesHonorCancellation(t *testing.T) {

@@ -4,12 +4,10 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 const (
 	MaxCustomerNameLength    = 120
-	MaxCustomerEmailLength   = 254
 	MaxCustomerPhoneLength   = 30
 	MaxCustomerAddressLength = 200
 	MaxCustomerNotesLength   = 500
@@ -50,7 +48,6 @@ var (
 	ErrCustomerNotesTooLong             = &Error{Kind: KindInvalid, Code: "customer_notes_too_long", Message: "Las notas admiten hasta 500 caracteres"}
 	documentSeparators                  = strings.NewReplacer(" ", "", ".", "", "-", "", "/", "")
 	digitsOnly                          = regexp.MustCompile(`^[0-9]+$`)
-	emailShape                          = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 )
 
 // CustomerFields are the editable fields of a customer. Creating and editing
@@ -122,7 +119,7 @@ func validateCustomerFields(fields CustomerFields) (CustomerFields, error) {
 	if err = validateTaxCondition(fields.TaxCondition, fields.DocumentType); err != nil {
 		return CustomerFields{}, err
 	}
-	if valid.Email, err = validateEmail(fields.Email); err != nil {
+	if valid.Email, err = validateEmail(fields.Email, ErrCustomerEmailInvalid); err != nil {
 		return CustomerFields{}, err
 	}
 	if valid.Phone, err = optionalText(fields.Phone, MaxCustomerPhoneLength, ErrCustomerPhoneTooLong); err != nil {
@@ -177,19 +174,4 @@ func validateTaxCondition(condition TaxCondition, documentType DocumentType) err
 	default:
 		return ErrCustomerTaxConditionInvalid
 	}
-}
-
-func validateEmail(email *string) (*string, error) {
-	if email == nil {
-		return nil, nil
-	}
-	trimmed := strings.TrimSpace(*email)
-	if trimmed == "" {
-		return nil, nil
-	}
-	if utf8.RuneCountInString(trimmed) > MaxCustomerEmailLength || !emailShape.MatchString(trimmed) {
-		return nil, ErrCustomerEmailInvalid
-	}
-
-	return &trimmed, nil
 }
