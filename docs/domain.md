@@ -122,6 +122,35 @@ Códigos de error: `customer_not_found`, `customer_name_required`,
 `customer_email_invalid`, `customer_phone_too_long`,
 `customer_address_too_long`, `customer_notes_too_long`.
 
+## Proveedores
+
+| Campo | Regla |
+| --- | --- |
+| `businessName` | Razón social. Obligatoria, hasta 120 caracteres. |
+| `cuit` | Opcional. Se guarda solo con dígitos y lleva 11 (no se verifica el dígito verificador). Único si se carga: dos proveedores sin CUIT nunca chocan. |
+| `contactName` | Persona de contacto. Opcional, hasta 120 caracteres. |
+| `phone` | Opcional, hasta 30 caracteres. |
+| `email` | Opcional, con forma de email, hasta 254 caracteres. |
+| `address` | Opcional, hasta 200 caracteres. |
+| `notes` | Opcional, hasta 500 caracteres. |
+
+Editar reemplaza todos los campos (`PUT`). La búsqueda encuentra por razón
+social, persona de contacto, dígitos del CUIT, email y teléfono.
+
+Permisos: `suppliers:view` para listar y consultar y `suppliers:manage` para
+crear, editar y eliminar. El cajero no tiene ninguno: los proveedores se
+usan al ingresar mercadería (Fase 3), que hace el encargado.
+
+El proveedor preferido de un artículo (`preferredSupplierId` en el plan)
+todavía no existe; cuando llegue, eliminar un proveedor que tenga artículos
+o ingresos fallará con `supplier_in_use`.
+
+Códigos de error: `supplier_not_found`, `supplier_business_name_required`,
+`supplier_business_name_too_long`, `supplier_cuit_invalid`,
+`supplier_cuit_in_use`, `supplier_contact_name_too_long`,
+`supplier_email_invalid`, `supplier_phone_too_long`,
+`supplier_address_too_long`, `supplier_notes_too_long`.
+
 ## Actor, roles y permisos
 
 Toda operación la ejecuta un `Actor` (`ID`, `Name`, `Role`). Roles:
@@ -139,6 +168,8 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | `customers:view` — ver clientes | ✅ | ✅ | ✅ |
 | `customers:create` — dar de alta clientes | ✅ | ✅ | ✅ |
 | `customers:manage` — editar y eliminar clientes | ✅ | ✅ | — |
+| `suppliers:view` — ver proveedores | ✅ | ✅ | — |
+| `suppliers:manage` — crear, editar y eliminar proveedores | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

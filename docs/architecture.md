@@ -29,7 +29,7 @@ apps/backend/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager y un contrato de repositorio por agregado
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/                       # categories, items, customers: create, list, get, update, delete
+    │   └── usecase/                       # categories, items, customers, suppliers: create, list, get, update, delete
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
@@ -38,7 +38,7 @@ apps/backend/
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
-            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers
+            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers
             ├── handler/                   # un handler por ruta + Adapt, decodeJSON, pageQuery
             ├── middleware/                # DevActor, Recover, RequestLog
             ├── response/                  # WriteJSON, WriteError (único mapeo Kind → status)
@@ -96,7 +96,7 @@ flowchart LR
   un ID inexistente es `404`. Si otro registro lo referencia, responde `409`
   (`<entidad>_in_use`).
 - Edición: categorías usan `PATCH` parcial (un campo ausente o `null` no
-  cambia; un texto opcional vacío lo borra). Artículos y clientes usan
+  cambia; un texto opcional vacío lo borra). Artículos, clientes y proveedores usan
   `PUT`, que reemplaza todos los campos: su formulario siempre manda el
   registro completo y así un opcional en `null` se borra.
 - Montos y cantidades viajan como enteros: centavos, centésimas de punto
@@ -124,7 +124,7 @@ flowchart LR
 - Las restricciones que en PostgreSQL serían índices o claves foráneas
   (nombre único de categoría, código y código de barras únicos, la
   categoría de un artículo tiene que existir y no se puede borrar mientras
-  tenga artículos, un documento por cliente) las verifica el repositorio dentro del lock, y la
+  tenga artículos, un documento por cliente, un CUIT por proveedor) las verifica el repositorio dentro del lock, y la
   suite de contrato prueba que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
   PostgreSQL 18.
@@ -138,9 +138,10 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # Inicio, /articulos, /categorias, /clientes y página 404
+│   ├── router.tsx            # Inicio, /articulos, /categorias, /clientes, /proveedores y página 404
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías (ver abajo)
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
+│   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
 │   ├── navigation.ts         # secciones del menú; cada fase suma la suya
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
@@ -148,12 +149,13 @@ apps/frontend/src/
 │   ├── dashboard/pages/DashboardPage.tsx
 │   ├── categories/           # api/, hooks/, components/, pages/, types.ts
 │   ├── items/                # ídem; recibe las categorías por props
-│   └── customers/            # ídem
+│   ├── customers/            # ídem
+│   └── suppliers/            # ídem
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
 │   ├── hooks/                # useDebouncedValue
-│   ├── lib/                  # cn, money (centavos ↔ texto), quantity (milésimas ↔ texto)
+│   ├── lib/                  # cn, money (centavos ↔ texto), quantity (milésimas ↔ texto), document (DNI y CUIT)
 │   └── ui/                   # primitivos shadcn/Base UI + kit de ABM (ver abajo)
 ├── test/                     # setup de Vitest y renderWithProviders
 ├── index.css                 # tokens de tema claro/oscuro (oklch)
