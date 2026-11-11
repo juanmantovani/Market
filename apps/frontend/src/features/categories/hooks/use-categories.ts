@@ -12,3 +12,16 @@ export function useCategories(params: ListParams) {
     placeholderData: keepPreviousData,
   })
 }
+
+const ALL_CATEGORIES: ListParams = { search: '', page: 1, limit: 100 }
+
+// Every category, for pickers and filters in other screens. A catalog with
+// more than 100 categories would need a searchable picker instead.
+export function useCategoryOptions() {
+  const query = useCategories(ALL_CATEGORIES)
+
+  return {
+    categories: (query.data?.items ?? []).map(({ id, name }) => ({ id, name })),
+    isLoading: query.isPending,
+  }
+}
