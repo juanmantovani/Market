@@ -76,7 +76,7 @@ export default function SuppliersPage() {
       return (
         <EmptyState
           icon={CircleAlert}
-          title="No pudimos cargar los proveedores"
+          title="No se pudieron cargar los proveedores"
           description={messageFromError(suppliers.error)}
           action={
             <Button type="button" variant="outline" size="lg" onClick={() => void suppliers.refetch()}>
@@ -91,14 +91,14 @@ export default function SuppliersPage() {
       return isSearching ? (
         <EmptyState
           icon={SearchX}
-          title="No encontramos proveedores"
-          description="Probá con otra parte de la razón social, el CUIT, el contacto, el email o el teléfono."
+          title="No se encontraron proveedores"
+          description="Probar con otra parte de la razón social, el CUIT, el contacto, el email o el teléfono."
         />
       ) : (
         <EmptyState
           icon={Truck}
           title="Todavía no hay proveedores"
-          description="Cargá a quiénes les comprás mercadería, con sus datos de contacto."
+          description="Cargar a quienes se les compra mercadería, con sus datos de contacto."
           action={
             <Button type="button" size="lg" onClick={() => openForm(null)}>
               <Plus aria-hidden />
@@ -133,7 +133,6 @@ export default function SuppliersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Proveedores"
-        description="A quiénes les comprás mercadería."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -162,7 +161,7 @@ export default function SuppliersPage() {
         }}
         size="wide"
         title={isEditing ? 'Editar proveedor' : 'Nuevo proveedor'}
-        description={form.supplier?.businessName ?? 'Completá los datos para crearlo.'}
+        description={form.supplier?.businessName}
       >
         <SupplierForm
           key={form.formKey}

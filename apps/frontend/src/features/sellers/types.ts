@@ -31,7 +31,7 @@ export const sellerFormSchema = z
       if (value.trim() === '') return true
       const rate = parsePercent(value)
       return rate !== null && rate <= MAX_PERCENT
-    }, 'Ingresá un porcentaje de 0 a 100, por ejemplo 2,5'),
+    }, 'Ingresar un porcentaje de 0 a 100, por ejemplo 2,5'),
   })
   .transform((values) => ({
     name: values.name,

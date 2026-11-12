@@ -161,7 +161,9 @@ vigente está en `docs/plans/version-base.md`.
   por teclado, objetivos táctiles de al menos 44 px.
 - La pantalla de venta se opera completa con teclado y lector de código de
   barras.
-- Textos en español rioplatense, claros y sin jerga técnica.
+- Textos en español neutro, claros y sin jerga técnica: sin voseo ni tuteo,
+  las indicaciones en infinitivo («Ingresar el nombre», «Probar con otra
+  búsqueda») y los avisos en forma impersonal («No se pudo guardar»).
 
 ## Estructura prohibida
 

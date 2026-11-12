@@ -76,7 +76,7 @@ export default function SellersPage() {
       return (
         <EmptyState
           icon={CircleAlert}
-          title="No pudimos cargar los vendedores"
+          title="No se pudieron cargar los vendedores"
           description={messageFromError(sellers.error)}
           action={
             <Button type="button" variant="outline" size="lg" onClick={() => void sellers.refetch()}>
@@ -91,14 +91,14 @@ export default function SellersPage() {
       return isSearching ? (
         <EmptyState
           icon={SearchX}
-          title="No encontramos vendedores"
-          description="Probá con otra parte del nombre o con el código."
+          title="No se encontraron vendedores"
+          description="Probar con otra parte del nombre o con el código."
         />
       ) : (
         <EmptyState
           icon={UserCheck}
           title="Todavía no hay vendedores"
-          description="Cargá a quienes atienden en el mostrador, con un código corto para elegirlos al vender."
+          description="Cargar a quienes atienden en el mostrador, con un código corto para elegirlos al vender."
           action={
             <Button type="button" size="lg" onClick={() => openForm(null)}>
               <Plus aria-hidden />
@@ -133,7 +133,6 @@ export default function SellersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Vendedores"
-        description="Quienes atienden las ventas."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -161,7 +160,7 @@ export default function SellersPage() {
           if (!open) closeForm()
         }}
         title={isEditing ? 'Editar vendedor' : 'Nuevo vendedor'}
-        description={form.seller?.name ?? 'Completá los datos para crearlo.'}
+        description={form.seller?.name}
       >
         <SellerForm
           key={form.formKey}

@@ -55,7 +55,7 @@ function documentProblem(type: DocumentType, number: string): string | null {
 
   const label = documentTypeLabel(type)
   const digits = documentDigits(number)
-  if (digits === '') return `Ingresá el número de ${label}`
+  if (digits === '') return `Ingresar el número de ${label}`
   if (!/^\d+$/.test(digits)) return `El ${label} lleva solo números`
   if (type === 'dni' && (digits.length < 7 || digits.length > 8)) return 'El DNI lleva 7 u 8 números'
   if (type !== 'dni' && digits.length !== 11) return `El ${label} lleva 11 números`
@@ -84,7 +84,7 @@ export const customerFormSchema = z
       .string()
       .trim()
       .max(254, 'El email admite hasta 254 caracteres')
-      .refine((value) => value === '' || EMAIL_SHAPE.test(value), 'Ingresá un email válido, por ejemplo nombre@dominio.com'),
+      .refine((value) => value === '' || EMAIL_SHAPE.test(value), 'Ingresar un email válido, por ejemplo nombre@dominio.com'),
     phone: z.string().trim().max(30, 'El teléfono admite hasta 30 caracteres'),
     address: z.string().trim().max(200, 'La dirección admite hasta 200 caracteres'),
     notes: z.string().trim().max(500, 'Las notas admiten hasta 500 caracteres'),

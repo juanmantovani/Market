@@ -86,8 +86,8 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
       return (
         <EmptyState
           icon={Tags}
-          title="Primero creá una categoría"
-          description="Cada artículo pertenece a una categoría. Creá al menos una para empezar a cargar artículos."
+          title="Primero, crear una categoría"
+          description="Cada artículo pertenece a una categoría. Crear al menos una para empezar a cargar artículos."
           action={
             <Link to="/categorias" className={buttonVariants({ size: 'lg' })}>
               Ir a categorías
@@ -101,7 +101,7 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
       return (
         <EmptyState
           icon={CircleAlert}
-          title="No pudimos cargar los artículos"
+          title="No se pudieron cargar los artículos"
           description={messageFromError(items.error)}
           action={
             <Button type="button" variant="outline" size="lg" onClick={() => void items.refetch()}>
@@ -114,12 +114,12 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
 
     if (!items.isPending && rows.length === 0) {
       return isFiltered ? (
-        <EmptyState icon={SearchX} title="No encontramos artículos" description="Probá con otra búsqueda o cambiá la categoría." />
+        <EmptyState icon={SearchX} title="No se encontraron artículos" description="Probar con otra búsqueda o cambiar la categoría." />
       ) : (
         <EmptyState
           icon={Package}
           title="Todavía no hay artículos"
-          description="Cargá los productos y servicios que vendés, con su precio y su código de barras."
+          description="Cargar los productos y servicios que se venden, con su precio y su código de barras."
           action={
             <Button type="button" size="lg" onClick={() => openForm(null)}>
               <Plus aria-hidden />
@@ -150,7 +150,6 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Artículos"
-        description="Los productos y servicios que se venden."
         actions={
           <Button
             type="button"
@@ -203,7 +202,7 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
         }}
         size="wide"
         title={isEditing ? 'Editar artículo' : 'Nuevo artículo'}
-        description={form.item?.name ?? 'Completá los datos para crearlo.'}
+        description={form.item?.name}
       >
         <ItemForm
           key={form.formKey}

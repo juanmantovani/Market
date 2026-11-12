@@ -40,7 +40,7 @@ export const supplierFormSchema = z
       .string()
       .trim()
       .max(254, 'El email admite hasta 254 caracteres')
-      .refine((value) => value === '' || EMAIL_SHAPE.test(value), 'Ingresá un email válido, por ejemplo nombre@dominio.com'),
+      .refine((value) => value === '' || EMAIL_SHAPE.test(value), 'Ingresar un email válido, por ejemplo nombre@dominio.com'),
     address: z.string().trim().max(200, 'La dirección admite hasta 200 caracteres'),
     notes: z.string().trim().max(500, 'Las notas admiten hasta 500 caracteres'),
   })

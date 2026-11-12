@@ -171,7 +171,7 @@ describe('SellersPage', () => {
 
     expect(form.getByText('El nombre es obligatorio')).toBeInTheDocument()
     expect(form.getByText('El código es obligatorio')).toBeInTheDocument()
-    expect(form.getByText('Ingresá un porcentaje de 0 a 100, por ejemplo 2,5')).toBeInTheDocument()
+    expect(form.getByText('Ingresar un porcentaje de 0 a 100, por ejemplo 2,5')).toBeInTheDocument()
     expect(form.getByLabelText(/Comisión/)).toHaveAttribute('aria-invalid', 'true')
     expect(api.writes()).toEqual([])
 
@@ -181,7 +181,7 @@ describe('SellersPage', () => {
     await user.click(form.getByRole('button', { name: 'Crear vendedor' }))
 
     expect(form.getByText('El código lleva de 1 a 6 letras o números, sin espacios')).toBeInTheDocument()
-    expect(form.getByText('Ingresá un porcentaje de 0 a 100, por ejemplo 2,5')).toBeInTheDocument()
+    expect(form.getByText('Ingresar un porcentaje de 0 a 100, por ejemplo 2,5')).toBeInTheDocument()
     expect(api.writes()).toEqual([])
   })
 
@@ -303,7 +303,7 @@ describe('SellersPage', () => {
     expect(api.requests.at(-1)?.path).toContain('q=mg')
 
     await user.type(screen.getByRole('searchbox', { name: 'Buscar vendedores' }), 'zzz')
-    expect(await screen.findByRole('heading', { name: 'No encontramos vendedores' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontraron vendedores' })).toBeInTheDocument()
   })
 
   it('offers to retry when the list cannot be loaded', async () => {
@@ -312,7 +312,7 @@ describe('SellersPage', () => {
     const user = userEvent.setup()
     renderWithProviders(<SellersPage />)
 
-    expect(await screen.findByRole('heading', { name: 'No pudimos cargar los vendedores' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se pudieron cargar los vendedores' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
 
     expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Ana'])

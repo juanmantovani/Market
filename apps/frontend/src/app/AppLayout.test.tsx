@@ -121,7 +121,7 @@ describe('AppLayout', () => {
     const user = userEvent.setup()
     const router = renderApp('/no-existe')
 
-    expect(screen.getByRole('heading', { name: 'No encontramos esta página' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'No se encontró esta página' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: 'Volver al inicio' }))
     expect(router.state.location.pathname).toBe('/')

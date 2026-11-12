@@ -82,7 +82,7 @@ export default function CategoriesPage() {
       return (
         <EmptyState
           icon={CircleAlert}
-          title="No pudimos cargar las categorías"
+          title="No se pudieron cargar las categorías"
           description={messageFromError(categories.error)}
           action={
             <Button type="button" variant="outline" size="lg" onClick={() => void categories.refetch()}>
@@ -97,8 +97,8 @@ export default function CategoriesPage() {
       return isSearching ? (
         <EmptyState
           icon={SearchX}
-          title="No encontramos categorías"
-          description="Probá con otra búsqueda."
+          title="No se encontraron categorías"
+          description="Probar con otra búsqueda."
         />
       ) : (
         <EmptyState
@@ -139,7 +139,6 @@ export default function CategoriesPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Categorías"
-        description="Agrupan los artículos para buscarlos y filtrarlos."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -164,7 +163,7 @@ export default function CategoriesPage() {
           if (!open) closeForm()
         }}
         title={isEditing ? 'Editar categoría' : 'Nueva categoría'}
-        description={form.category?.name ?? 'Completá los datos para crearla.'}
+        description={form.category?.name}
       >
         <CategoryForm
           key={form.formKey}

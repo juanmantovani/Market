@@ -321,7 +321,7 @@ describe('CategoriesPage', () => {
     expect(api.requests.at(-1)?.path).toBe('/api/v1/categories')
 
     await user.type(screen.getByRole('searchbox', { name: 'Buscar categorías' }), 'xyz')
-    expect(await screen.findByRole('heading', { name: 'No encontramos categorías' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontraron categorías' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Limpiar búsqueda' }))
     await waitFor(async () => expect(rowNames(await table())).toEqual(['Almacén', 'Bebidas']))
@@ -349,7 +349,7 @@ describe('CategoriesPage', () => {
     const user = userEvent.setup()
     renderWithProviders(<CategoriesPage />)
 
-    expect(await screen.findByRole('heading', { name: 'No pudimos cargar las categorías' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se pudieron cargar las categorías' })).toBeInTheDocument()
     expect(screen.getByText('El almacenamiento no está disponible')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))

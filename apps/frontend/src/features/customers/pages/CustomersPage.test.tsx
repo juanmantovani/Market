@@ -207,7 +207,7 @@ describe('CustomersPage', () => {
     expect(form.getByText('El nombre es obligatorio')).toBeInTheDocument()
     expect(form.getByText('El DNI lleva 7 u 8 números')).toBeInTheDocument()
     expect(form.getByText('Para monotributo, responsable inscripto o exento hace falta un CUIT')).toBeInTheDocument()
-    expect(form.getByText('Ingresá un email válido, por ejemplo nombre@dominio.com')).toBeInTheDocument()
+    expect(form.getByText('Ingresar un email válido, por ejemplo nombre@dominio.com')).toBeInTheDocument()
     expect(form.getByLabelText('Número de documento')).toHaveAttribute('aria-invalid', 'true')
     expect(api.writes()).toEqual([])
 
@@ -219,7 +219,7 @@ describe('CustomersPage', () => {
   })
 
   it.each([
-    ['DNI', '', 'Ingresá el número de DNI'],
+    ['DNI', '', 'Ingresar el número de DNI'],
     ['DNI', '28456A89', 'El DNI lleva solo números'],
     ['CUIT', '20-1234567-8', 'El CUIT lleva 11 números'],
     ['CUIL', '27 2345 6789', 'El CUIL lleva 11 números'],
@@ -402,7 +402,7 @@ describe('CustomersPage', () => {
 
     await user.clear(screen.getByRole('searchbox', { name: 'Buscar clientes' }))
     await user.type(screen.getByRole('searchbox', { name: 'Buscar clientes' }), 'zzz')
-    expect(await screen.findByRole('heading', { name: 'No encontramos clientes' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontraron clientes' })).toBeInTheDocument()
   })
 
   it('offers to retry when the list cannot be loaded', async () => {
@@ -411,7 +411,7 @@ describe('CustomersPage', () => {
     const user = userEvent.setup()
     renderWithProviders(<CustomersPage />)
 
-    expect(await screen.findByRole('heading', { name: 'No pudimos cargar los clientes' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se pudieron cargar los clientes' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
 
     expect(rowTexts(await table()).map((row) => row[0])).toEqual(['Ana'])

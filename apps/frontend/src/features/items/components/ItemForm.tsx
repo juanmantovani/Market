@@ -132,7 +132,7 @@ export function ItemForm({ initialValues, categories, submitLabel, onSubmit, onC
               value={values.categoryId}
               onChange={(event) => change('categoryId', event.target.value)}
             >
-              <option value="">Elegí una categoría</option>
+              <option value="">Elegir una categoría</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -235,7 +235,7 @@ export function ItemForm({ initialValues, categories, submitLabel, onSubmit, onC
             onChange={(event) => change('tracksStock', event.target.checked)}
           />
           Controla stock
-          <span className="font-normal text-muted-foreground">(desmarcalo para servicios)</span>
+          <span className="font-normal text-muted-foreground">(desmarcar para servicios)</span>
         </label>
         <Field className="sm:max-w-xs">
           <FieldLabel htmlFor="item-minStock">

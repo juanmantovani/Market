@@ -206,7 +206,7 @@ describe('SuppliersPage', () => {
 
     expect(form.getByText('La razón social es obligatoria')).toBeInTheDocument()
     expect(form.getByText('El CUIT lleva 11 números, por ejemplo 30-71234567-8')).toBeInTheDocument()
-    expect(form.getByText('Ingresá un email válido, por ejemplo nombre@dominio.com')).toBeInTheDocument()
+    expect(form.getByText('Ingresar un email válido, por ejemplo nombre@dominio.com')).toBeInTheDocument()
     expect(form.getByLabelText(/CUIT/)).toHaveAttribute('aria-invalid', 'true')
     expect(api.writes()).toEqual([])
 
@@ -359,7 +359,7 @@ describe('SuppliersPage', () => {
     await waitFor(async () => expect(rowTexts(await table()).map((row) => row[0])).toEqual(['Distribuidora del Centro']))
 
     await user.type(screen.getByRole('searchbox', { name: 'Buscar proveedores' }), 'zzz')
-    expect(await screen.findByRole('heading', { name: 'No encontramos proveedores' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontraron proveedores' })).toBeInTheDocument()
   })
 
   it('offers to retry when the list cannot be loaded', async () => {
@@ -368,7 +368,7 @@ describe('SuppliersPage', () => {
     const user = userEvent.setup()
     renderWithProviders(<SuppliersPage />)
 
-    expect(await screen.findByRole('heading', { name: 'No pudimos cargar los proveedores' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se pudieron cargar los proveedores' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
 
     expect(rowTexts(await table()).map((row) => row[0])).toEqual(['Centro'])

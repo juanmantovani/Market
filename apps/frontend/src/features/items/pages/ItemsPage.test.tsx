@@ -145,7 +145,7 @@ describe('ItemsPage', () => {
     fakeItemApi()
     renderPage([])
 
-    expect(await screen.findByRole('heading', { name: 'Primero creá una categoría' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Primero, crear una categoría' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ir a categorías' })).toHaveAttribute('href', '/categorias')
     expect(screen.getByRole('button', { name: 'Nuevo artículo' })).toBeDisabled()
   })
@@ -213,10 +213,10 @@ describe('ItemsPage', () => {
     expect(form.getByText('El nombre es obligatorio')).toBeInTheDocument()
     expect(form.getByText('El código es obligatorio')).toBeInTheDocument()
     expect(form.getByText('El código de barras no puede tener espacios')).toBeInTheDocument()
-    expect(form.getByLabelText('Categoría')).toHaveAccessibleDescription('Elegí una categoría')
-    expect(form.getByText('Ingresá un precio mayor a cero, por ejemplo 1.250,50')).toBeInTheDocument()
-    expect(form.getByText('Ingresá un costo válido, por ejemplo 800,00')).toBeInTheDocument()
-    expect(form.getByText('Ingresá una cantidad, por ejemplo 2,5')).toBeInTheDocument()
+    expect(form.getByLabelText('Categoría')).toHaveAccessibleDescription('Elegir una categoría')
+    expect(form.getByText('Ingresar un precio mayor a cero, por ejemplo 1.250,50')).toBeInTheDocument()
+    expect(form.getByText('Ingresar un costo válido, por ejemplo 800,00')).toBeInTheDocument()
+    expect(form.getByText('Ingresar una cantidad, por ejemplo 2,5')).toBeInTheDocument()
     expect(form.getByLabelText('Precio de venta')).toHaveAttribute('aria-invalid', 'true')
     expect(api.writes()).toEqual([])
 
@@ -235,7 +235,7 @@ describe('ItemsPage', () => {
     await user.type(form.getByLabelText(/Stock mínimo/), '1,5')
     await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
 
-    expect(form.getByText('Ingresá una cantidad entera')).toBeInTheDocument()
+    expect(form.getByText('Ingresar una cantidad entera')).toBeInTheDocument()
     expect(api.writes()).toEqual([])
 
     await user.selectOptions(form.getByLabelText('Se vende por'), 'Kilogramo')
@@ -395,7 +395,7 @@ describe('ItemsPage', () => {
     await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Yerba']))
 
     await user.type(screen.getByRole('searchbox', { name: 'Buscar artículos' }), 'zzz')
-    expect(await screen.findByRole('heading', { name: 'No encontramos artículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontraron artículos' })).toBeInTheDocument()
   })
 
   it('offers to retry when the list cannot be loaded', async () => {
@@ -404,7 +404,7 @@ describe('ItemsPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: 'No pudimos cargar los artículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se pudieron cargar los artículos' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
 
     expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Yerba'])

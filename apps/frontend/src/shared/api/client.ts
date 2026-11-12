@@ -2,8 +2,8 @@ import type { ZodType } from 'zod'
 import { apiBaseUrl } from '../config/env'
 
 const NETWORK_ERROR_MESSAGE =
-  'No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.'
-const UNEXPECTED_ERROR_MESSAGE = 'Ocurrió un error inesperado. Intentá de nuevo en unos minutos.'
+  'No se pudo conectar con el servidor. Revisar la conexión e intentar de nuevo.'
+const UNEXPECTED_ERROR_MESSAGE = 'Ocurrió un error inesperado. Intentar de nuevo en unos minutos.'
 const REQUEST_FAILED_MESSAGE = 'La solicitud no pudo completarse.'
 
 // ApiError carries the backend's own `code` and `message` (see
