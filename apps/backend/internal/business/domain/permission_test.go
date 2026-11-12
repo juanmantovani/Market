@@ -9,11 +9,12 @@ func TestRolePermissions(t *testing.T) {
 		PermissionViewCatalog, PermissionManageCatalog,
 		PermissionViewCustomers, PermissionCreateCustomers, PermissionManageCustomers,
 		PermissionViewSuppliers, PermissionManageSuppliers,
+		PermissionViewSellers, PermissionManageSellers,
 	}
 	want := map[Role][]Permission{
 		RoleAdmin:   permissions,
 		RoleManager: permissions,
-		RoleCashier: {PermissionViewCatalog, PermissionViewCustomers, PermissionCreateCustomers},
+		RoleCashier: {PermissionViewCatalog, PermissionViewCustomers, PermissionCreateCustomers, PermissionViewSellers},
 		"root":      {},
 	}
 

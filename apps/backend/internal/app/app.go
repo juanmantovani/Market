@@ -41,6 +41,7 @@ func New(ctx context.Context) (*App, error) {
 			CreateItem:     container.CreateItem,
 			CreateCustomer: container.CreateCustomer,
 			CreateSupplier: container.CreateSupplier,
+			CreateSeller:   container.CreateSeller,
 		}); err != nil {
 			return nil, err
 		}

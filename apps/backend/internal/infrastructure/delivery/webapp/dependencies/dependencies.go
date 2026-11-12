@@ -7,6 +7,7 @@ import (
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/sellers"
 	"market/backend/internal/business/usecase/suppliers"
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
@@ -41,6 +42,12 @@ type Container struct {
 	GetSupplier    suppliers.GetSupplier
 	UpdateSupplier suppliers.UpdateSupplier
 	DeleteSupplier suppliers.DeleteSupplier
+
+	CreateSeller sellers.CreateSeller
+	ListSellers  sellers.ListSellers
+	GetSeller    sellers.GetSeller
+	UpdateSeller sellers.UpdateSeller
+	DeleteSeller sellers.DeleteSeller
 }
 
 type repositories struct {
@@ -48,6 +55,7 @@ type repositories struct {
 	items      gateway.ItemRepository
 	customers  gateway.CustomerRepository
 	suppliers  gateway.SupplierRepository
+	sellers    gateway.SellerRepository
 }
 
 func New(cfg environments.Server) (*Container, error) {
@@ -80,6 +88,12 @@ func New(cfg environments.Server) (*Container, error) {
 		GetSupplier:    suppliers.NewGetSupplier(repos.suppliers),
 		UpdateSupplier: suppliers.NewUpdateSupplier(repos.suppliers),
 		DeleteSupplier: suppliers.NewDeleteSupplier(repos.suppliers),
+
+		CreateSeller: sellers.NewCreateSeller(repos.sellers),
+		ListSellers:  sellers.NewListSellers(repos.sellers),
+		GetSeller:    sellers.NewGetSeller(repos.sellers),
+		UpdateSeller: sellers.NewUpdateSeller(repos.sellers),
+		DeleteSeller: sellers.NewDeleteSeller(repos.sellers),
 	}, nil
 }
 
@@ -92,6 +106,7 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 			items:      memory.NewItemRepository(store),
 			customers:  memory.NewCustomerRepository(store),
 			suppliers:  memory.NewSupplierRepository(store),
+			sellers:    memory.NewSellerRepository(store),
 		}, nil
 	default:
 		return repositories{}, fmt.Errorf("unsupported storage driver %q", driver)
@@ -124,5 +139,11 @@ func (container *Container) Handlers() route.Handlers {
 		CreateSupplier: handler.NewCreateSupplierHandler(container.CreateSupplier),
 		UpdateSupplier: handler.NewUpdateSupplierHandler(container.UpdateSupplier),
 		DeleteSupplier: handler.NewDeleteSupplierHandler(container.DeleteSupplier),
+
+		ListSellers:  handler.NewListSellersHandler(container.ListSellers),
+		GetSeller:    handler.NewGetSellerHandler(container.GetSeller),
+		CreateSeller: handler.NewCreateSellerHandler(container.CreateSeller),
+		UpdateSeller: handler.NewUpdateSellerHandler(container.UpdateSeller),
+		DeleteSeller: handler.NewDeleteSellerHandler(container.DeleteSeller),
 	}
 }
