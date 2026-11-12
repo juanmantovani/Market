@@ -133,7 +133,6 @@ export default function SuppliersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Proveedores"
-        description="A quiénes se les compra mercadería."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -162,7 +161,7 @@ export default function SuppliersPage() {
         }}
         size="wide"
         title={isEditing ? 'Editar proveedor' : 'Nuevo proveedor'}
-        description={form.supplier?.businessName ?? 'Completar los datos para crearlo.'}
+        description={form.supplier?.businessName}
       >
         <SupplierForm
           key={form.formKey}

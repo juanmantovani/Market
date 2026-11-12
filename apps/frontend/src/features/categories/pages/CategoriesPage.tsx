@@ -139,7 +139,6 @@ export default function CategoriesPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Categorías"
-        description="Agrupan los artículos para buscarlos y filtrarlos."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -164,7 +163,7 @@ export default function CategoriesPage() {
           if (!open) closeForm()
         }}
         title={isEditing ? 'Editar categoría' : 'Nueva categoría'}
-        description={form.category?.name ?? 'Completar los datos para crearla.'}
+        description={form.category?.name}
       >
         <CategoryForm
           key={form.formKey}

@@ -133,7 +133,6 @@ export default function CustomersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Clientes"
-        description="A quiénes se les vende, con sus datos para facturar."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -162,7 +161,7 @@ export default function CustomersPage() {
         }}
         size="wide"
         title={isEditing ? 'Editar cliente' : 'Nuevo cliente'}
-        description={form.customer?.name ?? 'Completar los datos para crearlo.'}
+        description={form.customer?.name}
       >
         <CustomerForm
           key={form.formKey}

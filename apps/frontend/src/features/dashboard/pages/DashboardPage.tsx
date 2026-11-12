@@ -5,7 +5,7 @@ import { PageHeader } from '../../../shared/ui/page-header'
 export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Inicio" description="Resumen del día" />
+      <PageHeader title="Inicio" />
       <EmptyState
         icon={ShoppingBag}
         title="Todavía no hay ventas hoy"

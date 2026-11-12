@@ -7,7 +7,6 @@ describe('DashboardPage', () => {
     render(<DashboardPage />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Inicio' })).toBeInTheDocument()
-    expect(screen.getByText('Resumen del día')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Todavía no hay ventas hoy' })).toBeInTheDocument()
   })
 })

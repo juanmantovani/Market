@@ -133,7 +133,6 @@ export default function SellersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Vendedores"
-        description="Quienes atienden las ventas."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -161,7 +160,7 @@ export default function SellersPage() {
           if (!open) closeForm()
         }}
         title={isEditing ? 'Editar vendedor' : 'Nuevo vendedor'}
-        description={form.seller?.name ?? 'Completar los datos para crearlo.'}
+        description={form.seller?.name}
       >
         <SellerForm
           key={form.formKey}

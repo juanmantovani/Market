@@ -150,7 +150,6 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Artículos"
-        description="Los productos y servicios que se venden."
         actions={
           <Button
             type="button"
@@ -203,7 +202,7 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
         }}
         size="wide"
         title={isEditing ? 'Editar artículo' : 'Nuevo artículo'}
-        description={form.item?.name ?? 'Completar los datos para crearlo.'}
+        description={form.item?.name}
       >
         <ItemForm
           key={form.formKey}
