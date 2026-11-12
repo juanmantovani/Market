@@ -109,7 +109,7 @@ describe('AppLayout', () => {
     await user.click(more)
 
     const sections = within(await screen.findByRole('dialog', { name: 'Más secciones' }))
-    expect(sections.getAllByRole('link').map((link) => link.textContent)).toEqual(['Categorías', 'Proveedores', 'Vendedores'])
+    expect(sections.getAllByRole('link').map((link) => link.textContent)).toEqual(['Categorías', 'Stock', 'Proveedores', 'Vendedores'])
     await user.click(sections.getByRole('link', { name: 'Proveedores' }))
 
     expect(router.state.location.pathname).toBe('/proveedores')

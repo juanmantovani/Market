@@ -7,6 +7,7 @@ import SuppliersPage from '../features/suppliers/pages/SuppliersPage'
 import ItemsRoute from './ItemsRoute'
 import AppLayout from './AppLayout'
 import NotFoundPage from './NotFoundPage'
+import StockRoute from './StockRoute'
 
 export const routes: RouteObject[] = [
   {
@@ -15,6 +16,7 @@ export const routes: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: 'articulos', element: <ItemsRoute /> },
       { path: 'categorias', element: <CategoriesPage /> },
+      { path: 'stock', element: <StockRoute /> },
       { path: 'clientes', element: <CustomersPage /> },
       { path: 'proveedores', element: <SuppliersPage /> },
       { path: 'vendedores', element: <SellersPage /> },

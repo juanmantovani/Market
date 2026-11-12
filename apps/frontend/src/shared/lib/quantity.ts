@@ -3,11 +3,26 @@
 
 export const QUANTITY_SCALE = 1000
 
+export type Unit = 'unit' | 'kg' | 'l' | 'm'
+
+const UNIT_SHORT: Record<Unit, string> = { unit: 'u.', kg: 'kg', l: 'l', m: 'm' }
+
 export function formatQuantity(thousandths: number): string {
-  const whole = Math.trunc(thousandths / QUANTITY_SCALE)
-  const fraction = Math.abs(thousandths % QUANTITY_SCALE)
-  if (fraction === 0) return String(whole)
-  return `${whole},${String(fraction).padStart(3, '0').replace(/0+$/, '')}`
+  const sign = thousandths < 0 ? '-' : ''
+  const absolute = Math.abs(thousandths)
+  const whole = Math.trunc(absolute / QUANTITY_SCALE)
+  const fraction = absolute % QUANTITY_SCALE
+  if (fraction === 0) return `${sign}${whole}`
+  return `${sign}${whole},${String(fraction).padStart(3, '0').replace(/0+$/, '')}`
+}
+
+// "4 u.", "1,8 kg": a stock or a movement as people read it.
+export function formatUnitQuantity(thousandths: number, unit: Unit): string {
+  return `${formatQuantity(thousandths)} ${UNIT_SHORT[unit]}`
+}
+
+export function unitShort(unit: Unit): string {
+  return UNIT_SHORT[unit]
 }
 
 // Reads "2", "2,5" or "2.5". Fractions (up to three decimals) are only
