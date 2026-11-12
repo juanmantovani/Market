@@ -1,6 +1,6 @@
 import { SearchX } from 'lucide-react'
 import { Link } from 'react-router'
-import { buttonVariants } from '../shared/ui/button'
+import { buttonVariants } from '../shared/ui/button-variants'
 import { EmptyState } from '../shared/ui/empty-state'
 
 export default function NotFoundPage() {
