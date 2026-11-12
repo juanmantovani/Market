@@ -298,6 +298,7 @@ describe('SellersPage', () => {
     renderWithProviders(<SellersPage />)
     await table()
 
+    expect(screen.getByRole('searchbox', { name: 'Buscar vendedores' })).toHaveAccessibleDescription('Por nombre o código')
     await user.type(screen.getByRole('searchbox', { name: 'Buscar vendedores' }), 'mg')
     await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['María Gómez']))
     expect(api.requests.at(-1)?.path).toContain('q=mg')

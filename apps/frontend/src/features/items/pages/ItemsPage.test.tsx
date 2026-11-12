@@ -384,6 +384,7 @@ describe('ItemsPage', () => {
     expect(api.requests.at(-1)?.path).toContain('categoryId=c2')
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por categoría' }), 'Todas las categorías')
+    expect(screen.getByRole('searchbox', { name: 'Buscar artículos' })).toHaveAccessibleDescription('Por nombre, código o código de barras')
     await user.type(screen.getByRole('searchbox', { name: 'Buscar artículos' }), 'alm-001')
     await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Yerba']))
 

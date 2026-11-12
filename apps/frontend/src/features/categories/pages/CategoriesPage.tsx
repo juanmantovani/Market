@@ -149,7 +149,7 @@ export default function CategoriesPage() {
 
       <SearchField
         label="Buscar categorías"
-        placeholder="Buscar por nombre o descripción"
+        hint="Por nombre o descripción"
         value={search}
         onChange={changeSearch}
         className="sm:max-w-sm"

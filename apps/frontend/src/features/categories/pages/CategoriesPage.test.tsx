@@ -316,6 +316,7 @@ describe('CategoriesPage', () => {
     renderWithProviders(<CategoriesPage />)
     await table()
 
+    expect(screen.getByRole('searchbox', { name: 'Buscar categorías' })).toHaveAccessibleDescription('Por nombre o descripción')
     await user.type(screen.getByRole('searchbox', { name: 'Buscar categorías' }), 'beb')
     await waitFor(async () => expect(rowNames(await table())).toEqual(['Bebidas']))
     expect(api.requests.at(-1)?.path).toBe('/api/v1/categories')
