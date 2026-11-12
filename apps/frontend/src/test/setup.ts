@@ -9,7 +9,9 @@ class ResizeObserverStub {
 }
 
 // findBy* waits 1 s by default, too little for a page under a loaded run.
-configure({ asyncUtilTimeout: 3_000 })
+// The first visit to a lazy route also loads the page's modules, which can
+// take a few seconds while every worker is busy collecting coverage.
+configure({ asyncUtilTimeout: 10_000 })
 
 globalThis.ResizeObserver = ResizeObserverStub
 

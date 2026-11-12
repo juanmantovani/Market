@@ -1,12 +1,14 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
-import CategoriesPage from '../features/categories/pages/CategoriesPage'
-import CustomersPage from '../features/customers/pages/CustomersPage'
-import DashboardPage from '../features/dashboard/pages/DashboardPage'
-import SellersPage from '../features/sellers/pages/SellersPage'
-import SuppliersPage from '../features/suppliers/pages/SuppliersPage'
-import ItemsRoute from './ItemsRoute'
 import AppLayout from './AppLayout'
-import NotFoundPage from './NotFoundPage'
+import {
+  CategoriesPage,
+  CustomersPage,
+  DashboardPage,
+  ItemsRoute,
+  NotFoundPage,
+  SellersPage,
+  SuppliersPage,
+} from './lazy-pages'
 
 export const routes: RouteObject[] = [
   {
