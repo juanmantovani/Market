@@ -79,8 +79,10 @@ describe('ItemsRoute', () => {
       expect.objectContaining({ method: 'GET' }),
     )
 
-    await userEvent.setup().click(table.getByRole('button', { name: 'Editar Agua mineral' }))
+    const user = userEvent.setup()
+    await user.click(table.getByRole('button', { name: 'Editar Agua mineral' }))
     const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    await user.click(form.getByRole('button', { name: 'Proveedores · 1 elegido' }))
     expect(form.getByRole('checkbox', { name: 'Distribuidora del Centro' })).toBeChecked()
   })
 })
