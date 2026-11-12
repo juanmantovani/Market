@@ -20,7 +20,6 @@ type ItemRequest struct {
 	SalePrice   int64    `json:"salePrice"`
 	Cost        *int64   `json:"cost"`
 	TaxRate     int64    `json:"taxRate"`
-	TracksStock bool     `json:"tracksStock"`
 	MinStock    int64    `json:"minStock"`
 }
 
@@ -42,7 +41,6 @@ func (request ItemRequest) Fields() domain.ItemFields {
 		SalePrice:   domain.Money(request.SalePrice),
 		Cost:        cost,
 		TaxRate:     domain.Percent(request.TaxRate),
-		TracksStock: request.TracksStock,
 		MinStock:    domain.Quantity(request.MinStock),
 	}
 }
@@ -59,7 +57,6 @@ type ItemResponse struct {
 	SalePrice   int64     `json:"salePrice"`
 	Cost        *int64    `json:"cost"`
 	TaxRate     int64     `json:"taxRate"`
-	TracksStock bool      `json:"tracksStock"`
 	MinStock    int64     `json:"minStock"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
@@ -84,7 +81,6 @@ func NewItemResponse(item domain.Item) ItemResponse {
 		SalePrice:   int64(item.SalePrice),
 		Cost:        cost,
 		TaxRate:     int64(item.TaxRate),
-		TracksStock: item.TracksStock,
 		MinStock:    int64(item.MinStock),
 		CreatedAt:   item.CreatedAt,
 		UpdatedAt:   item.UpdatedAt,
