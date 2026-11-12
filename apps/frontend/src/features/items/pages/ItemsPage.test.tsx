@@ -174,8 +174,10 @@ describe('ItemsPage', () => {
     await user.clear(form.getByLabelText(/Stock mínimo/))
     await user.type(form.getByLabelText(/Stock mínimo/), '2,5')
     expect(form.getByText('(kg)')).toBeInTheDocument()
+    await user.click(form.getByRole('button', { name: 'Proveedores (opcional)' }))
     await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
     await user.click(form.getByRole('checkbox', { name: 'Distribuidora del Centro' }))
+    expect(form.getByRole('button', { name: 'Proveedores · 2 elegidos' })).toBeInTheDocument()
     await user.click(form.getByRole('button', { name: 'Crear artículo' }))
 
     expect(await screen.findByText('Artículo creado')).toBeInTheDocument()
@@ -401,38 +403,58 @@ describe('ItemsPage', () => {
     expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Yerba'])
   })
 
-  it('edits the suppliers of an item, or leaves it with none', async () => {
+  it('keeps the suppliers folded, showing how many are chosen, and opens them from the keyboard', async () => {
     const api = fakeItemApi([item({ name: 'Yerba', code: 'ALM-001', supplierIds: ['s1', 's2'] })])
     const user = userEvent.setup()
     renderPage()
 
     await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
     const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
-    expect(form.getByRole('group', { name: /Proveedores/ })).toBeInTheDocument()
+    const header = form.getByRole('button', { name: 'Proveedores · 2 elegidos' })
+    expect(header).toHaveAttribute('aria-expanded', 'false')
+    expect(form.queryByRole('checkbox', { name: 'Mayorista Norte' })).not.toBeInTheDocument()
+
+    header.focus()
+    await user.keyboard('{Enter}')
+    expect(header).toHaveAttribute('aria-expanded', 'true')
+    expect(form.getByRole('group', { name: 'Proveedores' })).toBeInTheDocument()
     expect(form.getByRole('checkbox', { name: 'Distribuidora del Centro' })).toBeChecked()
     expect(form.getByRole('checkbox', { name: 'Mayorista Norte' })).toBeChecked()
 
     await user.click(form.getByRole('checkbox', { name: 'Distribuidora del Centro' }))
+    expect(header).toHaveAccessibleName('Proveedores · 1 elegido')
     await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
-    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
+    expect(header).toHaveAccessibleName('Proveedores (opcional)')
 
+    header.focus()
+    await user.keyboard(' ')
+    expect(header).toHaveAttribute('aria-expanded', 'false')
+    await waitFor(() => expect(form.queryByRole('group', { name: 'Proveedores' })).not.toBeInTheDocument())
+
+    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
     await waitFor(() => expect(api.writes()).toHaveLength(1))
     expect(api.writes()[0].body).toMatchObject({ supplierIds: [] })
   })
 
-  it('shows a supplier that no longer exists next to the suppliers', async () => {
+  it('opens the suppliers by itself to show a supplier that no longer exists', async () => {
     const api = fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' })])
     const user = userEvent.setup()
     renderPage()
 
     await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
     const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    await user.click(form.getByRole('button', { name: 'Proveedores (opcional)' }))
     await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
+    const header = form.getByRole('button', { name: 'Proveedores · 1 elegido' })
+    await user.click(header)
+    expect(header).toHaveAttribute('aria-expanded', 'false')
+
     api.failNext({ status: 400, code: 'item_supplier_not_found', message: 'Uno de los proveedores elegidos no existe' })
     await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await form.findByText('Uno de los proveedores elegidos no existe')).toBeInTheDocument()
-    expect(form.getByRole('group', { name: /Proveedores/ })).toHaveAccessibleDescription('Uno de los proveedores elegidos no existe')
+    expect(header).toHaveAttribute('aria-expanded', 'true')
+    expect(form.getByRole('group', { name: 'Proveedores' })).toHaveAccessibleDescription('Uno de los proveedores elegidos no existe')
 
     await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
     expect(form.queryByText('Uno de los proveedores elegidos no existe')).not.toBeInTheDocument()
@@ -445,6 +467,7 @@ describe('ItemsPage', () => {
 
     await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
     const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    await user.click(form.getByRole('button', { name: 'Proveedores (opcional)' }))
     expect(form.getByText('Todavía no hay proveedores cargados.')).toBeInTheDocument()
     expect(form.queryByRole('checkbox', { name: 'Mayorista Norte' })).not.toBeInTheDocument()
   })
