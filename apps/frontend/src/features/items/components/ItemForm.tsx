@@ -12,6 +12,7 @@ import {
   UNITS,
   unitShort,
   type CategoryOption,
+  type SupplierOption,
   type ItemField,
   type ItemFormValues,
   type ItemRequest,
@@ -20,6 +21,7 @@ import {
 type ItemFormProps = {
   initialValues: ItemFormValues
   categories: readonly CategoryOption[]
+  suppliers: readonly SupplierOption[]
   submitLabel: string
   onSubmit: (request: ItemRequest) => Promise<unknown>
   onCancel: () => void
@@ -44,7 +46,7 @@ function errorProps(field: ItemField, errors: FieldErrors) {
   }
 }
 
-export function ItemForm({ initialValues, categories, submitLabel, onSubmit, onCancel }: ItemFormProps) {
+export function ItemForm({ initialValues, categories, suppliers, submitLabel, onSubmit, onCancel }: ItemFormProps) {
   const [values, setValues] = useState(initialValues)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -53,6 +55,16 @@ export function ItemForm({ initialValues, categories, submitLabel, onSubmit, onC
   function change<F extends ItemField>(field: F, value: ItemFormValues[F]) {
     setValues((current) => ({ ...current, [field]: value }))
     setFieldErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  function toggleSupplier(supplierId: string, selected: boolean) {
+    setValues((current) => ({
+      ...current,
+      supplierIds: selected
+        ? [...current.supplierIds, supplierId]
+        : current.supplierIds.filter((id) => id !== supplierId),
+    }))
+    setFieldErrors((current) => ({ ...current, supplierIds: undefined }))
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -252,6 +264,33 @@ export function ItemForm({ initialValues, categories, submitLabel, onSubmit, onC
           {error('minStock')}
         </Field>
       </Section>
+
+      <fieldset
+        className="flex flex-col gap-3"
+        aria-describedby={fieldErrors.supplierIds ? 'item-supplierIds-error' : undefined}
+      >
+        <legend className="mb-1 text-sm font-semibold text-muted-foreground">
+          Proveedores <span className="font-normal">(opcional)</span>
+        </legend>
+        {suppliers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Todavía no hay proveedores cargados.</p>
+        ) : (
+          <div className="grid max-h-48 gap-1 overflow-y-auto rounded-lg border p-2 sm:grid-cols-2">
+            {suppliers.map((supplier) => (
+              <label key={supplier.id} className="flex min-h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted">
+                <input
+                  type="checkbox"
+                  className="size-5 shrink-0 accent-primary"
+                  checked={values.supplierIds.includes(supplier.id)}
+                  onChange={(event) => toggleSupplier(supplier.id, event.target.checked)}
+                />
+                {supplier.name}
+              </label>
+            ))}
+          </div>
+        )}
+        {error('supplierIds')}
+      </fieldset>
 
       {formError && (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">

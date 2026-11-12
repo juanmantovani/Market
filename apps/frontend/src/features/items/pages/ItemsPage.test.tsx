@@ -3,13 +3,17 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../../../test/render'
-import type { CategoryOption, Item } from '../types'
+import type { CategoryOption, Item, SupplierOption } from '../types'
 import ItemsPage from './ItemsPage'
 
 const NOW = '2026-11-10T15:00:00Z'
 const CATEGORIES: CategoryOption[] = [
   { id: 'c1', name: 'Almacén' },
   { id: 'c2', name: 'Fiambrería' },
+]
+const SUPPLIERS: SupplierOption[] = [
+  { id: 's1', name: 'Distribuidora del Centro' },
+  { id: 's2', name: 'Mayorista Norte' },
 ]
 
 type Failure = { status: number; code: string; message: string }
@@ -23,6 +27,7 @@ function item(overrides: Partial<Item> & { name: string; code: string }): Omit<I
     barcode: null,
     description: null,
     categoryId: 'c1',
+    supplierIds: [],
     unit: 'unit',
     salePrice: 100_000,
     cost: null,
@@ -98,10 +103,10 @@ function fakeItemApi(initial: Array<ReturnType<typeof item>> = []) {
   }
 }
 
-function renderPage(categories: CategoryOption[] = CATEGORIES) {
+function renderPage(categories: CategoryOption[] = CATEGORIES, suppliers: SupplierOption[] = SUPPLIERS) {
   return renderWithProviders(
     <MemoryRouter>
-      <ItemsPage categories={categories} categoriesLoading={false} />
+      <ItemsPage categories={categories} categoriesLoading={false} suppliers={suppliers} />
     </MemoryRouter>,
   )
 }
@@ -170,6 +175,8 @@ describe('ItemsPage', () => {
     await user.clear(form.getByLabelText(/Stock mínimo/))
     await user.type(form.getByLabelText(/Stock mínimo/), '2,5')
     expect(form.getByText('(kg)')).toBeInTheDocument()
+    await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
+    await user.click(form.getByRole('checkbox', { name: 'Distribuidora del Centro' }))
     await user.click(form.getByRole('button', { name: 'Crear artículo' }))
 
     expect(await screen.findByText('Artículo creado')).toBeInTheDocument()
@@ -183,6 +190,7 @@ describe('ItemsPage', () => {
           name: 'Queso cremoso',
           description: null,
           categoryId: 'c2',
+          supplierIds: ['s2', 's1'],
           unit: 'kg',
           salePrice: 980_050,
           cost: 690_000,
@@ -408,6 +416,54 @@ describe('ItemsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
 
     expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Yerba'])
+  })
+
+  it('edits the suppliers of an item, or leaves it with none', async () => {
+    const api = fakeItemApi([item({ name: 'Yerba', code: 'ALM-001', supplierIds: ['s1', 's2'] })])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    expect(form.getByRole('group', { name: /Proveedores/ })).toBeInTheDocument()
+    expect(form.getByRole('checkbox', { name: 'Distribuidora del Centro' })).toBeChecked()
+    expect(form.getByRole('checkbox', { name: 'Mayorista Norte' })).toBeChecked()
+
+    await user.click(form.getByRole('checkbox', { name: 'Distribuidora del Centro' }))
+    await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
+    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(api.writes()).toHaveLength(1))
+    expect(api.writes()[0].body).toMatchObject({ supplierIds: [] })
+  })
+
+  it('shows a supplier that no longer exists next to the suppliers', async () => {
+    const api = fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' })])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
+    api.failNext({ status: 400, code: 'item_supplier_not_found', message: 'Uno de los proveedores elegidos no existe' })
+    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(await form.findByText('Uno de los proveedores elegidos no existe')).toBeInTheDocument()
+    expect(form.getByRole('group', { name: /Proveedores/ })).toHaveAccessibleDescription('Uno de los proveedores elegidos no existe')
+
+    await user.click(form.getByRole('checkbox', { name: 'Mayorista Norte' }))
+    expect(form.queryByText('Uno de los proveedores elegidos no existe')).not.toBeInTheDocument()
+  })
+
+  it('says so when there are no suppliers to choose from', async () => {
+    fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' })])
+    const user = userEvent.setup()
+    renderPage(CATEGORIES, [])
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    expect(form.getByText('Todavía no hay proveedores cargados.')).toBeInTheDocument()
+    expect(form.queryByRole('checkbox', { name: 'Mayorista Norte' })).not.toBeInTheDocument()
   })
 
   it('shows an unknown category as a dash', async () => {
