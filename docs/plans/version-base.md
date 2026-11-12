@@ -214,7 +214,7 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 | Clientes | Mismo patrón en `/api/v1/customers` |
 | Proveedores | Mismo patrón en `/api/v1/suppliers` |
 | Vendedores | Mismo patrón en `/api/v1/sellers` |
-| Stock | `GET /api/v1/stock` (`?q=&lowStock=true`) · `GET /api/v1/stock/movements` (`?itemId=&type=&from=&to=`) · `POST /api/v1/stock/entries` · `POST /api/v1/stock/adjustments` |
+| Stock | `GET /api/v1/stock` (`?q=&categoryId=&lowStock=true`) · `GET /api/v1/stock/movements` (`?itemId=&type=`; `from`/`to` cuando haga falta un historial por fechas) · `POST /api/v1/stock/entries` · `POST /api/v1/stock/adjustments` |
 | Ventas | `POST /api/v1/sales` · `GET /api/v1/sales` (`?from=&to=&sellerId=&customerId=&status=`) · `GET /api/v1/sales/{id}` · `POST /api/v1/sales/{id}/void` |
 | Inicio | `GET /api/v1/dashboard/summary` |
 

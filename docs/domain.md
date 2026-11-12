@@ -85,7 +85,10 @@ artículo completo, y así un opcional enviado como `null` se borra.
 Permisos: los de catálogo (`catalog:view` para listar y consultar,
 `catalog:manage` para crear, editar y eliminar).
 
-Códigos de error: `item_not_found`, `item_code_required`,
+Eliminar un artículo que tiene movimientos de stock falla con `item_in_use`
+(`409`): los movimientos nunca se borran, así que el artículo tampoco.
+
+Códigos de error: `item_not_found`, `item_in_use`, `item_code_required`,
 `item_code_too_long`, `item_code_in_use`, `item_barcode_invalid`,
 `item_barcode_in_use`, `item_name_required`, `item_name_too_long`,
 `item_description_too_long`, `item_category_required`,
@@ -143,7 +146,9 @@ crear, editar y eliminar. El cajero no tiene ninguno: los proveedores se
 usan al ingresar mercadería (Fase 3), que hace el encargado.
 
 Eliminar un proveedor asignado a algún artículo falla con `supplier_in_use`
-(`409`): hay que quitarlo de esos artículos antes.
+(`409`): hay que quitarlo de esos artículos antes. Un proveedor con
+ingresos de mercadería registrados tampoco se elimina (mismo código, con un
+mensaje que lo explica).
 
 Códigos de error: `supplier_not_found`, `supplier_business_name_required`,
 `supplier_business_name_too_long`, `supplier_cuit_invalid`,
@@ -174,6 +179,63 @@ Códigos de error: `seller_not_found`, `seller_name_required`,
 `seller_name_too_long`, `seller_code_required`, `seller_code_invalid`,
 `seller_code_in_use`, `seller_commission_invalid`.
 
+## Stock
+
+Todo artículo lleva stock. La existencia (`StockLevel`) de un artículo es
+cuánto hay y **solo cambia mediante un movimiento** (`StockMovement`); no hay
+“editar stock”. Un artículo sin movimientos tiene existencia cero.
+
+| Campo del movimiento | Regla |
+| --- | --- |
+| `type` | `initial` (stock inicial), `entry` (ingreso de mercadería), `adjustment` (ajuste), `sale` y `sale_void` (llegan con ventas, Fase 4). |
+| `quantity` | Milésimas de la unidad, con signo: positiva si entra, negativa si sale. Entera si el artículo se vende por unidad. Hasta un millón de unidades por movimiento. |
+| `balanceAfter` | Existencia que deja el movimiento. La existencia no pasa de mil millones de unidades (ni baja de menos mil millones). |
+| `reason` | Motivo, obligatorio en los ajustes, hasta 200 caracteres. |
+| `reference` | Comprobante opcional del ingreso (remito o factura), hasta 60 caracteres. |
+| `supplierId` / `unitCost` | Opcionales, solo en ingresos. |
+| `actorId` / `createdAt` | Quién y cuándo (UTC). |
+
+Los movimientos **nunca se editan ni se borran**: un error se corrige con
+otro movimiento. Por eso un artículo o un proveedor con movimientos no se
+puede eliminar (`item_in_use`, `supplier_in_use`).
+
+- **Stock inicial** (`initial`): abre el stock de un artículo y solo se
+  permite como su primer movimiento (`stock_already_initialized` si ya
+  tiene). Hoy lo usan los datos demo; todavía no hay pantalla para cargarlo.
+- **Ingreso de mercadería** (`POST /api/v1/stock/entries`): una o varias
+  líneas (hasta 100), cada una con artículo, cantidad mayor a cero y costo
+  unitario opcional; proveedor y comprobante opcionales. Un artículo no se
+  repite en dos líneas. Todo el ingreso se registra o no se registra nada
+  (`TxManager.WithinTx`). **Si una línea trae costo, pasa a ser el costo del
+  artículo.**
+- **Ajuste** (`POST /api/v1/stock/adjustments`): cantidad con signo distinta
+  de cero y motivo obligatorio. Un ajuste negativo no puede dejar la
+  existencia por debajo de cero (`insufficient_stock`, `409`, nombrando el
+  artículo); uno positivo siempre se acepta.
+- **Stock bajo**: `minStock > 0 && quantity <= minStock`
+  (`domain.IsLowStock`). Un mínimo en cero apaga la alerta.
+- **Existencias** (`GET /api/v1/stock?q=&categoryId=&lowStock=true`): todos
+  los artículos con su existencia, ordenados por nombre; `q` busca por
+  nombre, código o código de barras y `lowStock=true` deja solo los de stock
+  bajo. Cada fila trae `quantity`, `minStock`, `lowStock` y `updatedAt`
+  (`null` si el artículo no tiene movimientos).
+- **Movimientos** (`GET /api/v1/stock/movements?itemId=&type=`): del más
+  nuevo al más viejo; los registrados en el mismo instante, en orden inverso
+  al de registro.
+
+Permisos: `stock:view` para consultar existencias y movimientos (también el
+cajero) y `stock:manage` para ingresos y ajustes.
+
+Códigos de error: `stock_item_required`, `stock_item_not_found`,
+`stock_supplier_not_found`, `stock_quantity_invalid`,
+`stock_adjustment_quantity_invalid`, `stock_quantity_not_whole`,
+`stock_balance_out_of_range`, `stock_unit_cost_invalid`,
+`stock_entry_lines_required`, `stock_entry_too_many_lines`,
+`stock_entry_item_repeated`, `stock_reference_too_long`,
+`stock_reason_required`, `stock_reason_too_long`,
+`stock_movement_type_invalid`, `stock_already_initialized`,
+`insufficient_stock`.
+
 ## Actor, roles y permisos
 
 Toda operación la ejecuta un `Actor` (`ID`, `Name`, `Role`). Roles:
@@ -195,6 +257,8 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | `suppliers:manage` — crear, editar y eliminar proveedores | ✅ | ✅ | — |
 | `sellers:view` — ver vendedores | ✅ | ✅ | ✅ |
 | `sellers:manage` — crear, editar y eliminar vendedores | ✅ | ✅ | — |
+| `stock:view` — ver existencias y movimientos | ✅ | ✅ | ✅ |
+| `stock:manage` — registrar ingresos de mercadería y ajustes | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.
