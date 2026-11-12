@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { CircleAlert, Package, Plus, SearchX, Tags } from 'lucide-react'
 import { messageFromError } from '../../../shared/api/client'
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value'
-import { Button, buttonVariants } from '../../../shared/ui/button'
+import { Button } from '../../../shared/ui/button'
+import { buttonVariants } from '../../../shared/ui/button-variants'
 import { ConfirmDialog } from '../../../shared/ui/confirm-dialog'
 import { EmptyState } from '../../../shared/ui/empty-state'
 import { FormDialog } from '../../../shared/ui/form-dialog'
@@ -166,10 +167,10 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers }: 
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <SearchField
           label="Buscar artículos"
-          placeholder="Buscar por nombre, código o código de barras"
+          hint="Por nombre, código o código de barras"
           value={search}
           onChange={(value) => {
             setSearch(value)

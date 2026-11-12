@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router'
 import BrandMark from './BrandMark'
 import MobileNav from './MobileNav'
+import PageSkeleton from './PageSkeleton'
 import Sidebar from './Sidebar'
 import { readSidebarCollapsed, storeSidebarCollapsed } from './sidebar-preference'
 import ThemeToggle from './ThemeToggle'
@@ -39,7 +40,9 @@ export default function AppLayout() {
 
         <main id="main" className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-10">
           <div className="mx-auto w-full max-w-6xl">
-            <Outlet />
+            <Suspense fallback={<PageSkeleton />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

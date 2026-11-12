@@ -33,17 +33,17 @@ describe('AppLayout', () => {
   it('shows the home page with the main navigation', async () => {
     renderApp()
 
-    expect(screen.getByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Principal' })
     expect(within(nav).getByRole('link', { name: 'Inicio' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('navigation', { name: 'Navegación móvil' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Saltar al contenido' })).toHaveAttribute('href', '#main')
   })
 
-  it('renders the layout without calling the server', () => {
+  it('renders the layout without calling the server', async () => {
     renderApp()
 
-    expect(screen.getByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -90,7 +90,7 @@ describe('AppLayout', () => {
     await user.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Clientes' }))
 
     expect(router.state.location.pathname).toBe('/clientes')
-    expect(screen.getByRole('heading', { name: 'Clientes', level: 1 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Clientes', level: 1 })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Todavía no hay clientes' })).toBeInTheDocument()
   })
 
@@ -113,7 +113,7 @@ describe('AppLayout', () => {
     await user.click(sections.getByRole('link', { name: 'Proveedores' }))
 
     expect(router.state.location.pathname).toBe('/proveedores')
-    expect(screen.getByRole('heading', { name: 'Proveedores', level: 1 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Proveedores', level: 1 })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Más secciones' })).not.toBeInTheDocument())
   })
 
@@ -121,10 +121,10 @@ describe('AppLayout', () => {
     const user = userEvent.setup()
     const router = renderApp('/no-existe')
 
-    expect(screen.getByRole('heading', { name: 'No se encontró esta página' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontró esta página' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: 'Volver al inicio' }))
     expect(router.state.location.pathname).toBe('/')
-    expect(screen.getByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
   })
 })
