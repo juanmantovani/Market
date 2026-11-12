@@ -6,9 +6,11 @@ import PageSkeleton from './PageSkeleton'
 import Sidebar from './Sidebar'
 import { readSidebarCollapsed, storeSidebarCollapsed } from './sidebar-preference'
 import ThemeToggle from './ThemeToggle'
+import { usePageTitle } from './use-page-title'
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed)
+  usePageTitle()
 
   function toggleSidebar() {
     const next = !collapsed

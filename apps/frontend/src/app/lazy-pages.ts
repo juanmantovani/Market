@@ -6,4 +6,5 @@ export const DashboardPage = lazy(() => import('../features/dashboard/pages/Dash
 export const SellersPage = lazy(() => import('../features/sellers/pages/SellersPage'))
 export const SuppliersPage = lazy(() => import('../features/suppliers/pages/SuppliersPage'))
 export const ItemsRoute = lazy(() => import('./ItemsRoute'))
+export const StockRoute = lazy(() => import('./StockRoute'))
 export const NotFoundPage = lazy(() => import('./NotFoundPage'))

@@ -150,13 +150,13 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # Inicio, /articulos, /categorias, /clientes, /proveedores, /vendedores y página 404
+│   ├── router.tsx            # Inicio, /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
 │   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías y los proveedores (ver abajo)
+│   ├── StockRoute.tsx        # compone stock con las categorías (filtro) y los proveedores (ingreso e historial)
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── PageSkeleton.tsx      # skeleton del Suspense del layout mientras llega una página
 │   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
-│   ├── navigation.ts         # secciones del menú; cada fase suma la suya
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
 ├── features/
@@ -165,12 +165,13 @@ apps/frontend/src/
 │   ├── items/                # ídem; recibe las categorías por props
 │   ├── customers/            # ídem
 │   ├── suppliers/            # ídem
-│   └── sellers/              # ídem
+│   ├── sellers/              # ídem
+│   └── stock/                # existencias, ajuste, ingreso de mercadería (con buscador de artículos) e historial
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
 │   ├── hooks/                # useDebouncedValue
-│   ├── lib/                  # cn, money (centavos ↔ texto), quantity (milésimas ↔ texto), percent (centésimas ↔ texto), document (DNI y CUIT)
+│   ├── lib/                  # cn, money (centavos ↔ texto), quantity (milésimas ↔ texto, unidades), date (fecha y hora local), percent (centésimas ↔ texto), document (DNI y CUIT)
 │   └── ui/                   # primitivos shadcn/Base UI + kit de ABM (ver abajo)
 ├── test/                     # setup de Vitest y renderWithProviders
 ├── index.css                 # tokens de tema claro/oscuro (oklch)
@@ -182,6 +183,10 @@ apps/frontend/src/
   proveedores para el formulario; `app/ItemsRoute` los obtiene con
   `useCategoryOptions` y `useSupplierOptions` y se los pasa a `ItemsPage`
   por props.
+- El ingreso de mercadería busca los artículos en el endpoint de stock
+  (`GET /api/v1/stock?q=`), que ya trae código, nombre, unidad y
+  existencia: stock no depende de la feature de artículos. Enter elige el
+  primer resultado, así un lector de código de barras completa la línea.
 - `formatMoney`/`parseMoney` y `formatQuantity`/`parseQuantity` son los
   únicos que convierten montos y cantidades entre enteros y texto. Leen lo
   que se tipea en Argentina (`1.234,50`).
@@ -248,8 +253,9 @@ clientes, proveedores, vendedores).
 5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, listado,
    paginación, `FormDialog` para crear y editar, `ConfirmDialog` para
    eliminar, toasts).
-6. Página diferida en `app/lazy-pages.ts`, ruta en `app/router.tsx` y
-   sección en `app/navigation.ts`.
+6. Página diferida en `app/lazy-pages.ts`, ruta en `app/router.tsx` con su
+   título de pestaña (`handle: title('…')`, que `usePageTitle` aplica como
+   "<título> · Market") y sección en `app/navigation.ts`.
 7. Tests de la página contra una API falsa en memoria que respeta las mismas
    reglas que el backend (ver `CategoriesPage.test.tsx`).
 
