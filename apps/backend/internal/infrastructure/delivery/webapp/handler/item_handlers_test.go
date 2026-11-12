@@ -18,14 +18,14 @@ var handlerItem = domain.Item{
 	ItemFields: domain.ItemFields{
 		Code: "YER-1", Barcode: ptr("7790387000123"), Name: "Yerba", CategoryID: "c1", SupplierIDs: []string{"s1", "s2"},
 		Unit: domain.UnitKilogram, SalePrice: 350_000, Cost: ptr(domain.Money(210_000)), TaxRate: 2100,
-		TracksStock: true, MinStock: 2500,
+		MinStock: 2500,
 	},
 	CreatedAt: handlerTime,
 	UpdatedAt: handlerTime,
 }
 
 const itemBody = `{"code":"YER-1","barcode":"7790387000123","name":"Yerba","description":null,` +
-	`"categoryId":"c1","supplierIds":["s1","s2"],"unit":"kg","salePrice":350000,"cost":210000,"taxRate":2100,"tracksStock":true,"minStock":2500}`
+	`"categoryId":"c1","supplierIds":["s1","s2"],"unit":"kg","salePrice":350000,"cost":210000,"taxRate":2100,"minStock":2500}`
 
 type deleteItemFunc func(ctx context.Context, input items.DeleteItemInput) error
 
@@ -37,7 +37,7 @@ func assertItemBody(t *testing.T, got dto.ItemResponse) {
 	t.Helper()
 	if got.ID != "i1" || got.Code != "YER-1" || got.Barcode == nil || *got.Barcode != "7790387000123" ||
 		got.Unit != "kg" || got.SalePrice != 350_000 || got.Cost == nil || *got.Cost != 210_000 ||
-		got.TaxRate != 2100 || !got.TracksStock || got.MinStock != 2500 || got.CategoryID != "c1" || len(got.SupplierIDs) != 2 {
+		got.TaxRate != 2100 || got.MinStock != 2500 || got.CategoryID != "c1" || len(got.SupplierIDs) != 2 {
 		t.Fatalf("body = %+v", got)
 	}
 }
@@ -45,7 +45,7 @@ func assertItemBody(t *testing.T, got dto.ItemResponse) {
 func wantFields(t *testing.T, got domain.ItemFields) {
 	t.Helper()
 	if got.Code != "YER-1" || got.Unit != domain.UnitKilogram || got.SalePrice != 350_000 ||
-		got.Cost == nil || *got.Cost != 210_000 || got.TaxRate != 2100 || !got.TracksStock ||
+		got.Cost == nil || *got.Cost != 210_000 || got.TaxRate != 2100 ||
 		got.MinStock != 2500 || got.CategoryID != "c1" || got.Description != nil || len(got.SupplierIDs) != 2 || got.SupplierIDs[1] != "s2" {
 		t.Fatalf("fields = %+v", got)
 	}
