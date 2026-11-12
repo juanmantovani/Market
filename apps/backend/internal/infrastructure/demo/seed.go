@@ -12,6 +12,7 @@ import (
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
 	"market/backend/internal/business/usecase/sellers"
+	"market/backend/internal/business/usecase/stock"
 	"market/backend/internal/business/usecase/suppliers"
 )
 
@@ -24,6 +25,10 @@ type UseCases struct {
 	CreateCustomer customers.CreateCustomer
 	CreateSupplier suppliers.CreateSupplier
 	CreateSeller   sellers.CreateSeller
+
+	RegisterInitialStock    stock.RegisterInitialStock
+	RegisterStockEntry      stock.RegisterStockEntry
+	RegisterStockAdjustment stock.RegisterStockAdjustment
 }
 
 type demoCategory struct {
@@ -132,6 +137,27 @@ var demoItemSuppliers = map[string][]string{
 	"Kiosco":     {"Distribuidora del Centro SA"},
 }
 
+// demoInitialStock is the opening stock of each item, in thousandths. The
+// yerba, the milk and the cremoso cheese start below their minimum, so the
+// low stock filter has something to show.
+var demoInitialStock = map[string]domain.Quantity{
+	"ALM-001": domain.WholeQuantity(4),
+	"ALM-002": domain.WholeQuantity(25),
+	"ALM-003": domain.WholeQuantity(40),
+	"ALM-004": domain.WholeQuantity(15),
+	"BEB-001": domain.WholeQuantity(18),
+	"BEB-002": domain.WholeQuantity(48),
+	"LAC-001": domain.WholeQuantity(12),
+	"LAC-002": domain.WholeQuantity(10),
+	"PAN-001": 8_500,
+	"PAN-002": domain.WholeQuantity(36),
+	"FIA-001": 1_800,
+	"FIA-002": 3_200,
+	"LIM-001": domain.WholeQuantity(18),
+	"PER-001": domain.WholeQuantity(22),
+	"KIO-001": domain.WholeQuantity(60),
+}
+
 func Seed(ctx context.Context, useCases UseCases) error {
 	categoryIDs := map[string]string{}
 	for _, category := range demoCategories {
@@ -166,13 +192,14 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		supplierIDs[supplier.businessName] = created.ID
 	}
 
+	itemIDs := map[string]string{}
 	for _, item := range demoItems {
 		var itemSupplierIDs []string
 		for _, name := range demoItemSuppliers[item.category] {
 			itemSupplierIDs = append(itemSupplierIDs, supplierIDs[name])
 		}
 		barcode, cost := item.barcode, item.cost
-		_, err := useCases.CreateItem.Execute(ctx, items.CreateItemInput{
+		created, err := useCases.CreateItem.Execute(ctx, items.CreateItemInput{
 			Actor: seeder,
 			Fields: domain.ItemFields{
 				Code:        item.code,
@@ -191,6 +218,11 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		if err != nil {
 			return fmt.Errorf("seeding item %q: %w", item.code, err)
 		}
+		itemIDs[item.code] = created.ID
+	}
+
+	if err := seedStock(ctx, useCases, itemIDs, supplierIDs); err != nil {
+		return err
 	}
 
 	for _, customer := range demoCustomers {
@@ -219,6 +251,40 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		if err != nil {
 			return fmt.Errorf("seeding seller %q: %w", seller.code, err)
 		}
+	}
+
+	return nil
+}
+
+func seedStock(ctx context.Context, useCases UseCases, itemIDs, supplierIDs map[string]string) error {
+	for _, item := range demoItems {
+		_, err := useCases.RegisterInitialStock.Execute(ctx, stock.RegisterInitialStockInput{
+			Actor: seeder, ItemID: itemIDs[item.code], Quantity: demoInitialStock[item.code],
+		})
+		if err != nil {
+			return fmt.Errorf("seeding the stock of %q: %w", item.code, err)
+		}
+	}
+
+	supplierID, reference, cost := supplierIDs["Mayorista Norte SA"], "Remito 0001-00004512", domain.Money(220_000)
+	_, err := useCases.RegisterStockEntry.Execute(ctx, stock.RegisterStockEntryInput{
+		Actor: seeder,
+		Entry: domain.StockEntry{
+			SupplierID: &supplierID,
+			Reference:  &reference,
+			Lines:      []domain.StockEntryLine{{ItemID: itemIDs["BEB-001"], Quantity: domain.WholeQuantity(12), UnitCost: &cost}},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("seeding a stock entry: %w", err)
+	}
+
+	_, err = useCases.RegisterStockAdjustment.Execute(ctx, stock.RegisterStockAdjustmentInput{
+		Actor:      seeder,
+		Adjustment: domain.StockAdjustment{ItemID: itemIDs["KIO-001"], Quantity: domain.WholeQuantity(-2), Reason: "Rotura en góndola"},
+	})
+	if err != nil {
+		return fmt.Errorf("seeding a stock adjustment: %w", err)
 	}
 
 	return nil

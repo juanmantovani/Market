@@ -71,6 +71,9 @@ func (repository *ItemRepository) Delete(ctx context.Context, id string) error {
 		if _, ok := repository.store.items[id]; !ok {
 			return domain.ErrItemNotFound
 		}
+		if _, ok := repository.store.stockLevels[id]; ok {
+			return domain.ErrItemInUse
+		}
 		remove(current, repository.store.items, id)
 		return nil
 	})

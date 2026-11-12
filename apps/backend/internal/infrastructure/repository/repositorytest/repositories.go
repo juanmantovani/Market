@@ -15,6 +15,9 @@ type Repositories struct {
 	Customers  gateway.CustomerRepository
 	Suppliers  gateway.SupplierRepository
 	Sellers    gateway.SellerRepository
+	Stock      gateway.StockRepository
+	// Tx is the adapter's unit of work over these same repositories.
+	Tx gateway.TxManager
 }
 
 // NewRepositories must return empty repositories each time it's called.

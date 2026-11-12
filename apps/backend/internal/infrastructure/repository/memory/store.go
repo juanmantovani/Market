@@ -25,15 +25,21 @@ type Store struct {
 	customers  map[string]domain.Customer
 	suppliers  map[string]domain.Supplier
 	sellers    map[string]domain.Seller
+
+	stockLevels map[string]domain.StockLevel
+	// stockMovements only grows: movements are never edited or deleted, and
+	// their order is the order they were recorded in.
+	stockMovements []domain.StockMovement
 }
 
 func NewStore() *Store {
 	return &Store{
-		categories: map[string]domain.Category{},
-		items:      map[string]domain.Item{},
-		customers:  map[string]domain.Customer{},
-		suppliers:  map[string]domain.Supplier{},
-		sellers:    map[string]domain.Seller{},
+		categories:  map[string]domain.Category{},
+		items:       map[string]domain.Item{},
+		customers:   map[string]domain.Customer{},
+		suppliers:   map[string]domain.Supplier{},
+		sellers:     map[string]domain.Seller{},
+		stockLevels: map[string]domain.StockLevel{},
 	}
 }
 
@@ -109,6 +115,15 @@ func put[K comparable, V any](current *tx, table map[K]V, key K, value V) {
 		} else {
 			delete(table, key)
 		}
+	})
+}
+
+// appendRow appends value to an append-only table and records how to undo
+// it. Undo steps run in reverse, so dropping the last row is always right.
+func appendRow[V any](current *tx, table *[]V, value V) {
+	*table = append(*table, value)
+	current.undo = append(current.undo, func() {
+		*table = (*table)[:len(*table)-1]
 	})
 }
 
