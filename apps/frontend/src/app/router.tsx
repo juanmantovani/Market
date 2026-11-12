@@ -7,6 +7,7 @@ import {
   ItemsRoute,
   NotFoundPage,
   SellersPage,
+  StockRoute,
   SuppliersPage,
 } from './lazy-pages'
 
@@ -17,6 +18,7 @@ export const routes: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: 'articulos', element: <ItemsRoute /> },
       { path: 'categorias', element: <CategoriesPage /> },
+      { path: 'stock', element: <StockRoute /> },
       { path: 'clientes', element: <CustomersPage /> },
       { path: 'proveedores', element: <SuppliersPage /> },
       { path: 'vendedores', element: <SellersPage /> },
