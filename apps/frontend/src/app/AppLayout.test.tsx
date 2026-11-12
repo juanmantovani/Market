@@ -90,6 +90,7 @@ describe('AppLayout', () => {
     await user.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Clientes' }))
 
     expect(router.state.location.pathname).toBe('/clientes')
+    await waitFor(() => expect(document.title).toBe('Clientes · Market'))
     expect(await screen.findByRole('heading', { name: 'Clientes', level: 1 })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Todavía no hay clientes' })).toBeInTheDocument()
   })
@@ -122,9 +123,11 @@ describe('AppLayout', () => {
     const router = renderApp('/no-existe')
 
     expect(await screen.findByRole('heading', { name: 'No se encontró esta página' })).toBeInTheDocument()
+    expect(document.title).toBe('Página no encontrada · Market')
 
     await user.click(screen.getByRole('link', { name: 'Volver al inicio' }))
     expect(router.state.location.pathname).toBe('/')
+    await waitFor(() => expect(document.title).toBe('Inicio · Market'))
     expect(await screen.findByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
   })
 })

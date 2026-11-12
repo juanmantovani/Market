@@ -253,8 +253,9 @@ clientes, proveedores, vendedores).
 5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, listado,
    paginación, `FormDialog` para crear y editar, `ConfirmDialog` para
    eliminar, toasts).
-6. Página diferida en `app/lazy-pages.ts`, ruta en `app/router.tsx` y
-   sección en `app/navigation.ts`.
+6. Página diferida en `app/lazy-pages.ts`, ruta en `app/router.tsx` con su
+   título de pestaña (`handle: title('…')`, que `usePageTitle` aplica como
+   "<título> · Market") y sección en `app/navigation.ts`.
 7. Tests de la página contra una API falsa en memoria que respeta las mismas
    reglas que el backend (ver `CategoriesPage.test.tsx`).
 
