@@ -8,6 +8,7 @@ import (
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
 	"market/backend/internal/business/usecase/sellers"
+	"market/backend/internal/business/usecase/stock"
 	"market/backend/internal/business/usecase/suppliers"
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
@@ -48,6 +49,12 @@ type Container struct {
 	GetSeller    sellers.GetSeller
 	UpdateSeller sellers.UpdateSeller
 	DeleteSeller sellers.DeleteSeller
+
+	ListStockLevels         stock.ListStockLevels
+	ListStockMovements      stock.ListStockMovements
+	RegisterStockEntry      stock.RegisterStockEntry
+	RegisterStockAdjustment stock.RegisterStockAdjustment
+	RegisterInitialStock    stock.RegisterInitialStock
 }
 
 type repositories struct {
@@ -56,6 +63,8 @@ type repositories struct {
 	customers  gateway.CustomerRepository
 	suppliers  gateway.SupplierRepository
 	sellers    gateway.SellerRepository
+	stock      gateway.StockRepository
+	tx         gateway.TxManager
 }
 
 func New(cfg environments.Server) (*Container, error) {
@@ -94,6 +103,12 @@ func New(cfg environments.Server) (*Container, error) {
 		GetSeller:    sellers.NewGetSeller(repos.sellers),
 		UpdateSeller: sellers.NewUpdateSeller(repos.sellers),
 		DeleteSeller: sellers.NewDeleteSeller(repos.sellers),
+
+		ListStockLevels:         stock.NewListStockLevels(repos.stock),
+		ListStockMovements:      stock.NewListStockMovements(repos.stock),
+		RegisterStockEntry:      stock.NewRegisterStockEntry(repos.tx, repos.stock, repos.items, repos.suppliers),
+		RegisterStockAdjustment: stock.NewRegisterStockAdjustment(repos.tx, repos.stock, repos.items),
+		RegisterInitialStock:    stock.NewRegisterInitialStock(repos.tx, repos.stock, repos.items),
 	}, nil
 }
 
@@ -107,6 +122,8 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 			customers:  memory.NewCustomerRepository(store),
 			suppliers:  memory.NewSupplierRepository(store),
 			sellers:    memory.NewSellerRepository(store),
+			stock:      memory.NewStockRepository(store),
+			tx:         store,
 		}, nil
 	default:
 		return repositories{}, fmt.Errorf("unsupported storage driver %q", driver)
@@ -145,5 +162,10 @@ func (container *Container) Handlers() route.Handlers {
 		CreateSeller: handler.NewCreateSellerHandler(container.CreateSeller),
 		UpdateSeller: handler.NewUpdateSellerHandler(container.UpdateSeller),
 		DeleteSeller: handler.NewDeleteSellerHandler(container.DeleteSeller),
+
+		ListStockLevels:       handler.NewListStockLevelsHandler(container.ListStockLevels),
+		ListStockMovements:    handler.NewListStockMovementsHandler(container.ListStockMovements),
+		CreateStockEntry:      handler.NewCreateStockEntryHandler(container.RegisterStockEntry),
+		CreateStockAdjustment: handler.NewCreateStockAdjustmentHandler(container.RegisterStockAdjustment),
 	}
 }

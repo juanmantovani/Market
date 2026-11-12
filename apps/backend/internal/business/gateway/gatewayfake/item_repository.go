@@ -17,6 +17,9 @@ type ItemRepository struct {
 	GetResult domain.Item
 	GetErr    error
 	GetIDs    []string
+	// Stored, when set, answers Get by ID instead of GetResult, with
+	// ErrItemNotFound for any other ID.
+	Stored map[string]domain.Item
 
 	UpdateErr error
 	Updated   []domain.Item
@@ -43,6 +46,13 @@ func (fake *ItemRepository) Get(_ context.Context, id string) (domain.Item, erro
 	fake.GetIDs = append(fake.GetIDs, id)
 	if fake.GetErr != nil {
 		return domain.Item{}, fake.GetErr
+	}
+	if fake.Stored != nil {
+		item, ok := fake.Stored[id]
+		if !ok {
+			return domain.Item{}, domain.ErrItemNotFound
+		}
+		return item, nil
 	}
 
 	return fake.GetResult, nil

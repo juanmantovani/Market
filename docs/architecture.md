@@ -29,7 +29,7 @@ apps/backend/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager y un contrato de repositorio por agregado
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete
+    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
@@ -38,7 +38,7 @@ apps/backend/
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
-            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers
+            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers, stock
             ├── handler/                   # un handler por ruta + Adapt, decodeJSON, pageQuery
             ├── middleware/                # DevActor, Recover, RequestLog
             ├── response/                  # WriteJSON, WriteError (único mapeo Kind → status)
@@ -115,9 +115,17 @@ flowchart LR
 - `WithinTx(ctx, fn)` toma el lock durante toda la unidad de trabajo, así que
   las transacciones son serializables. Un `ctx` que ya está dentro de una
   transacción del mismo store se une a ella en vez de bloquearse.
-- Cada escritura (`put`, `remove`) registra cómo deshacerse. Si `fn` devuelve
-  error o entra en pánico, los pasos se deshacen en orden inverso y las
-  tablas quedan exactamente como estaban.
+- Cada escritura (`put`, `remove`, `appendRow`) registra cómo deshacerse. Si
+  `fn` devuelve error o entra en pánico, los pasos se deshacen en orden
+  inverso y las tablas quedan exactamente como estaban.
+- Los movimientos de stock viven en una tabla que solo crece
+  (`appendRow`): su orden es el de registro y ningún repositorio los edita
+  ni los borra.
+- Las operaciones de stock leen la existencia, dejan que el dominio calcule
+  el movimiento y lo registran dentro del mismo `WithinTx`; con el lock del
+  store, dos ingresos simultáneos del mismo artículo nunca pisan su saldo
+  (la suite de contrato lo prueba con 20 unidades de trabajo concurrentes).
+  En PostgreSQL, `GetLevel` tendrá que bloquear la fila (`FOR UPDATE`).
 - Las tablas guardan valores, y los repositorios copian los punteros y
   slices que guardan o devuelven (por ejemplo `cloneCategory`), para que
   nadie mute una tabla fuera del lock.
@@ -126,9 +134,10 @@ flowchart LR
   categoría de un artículo tiene que existir y no se puede borrar mientras
   tenga artículos, los proveedores de un artículo tienen que existir y no
   se pueden borrar mientras un artículo los tenga, un documento por cliente,
-  un CUIT por proveedor, un código por vendedor) las verifica el repositorio
-  dentro del lock, y la
-  suite de contrato prueba que se cumplan también bajo concurrencia.
+  un CUIT por proveedor, un código por vendedor, el artículo y el proveedor
+  de un movimiento de stock tienen que existir y no se pueden borrar después)
+  las verifica el repositorio dentro del lock, y la suite de contrato prueba
+  que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
   PostgreSQL 18.
 

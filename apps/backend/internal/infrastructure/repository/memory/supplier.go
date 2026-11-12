@@ -76,6 +76,11 @@ func (repository *SupplierRepository) Delete(ctx context.Context, id string) err
 				return domain.ErrSupplierInUse
 			}
 		}
+		for _, movement := range repository.store.stockMovements {
+			if movement.SupplierID != nil && *movement.SupplierID == id {
+				return domain.ErrSupplierHasStockEntries
+			}
+		}
 		remove(current, repository.store.suppliers, id)
 		return nil
 	})
