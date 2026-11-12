@@ -129,6 +129,27 @@ func SupplierRepository(t *testing.T, newRepositories NewRepositories) {
 		mustCreateSupplier(t, repository, newSupplier(t, "Distribuidora del Centro", text("30701234561")))
 	})
 
+	t.Run("a supplier listed by items can't be deleted", func(t *testing.T) {
+		repositories := newRepositories(t)
+		almacen := mustCreate(t, repositories.Categories, newCategory(t, "Almacén", nil))
+		centro := mustCreateSupplier(t, repositories.Suppliers, newSupplier(t, "Distribuidora del Centro", nil))
+		item := newItem(t, almacen.ID, "YER-1", "Yerba")
+		item.SupplierIDs = []string{centro.ID}
+		created := mustCreateItem(t, repositories.Items, item)
+
+		if err := repositories.Suppliers.Delete(ctx, centro.ID); !errors.Is(err, domain.ErrSupplierInUse) {
+			t.Fatalf("Delete(supplier with items) error = %v, want ErrSupplierInUse", err)
+		}
+
+		created.SupplierIDs = nil
+		if _, err := repositories.Items.Update(ctx, created); err != nil {
+			t.Fatalf("Items.Update() error = %v", err)
+		}
+		if err := repositories.Suppliers.Delete(ctx, centro.ID); err != nil {
+			t.Fatalf("Delete(supplier without items) error = %v", err)
+		}
+	})
+
 	t.Run("list searches by business name, contact, CUIT, email and phone, sorted by business name", func(t *testing.T) {
 		repository := newRepository(t)
 		centro := newSupplier(t, "Distribuidora del Centro", text("30701234561"))

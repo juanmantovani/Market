@@ -19,6 +19,7 @@ var (
 	ErrSupplierBusinessNameTooLong  = &Error{Kind: KindInvalid, Code: "supplier_business_name_too_long", Message: "La razón social admite hasta 120 caracteres"}
 	ErrSupplierCUITInvalid          = &Error{Kind: KindInvalid, Code: "supplier_cuit_invalid", Message: "El CUIT lleva 11 dígitos"}
 	ErrSupplierCUITInUse            = &Error{Kind: KindConflict, Code: "supplier_cuit_in_use", Message: "Ya hay un proveedor con ese CUIT"}
+	ErrSupplierInUse                = &Error{Kind: KindConflict, Code: "supplier_in_use", Message: "El proveedor está asignado a artículos: quitarlo de esos artículos antes de eliminarlo"}
 	ErrSupplierContactNameTooLong   = &Error{Kind: KindInvalid, Code: "supplier_contact_name_too_long", Message: "El nombre de contacto admite hasta 120 caracteres"}
 	ErrSupplierEmailInvalid         = &Error{Kind: KindInvalid, Code: "supplier_email_invalid", Message: "El email no es válido"}
 	ErrSupplierPhoneTooLong         = &Error{Kind: KindInvalid, Code: "supplier_phone_too_long", Message: "El teléfono admite hasta 30 caracteres"}

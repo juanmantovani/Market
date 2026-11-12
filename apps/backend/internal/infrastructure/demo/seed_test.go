@@ -72,10 +72,15 @@ func TestSeedLoadsTheDemoCatalog(t *testing.T) {
 	if err != nil || itemPage.Total != len(demoItems) {
 		t.Fatalf("seeded %d items (%v), want %d", itemPage.Total, err, len(demoItems))
 	}
+	suppliersByCode := map[string]int{}
 	for _, item := range itemPage.Items {
 		if item.CategoryID == "" {
 			t.Fatalf("item %q has no category", item.Code)
 		}
+		suppliersByCode[item.Code] = len(item.SupplierIDs)
+	}
+	if suppliersByCode["ALM-001"] != 2 || suppliersByCode["LAC-001"] != 1 || suppliersByCode["FIA-001"] != 0 {
+		t.Fatalf("suppliers per item = %v", suppliersByCode)
 	}
 }
 

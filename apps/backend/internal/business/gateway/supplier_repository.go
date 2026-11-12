@@ -25,7 +25,7 @@ type SupplierRepository interface {
 	// ErrSupplierNotFound for an unknown ID.
 	Update(ctx context.Context, supplier domain.Supplier) (domain.Supplier, error)
 	// Delete removes a supplier for good. It returns ErrSupplierNotFound for
-	// an unknown ID.
+	// an unknown ID and ErrSupplierInUse while an item lists the supplier.
 	Delete(ctx context.Context, id string) error
 	// List returns one page sorted by business name.
 	List(ctx context.Context, filter SupplierFilter) (domain.Page[domain.Supplier], error)

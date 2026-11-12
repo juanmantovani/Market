@@ -106,10 +106,15 @@ func (repository *ItemRepository) List(ctx context.Context, filter gateway.ItemF
 }
 
 // checkConstraints enforces what unique indexes on the code and barcode and
-// a foreign key to categories enforce in PostgreSQL.
+// foreign keys to categories and suppliers enforce in PostgreSQL.
 func (repository *ItemRepository) checkConstraints(item domain.Item) error {
 	if _, ok := repository.store.categories[item.CategoryID]; !ok {
 		return domain.ErrItemCategoryNotFound
+	}
+	for _, supplierID := range item.SupplierIDs {
+		if _, ok := repository.store.suppliers[supplierID]; !ok {
+			return domain.ErrItemSupplierNotFound
+		}
 	}
 	codeKey := item.CodeKey()
 	for id, other := range repository.store.items {
@@ -140,6 +145,7 @@ func itemMatches(item domain.Item, search string) bool {
 func cloneItem(item domain.Item) domain.Item {
 	item.Barcode = cloneString(item.Barcode)
 	item.Description = cloneString(item.Description)
+	item.SupplierIDs = slices.Clone(item.SupplierIDs)
 	if item.Cost != nil {
 		cost := *item.Cost
 		item.Cost = &cost

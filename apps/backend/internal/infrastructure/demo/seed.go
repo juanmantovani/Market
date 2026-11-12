@@ -120,6 +120,18 @@ var demoSellers = []demoSeller{
 	{"María Gómez", "MG", nil},
 }
 
+// demoItemSuppliers says who supplies the items of each category; the
+// fiambrería has none, to show an item without suppliers.
+var demoItemSuppliers = map[string][]string{
+	"Almacén":    {"Distribuidora del Centro SA", "Mayorista Norte SA"},
+	"Bebidas":    {"Mayorista Norte SA"},
+	"Lácteos":    {"Lácteos del Sur SRL"},
+	"Panadería":  {"Panificadora La Espiga"},
+	"Limpieza":   {"Mayorista Norte SA"},
+	"Perfumería": {"Mayorista Norte SA"},
+	"Kiosco":     {"Distribuidora del Centro SA"},
+}
+
 func Seed(ctx context.Context, useCases UseCases) error {
 	categoryIDs := map[string]string{}
 	for _, category := range demoCategories {
@@ -135,7 +147,30 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		categoryIDs[category.name] = created.ID
 	}
 
+	supplierIDs := map[string]string{}
+	for _, supplier := range demoSuppliers {
+		cuit, contactName, phone, email := supplier.cuit, supplier.contactName, supplier.phone, supplier.email
+		created, err := useCases.CreateSupplier.Execute(ctx, suppliers.CreateSupplierInput{
+			Actor: seeder,
+			Fields: domain.SupplierFields{
+				BusinessName: supplier.businessName,
+				CUIT:         &cuit,
+				ContactName:  &contactName,
+				Phone:        &phone,
+				Email:        &email,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("seeding supplier %q: %w", supplier.businessName, err)
+		}
+		supplierIDs[supplier.businessName] = created.ID
+	}
+
 	for _, item := range demoItems {
+		var itemSupplierIDs []string
+		for _, name := range demoItemSuppliers[item.category] {
+			itemSupplierIDs = append(itemSupplierIDs, supplierIDs[name])
+		}
 		barcode, cost := item.barcode, item.cost
 		_, err := useCases.CreateItem.Execute(ctx, items.CreateItemInput{
 			Actor: seeder,
@@ -144,6 +179,7 @@ func Seed(ctx context.Context, useCases UseCases) error {
 				Barcode:     &barcode,
 				Name:        item.name,
 				CategoryID:  categoryIDs[item.category],
+				SupplierIDs: itemSupplierIDs,
 				Unit:        item.unit,
 				SalePrice:   item.price,
 				Cost:        &cost,
@@ -172,23 +208,6 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		})
 		if err != nil {
 			return fmt.Errorf("seeding customer %q: %w", customer.name, err)
-		}
-	}
-
-	for _, supplier := range demoSuppliers {
-		cuit, contactName, phone, email := supplier.cuit, supplier.contactName, supplier.phone, supplier.email
-		_, err := useCases.CreateSupplier.Execute(ctx, suppliers.CreateSupplierInput{
-			Actor: seeder,
-			Fields: domain.SupplierFields{
-				BusinessName: supplier.businessName,
-				CUIT:         &cuit,
-				ContactName:  &contactName,
-				Phone:        &phone,
-				Email:        &email,
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("seeding supplier %q: %w", supplier.businessName, err)
 		}
 	}
 
