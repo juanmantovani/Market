@@ -1,5 +1,6 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '../../../shared/ui/button'
+import { ContactLines } from '../../../shared/ui/contact-lines'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
 import { formatDocument, taxConditionLabel, type Customer } from '../types'
 
@@ -8,10 +9,6 @@ type CustomerListProps = {
   isLoading: boolean
   onEdit: (customer: Customer) => void
   onDelete: (customer: Customer) => void
-}
-
-function contact(customer: Customer) {
-  return [customer.phone, customer.email].filter(Boolean).join(' · ') || '—'
 }
 
 export function CustomerList({ customers, isLoading, onEdit, onDelete }: CustomerListProps) {
@@ -34,7 +31,12 @@ export function CustomerList({ customers, isLoading, onEdit, onDelete }: Custome
     {
       header: 'Contacto',
       className: 'max-w-64',
-      cell: (customer) => <span className="block truncate text-muted-foreground">{contact(customer)}</span>,
+      cell: (customer) =>
+        customer.phone || customer.email ? (
+          <ContactLines phone={customer.phone} email={customer.email} className="text-muted-foreground" />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       header: 'Acciones',
@@ -82,7 +84,7 @@ export function CustomerList({ customers, isLoading, onEdit, onDelete }: Custome
               {[formatDocument(customer), taxConditionLabel(customer.taxCondition)].filter(Boolean).join(' · ')}
             </span>
             {(customer.phone || customer.email) && (
-              <span className="truncate text-sm text-muted-foreground">{contact(customer)}</span>
+              <ContactLines phone={customer.phone} email={customer.email} className="text-sm text-muted-foreground" />
             )}
           </div>
           <div className="flex gap-2">
