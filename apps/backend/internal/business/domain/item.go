@@ -37,6 +37,7 @@ var (
 	ErrItemDescriptionTooLong = &Error{Kind: KindInvalid, Code: "item_description_too_long", Message: "La descripción admite hasta 500 caracteres"}
 	ErrItemCategoryRequired   = &Error{Kind: KindInvalid, Code: "item_category_required", Message: "Elegir una categoría"}
 	ErrItemCategoryNotFound   = &Error{Kind: KindInvalid, Code: "item_category_not_found", Message: "La categoría elegida no existe"}
+	ErrItemSupplierNotFound   = &Error{Kind: KindInvalid, Code: "item_supplier_not_found", Message: "Uno de los proveedores elegidos no existe"}
 	ErrItemUnitInvalid        = &Error{Kind: KindInvalid, Code: "item_unit_invalid", Message: "La unidad no es válida"}
 	ErrItemPriceInvalid       = &Error{Kind: KindInvalid, Code: "item_price_invalid", Message: "El precio tiene que ser mayor a cero"}
 	ErrItemCostInvalid        = &Error{Kind: KindInvalid, Code: "item_cost_invalid", Message: "El costo no puede ser negativo"}
@@ -53,6 +54,9 @@ type ItemFields struct {
 	Name        string
 	Description *string
 	CategoryID  string
+	// SupplierIDs are who the item can be bought from, in no particular
+	// order; an item may have none.
+	SupplierIDs []string
 	Unit        Unit
 	SalePrice   Money
 	Cost        *Money
@@ -118,6 +122,7 @@ func validateItemFields(fields ItemFields) (ItemFields, error) {
 	if valid.CategoryID = strings.TrimSpace(fields.CategoryID); valid.CategoryID == "" {
 		return ItemFields{}, ErrItemCategoryRequired
 	}
+	valid.SupplierIDs = uniqueIDs(fields.SupplierIDs)
 	if !fields.Unit.IsValid() {
 		return ItemFields{}, ErrItemUnitInvalid
 	}
@@ -139,6 +144,19 @@ func validateItemFields(fields ItemFields) (ItemFields, error) {
 	}
 
 	return valid, nil
+}
+
+// uniqueIDs trims the IDs and drops blanks and repeats, keeping the first
+// occurrence. The result is never nil and never aliases the caller's slice.
+func uniqueIDs(ids []string) []string {
+	result := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" && !slices.Contains(result, id) {
+			result = append(result, id)
+		}
+	}
+
+	return result
 }
 
 // validateBarcode keeps a barcode as the scanner reads it: no spaces inside,

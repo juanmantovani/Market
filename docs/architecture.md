@@ -124,7 +124,10 @@ flowchart LR
 - Las restricciones que en PostgreSQL serían índices o claves foráneas
   (nombre único de categoría, código y código de barras únicos, la
   categoría de un artículo tiene que existir y no se puede borrar mientras
-  tenga artículos, un documento por cliente, un CUIT por proveedor, un código por vendedor) las verifica el repositorio dentro del lock, y la
+  tenga artículos, los proveedores de un artículo tienen que existir y no
+  se pueden borrar mientras un artículo los tenga, un documento por cliente,
+  un CUIT por proveedor, un código por vendedor) las verifica el repositorio
+  dentro del lock, y la
   suite de contrato prueba que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
   PostgreSQL 18.
@@ -139,7 +142,7 @@ hechas, no lo que mide la base completa.
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
 │   ├── router.tsx            # Inicio, /articulos, /categorias, /clientes, /proveedores, /vendedores y página 404
-│   ├── ItemsRoute.tsx        # compone artículos con las categorías (ver abajo)
+│   ├── ItemsRoute.tsx        # compone artículos con las categorías y los proveedores (ver abajo)
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
 │   ├── navigation.ts         # secciones del menú; cada fase suma la suya
@@ -164,9 +167,10 @@ apps/frontend/src/
 ```
 
 - `app → features → shared`; una feature no importa a otra. Ejemplo:
-  artículos necesita las categorías para el filtro y el formulario;
-  `app/ItemsRoute` las obtiene con `useCategoryOptions` (de categorías) y se
-  las pasa a `ItemsPage` por props.
+  artículos necesita las categorías para el filtro y el formulario, y los
+  proveedores para el formulario; `app/ItemsRoute` los obtiene con
+  `useCategoryOptions` y `useSupplierOptions` y se los pasa a `ItemsPage`
+  por props.
 - `formatMoney`/`parseMoney` y `formatQuantity`/`parseQuantity` son los
   únicos que convierten montos y cantidades entre enteros y texto. Leen lo
   que se tipea en Argentina (`1.234,50`).

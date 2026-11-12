@@ -12,6 +12,17 @@ export function useSuppliers(params: ListParams) {
   })
 }
 
+// Enough for the item form to offer every supplier of a small business.
+const ALL_SUPPLIERS: ListParams = { search: '', page: 1, limit: 100 }
+
+export function useSupplierOptions() {
+  const query = useSuppliers(ALL_SUPPLIERS)
+
+  return {
+    suppliers: (query.data?.items ?? []).map(({ id, businessName }) => ({ id, name: businessName })),
+  }
+}
+
 export function useSaveSupplier() {
   const queryClient = useQueryClient()
 

@@ -120,6 +120,43 @@ func ItemRepository(t *testing.T, newRepositories NewRepositories) {
 		}
 	})
 
+	t.Run("the suppliers must exist, and an item may have several or none", func(t *testing.T) {
+		repositories := newRepositories(t)
+		almacen := mustCreate(t, repositories.Categories, newCategory(t, "Almacén", nil))
+		centro := mustCreateSupplier(t, repositories.Suppliers, newSupplier(t, "Distribuidora del Centro", nil))
+		norte := mustCreateSupplier(t, repositories.Suppliers, newSupplier(t, "Mayorista Norte", nil))
+
+		item := newItem(t, almacen.ID, "YER-1", "Yerba")
+		item.SupplierIDs = []string{centro.ID, norte.ID}
+		created := mustCreateItem(t, repositories.Items, item)
+		got, _ := repositories.Items.Get(ctx, created.ID)
+		if fmt.Sprint(got.SupplierIDs) != fmt.Sprint([]string{centro.ID, norte.ID}) {
+			t.Fatalf("SupplierIDs = %v", got.SupplierIDs)
+		}
+		got.SupplierIDs[0] = "changed"
+		if again, _ := repositories.Items.Get(ctx, created.ID); again.SupplierIDs[0] != centro.ID {
+			t.Fatalf("a caller changed the stored suppliers: %v", again.SupplierIDs)
+		}
+
+		got.SupplierIDs = []string{centro.ID, "00000000-0000-7000-8000-000000000000"}
+		if _, err := repositories.Items.Update(ctx, got); !errors.Is(err, domain.ErrItemSupplierNotFound) {
+			t.Fatalf("Update(unknown supplier) error = %v, want ErrItemSupplierNotFound", err)
+		}
+		unknown := newItem(t, almacen.ID, "YER-2", "Otra yerba")
+		unknown.SupplierIDs = []string{"00000000-0000-7000-8000-000000000000"}
+		if _, err := repositories.Items.Create(ctx, unknown); !errors.Is(err, domain.ErrItemSupplierNotFound) {
+			t.Fatalf("Create(unknown supplier) error = %v, want ErrItemSupplierNotFound", err)
+		}
+
+		got.SupplierIDs = []string{}
+		if _, err := repositories.Items.Update(ctx, got); err != nil {
+			t.Fatalf("Update(no suppliers) error = %v", err)
+		}
+		if again, _ := repositories.Items.Get(ctx, created.ID); len(again.SupplierIDs) != 0 {
+			t.Fatalf("SupplierIDs after clearing = %v", again.SupplierIDs)
+		}
+	})
+
 	t.Run("update replaces the item and keeps the constraints", func(t *testing.T) {
 		items, almacen, bebidas := setup(t)
 		yerba := mustCreateItem(t, items, newItem(t, almacen.ID, "YER-1", "Yerba"))

@@ -154,3 +154,22 @@ func TestItemCodeKey(t *testing.T) {
 		t.Fatalf("CodeKey() = %q", got)
 	}
 }
+
+func TestNewItemCleansTheSupplierIDs(t *testing.T) {
+	fields := validItemFields()
+	fields.SupplierIDs = []string{" s1 ", "s2", "", "s1"}
+
+	item, err := NewItem(fields, itemTime)
+	if err != nil {
+		t.Fatalf("NewItem() error = %v", err)
+	}
+	if len(item.SupplierIDs) != 2 || item.SupplierIDs[0] != "s1" || item.SupplierIDs[1] != "s2" {
+		t.Fatalf("SupplierIDs = %q, want [s1 s2]", item.SupplierIDs)
+	}
+
+	fields.SupplierIDs = nil
+	item, _ = NewItem(fields, itemTime)
+	if item.SupplierIDs == nil || len(item.SupplierIDs) != 0 {
+		t.Fatalf("SupplierIDs = %#v, want an empty list", item.SupplierIDs)
+	}
+}

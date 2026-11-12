@@ -29,6 +29,7 @@ export const itemSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   categoryId: z.string(),
+  supplierIds: z.array(z.string()),
   unit: unitSchema,
   salePrice: z.number().int(),
   cost: z.number().int().nullable(),
@@ -44,6 +45,7 @@ export type Item = z.infer<typeof itemSchema>
 export const itemPageSchema = pageSchema(itemSchema)
 
 export type CategoryOption = { id: string; name: string }
+export type SupplierOption = { id: string; name: string }
 
 // The form keeps what the person typed (amounts as text) and the schema
 // turns it into the request the backend expects, mirroring domain.NewItem.
@@ -58,6 +60,7 @@ export const itemFormSchema = z
     name: z.string().trim().min(1, 'El nombre es obligatorio').max(100, 'El nombre admite hasta 100 caracteres'),
     description: z.string().trim().max(500, 'La descripción admite hasta 500 caracteres'),
     categoryId: z.string().min(1, 'Elegir una categoría'),
+    supplierIds: z.array(z.string()),
     unit: unitSchema,
     salePrice: z.string().refine((value) => {
       const cents = parseMoney(value)
@@ -88,6 +91,7 @@ export const itemFormSchema = z
       name: values.name,
       description: values.description || null,
       categoryId: values.categoryId,
+      supplierIds: values.supplierIds,
       unit: values.unit,
       salePrice: parseMoney(values.salePrice) as number,
       cost,
@@ -113,6 +117,7 @@ export const ITEM_FIELD_ERRORS: Record<string, ItemField> = {
   item_description_too_long: 'description',
   item_category_required: 'categoryId',
   item_category_not_found: 'categoryId',
+  item_supplier_not_found: 'supplierIds',
   item_unit_invalid: 'unit',
   item_price_invalid: 'salePrice',
   item_cost_invalid: 'cost',
@@ -127,6 +132,7 @@ export function toFormValues(item: Item | null): ItemFormValues {
     name: item?.name ?? '',
     description: item?.description ?? '',
     categoryId: item?.categoryId ?? '',
+    supplierIds: item?.supplierIds ?? [],
     unit: item?.unit ?? 'unit',
     salePrice: item ? centsToInput(item.salePrice) : '',
     cost: item ? centsToInput(item.cost) : '',

@@ -71,6 +71,11 @@ func (repository *SupplierRepository) Delete(ctx context.Context, id string) err
 		if _, ok := repository.store.suppliers[id]; !ok {
 			return domain.ErrSupplierNotFound
 		}
+		for _, item := range repository.store.items {
+			if slices.Contains(item.SupplierIDs, id) {
+				return domain.ErrSupplierInUse
+			}
+		}
 		remove(current, repository.store.suppliers, id)
 		return nil
 	})

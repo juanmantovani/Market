@@ -295,7 +295,7 @@ apps/frontend/src/
   `description?`, `categoryId`, `unit` (`unit | kg | l | m`), `salePrice`
   (> 0, IVA incluido), `cost?`, `taxRate` (0 / 10,5 / 21 / 27 %, informativo
   hasta facturar), `tracksStock` (falso para servicios), `minStock`,
-  `preferredSupplierId?`.
+  `supplierIds` (ninguno, uno o varios proveedores).
 - **Customer**: `name`, `documentType` (`dni | cuit | cuil | none`),
   `documentNumber` (solo dígitos, único por tipo), `taxCondition`
   (`final_consumer | monotax | registered | exempt`), `email?`, `phone?`,

@@ -15,14 +15,16 @@ import { useToast } from '../../../shared/ui/use-toast'
 import { ItemForm } from '../components/ItemForm'
 import { ItemList } from '../components/ItemList'
 import { useDeleteItem, useItems, useSaveItem } from '../hooks/use-items'
-import { toFormValues, type CategoryOption, type Item, type ItemRequest } from '../types'
+import { toFormValues, type CategoryOption, type Item, type ItemRequest, type SupplierOption } from '../types'
 
 const PAGE_SIZE = 25
 
 type ItemsPageProps = {
-  // Composed in app/ItemsRoute: items don't import the categories feature.
+  // Composed in app/ItemsRoute: items don't import the categories or the
+  // suppliers feature.
   categories: readonly CategoryOption[]
   categoriesLoading: boolean
+  suppliers: readonly SupplierOption[]
 }
 
 // `open` is kept apart from what the overlay shows, so its content stays in
@@ -30,7 +32,7 @@ type ItemsPageProps = {
 type FormState = { open: boolean; item: Item | null; formKey: number }
 type ConfirmState = { open: boolean; item: Item | null }
 
-export default function ItemsPage({ categories, categoriesLoading }: ItemsPageProps) {
+export default function ItemsPage({ categories, categoriesLoading, suppliers }: ItemsPageProps) {
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [page, setPage] = useState(1)
@@ -208,6 +210,7 @@ export default function ItemsPage({ categories, categoriesLoading }: ItemsPagePr
           key={form.formKey}
           initialValues={toFormValues(form.item)}
           categories={categories}
+          suppliers={suppliers}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear artículo'}
           onSubmit={save}
           onCancel={closeForm}

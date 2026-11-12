@@ -10,17 +10,18 @@ import (
 // are integers: salePrice and cost in cents, taxRate in hundredths of a
 // percent (2100 = 21 %), minStock in thousandths of the unit.
 type ItemRequest struct {
-	Code        string  `json:"code"`
-	Barcode     *string `json:"barcode"`
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
-	CategoryID  string  `json:"categoryId"`
-	Unit        string  `json:"unit"`
-	SalePrice   int64   `json:"salePrice"`
-	Cost        *int64  `json:"cost"`
-	TaxRate     int64   `json:"taxRate"`
-	TracksStock bool    `json:"tracksStock"`
-	MinStock    int64   `json:"minStock"`
+	Code        string   `json:"code"`
+	Barcode     *string  `json:"barcode"`
+	Name        string   `json:"name"`
+	Description *string  `json:"description"`
+	CategoryID  string   `json:"categoryId"`
+	SupplierIDs []string `json:"supplierIds"`
+	Unit        string   `json:"unit"`
+	SalePrice   int64    `json:"salePrice"`
+	Cost        *int64   `json:"cost"`
+	TaxRate     int64    `json:"taxRate"`
+	TracksStock bool     `json:"tracksStock"`
+	MinStock    int64    `json:"minStock"`
 }
 
 func (request ItemRequest) Fields() domain.ItemFields {
@@ -36,6 +37,7 @@ func (request ItemRequest) Fields() domain.ItemFields {
 		Name:        request.Name,
 		Description: request.Description,
 		CategoryID:  request.CategoryID,
+		SupplierIDs: request.SupplierIDs,
 		Unit:        domain.Unit(request.Unit),
 		SalePrice:   domain.Money(request.SalePrice),
 		Cost:        cost,
@@ -52,6 +54,7 @@ type ItemResponse struct {
 	Name        string    `json:"name"`
 	Description *string   `json:"description"`
 	CategoryID  string    `json:"categoryId"`
+	SupplierIDs []string  `json:"supplierIds"`
 	Unit        string    `json:"unit"`
 	SalePrice   int64     `json:"salePrice"`
 	Cost        *int64    `json:"cost"`
@@ -76,6 +79,7 @@ func NewItemResponse(item domain.Item) ItemResponse {
 		Name:        item.Name,
 		Description: item.Description,
 		CategoryID:  item.CategoryID,
+		SupplierIDs: append([]string{}, item.SupplierIDs...),
 		Unit:        string(item.Unit),
 		SalePrice:   int64(item.SalePrice),
 		Cost:        cost,

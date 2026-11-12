@@ -18,8 +18,9 @@ type ItemFilter struct {
 // in infrastructure/repository/repositorytest.
 type ItemRepository interface {
 	// Create assigns the ID. It returns ErrItemCodeInUse or
-	// ErrItemBarcodeInUse for a duplicate, and ErrItemCategoryNotFound when
-	// the category doesn't exist.
+	// ErrItemBarcodeInUse for a duplicate, ErrItemCategoryNotFound when the
+	// category doesn't exist and ErrItemSupplierNotFound when one of the
+	// suppliers doesn't.
 	Create(ctx context.Context, item domain.Item) (domain.Item, error)
 	// Get returns ErrItemNotFound for an unknown ID.
 	Get(ctx context.Context, id string) (domain.Item, error)

@@ -71,6 +71,7 @@ Códigos de error: `category_not_found`, `category_name_required`,
 | `name` | Obligatorio, hasta 100 caracteres. |
 | `description` | Opcional, hasta 500 caracteres. |
 | `categoryId` | Obligatoria y tiene que existir (`item_category_not_found` si no). |
+| `supplierIds` | A quiénes se les compra: ninguno, uno o varios. Cada uno tiene que existir (`item_supplier_not_found` si no); los repetidos se descartan. Siempre viaja como lista (`[]` si no hay). |
 | `unit` | `unit` (por unidad), `kg`, `l` o `m`. |
 | `salePrice` | Centavos, mayor a 0 y hasta `MaxItemAmount` (mil millones de pesos). **Incluye IVA.** |
 | `cost` | Centavos, opcional, entre 0 y `MaxItemAmount`. |
@@ -88,7 +89,7 @@ Códigos de error: `item_not_found`, `item_code_required`,
 `item_code_too_long`, `item_code_in_use`, `item_barcode_invalid`,
 `item_barcode_in_use`, `item_name_required`, `item_name_too_long`,
 `item_description_too_long`, `item_category_required`,
-`item_category_not_found`, `item_unit_invalid`, `item_price_invalid`,
+`item_category_not_found`, `item_supplier_not_found`, `item_unit_invalid`, `item_price_invalid`,
 `item_cost_invalid`, `item_tax_rate_invalid`, `item_min_stock_invalid`.
 
 ## Clientes
@@ -141,13 +142,12 @@ Permisos: `suppliers:view` para listar y consultar y `suppliers:manage` para
 crear, editar y eliminar. El cajero no tiene ninguno: los proveedores se
 usan al ingresar mercadería (Fase 3), que hace el encargado.
 
-El proveedor preferido de un artículo (`preferredSupplierId` en el plan)
-todavía no existe; cuando llegue, eliminar un proveedor que tenga artículos
-o ingresos fallará con `supplier_in_use`.
+Eliminar un proveedor asignado a algún artículo falla con `supplier_in_use`
+(`409`): hay que quitarlo de esos artículos antes.
 
 Códigos de error: `supplier_not_found`, `supplier_business_name_required`,
 `supplier_business_name_too_long`, `supplier_cuit_invalid`,
-`supplier_cuit_in_use`, `supplier_contact_name_too_long`,
+`supplier_cuit_in_use`, `supplier_in_use`, `supplier_contact_name_too_long`,
 `supplier_email_invalid`, `supplier_phone_too_long`,
 `supplier_address_too_long`, `supplier_notes_too_long`.
 
