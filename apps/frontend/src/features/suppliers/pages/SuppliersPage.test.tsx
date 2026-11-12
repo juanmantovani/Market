@@ -133,7 +133,7 @@ describe('SuppliersPage', () => {
     renderWithProviders(<SuppliersPage />)
 
     expect(rowTexts(await table())).toEqual([
-      ['Distribuidora del Centro SA', '30-70123456-1', 'Laura Díaz', '351 555-2000 · pedidos@delcentro.com.ar'],
+      ['Distribuidora del Centro SA', '30-70123456-1', 'Laura Díaz', '351 555-2000, pedidos@delcentro.com.ar'],
       ['Mayorista Norte SA', '30-71555555-9', '—', 'ventas@norte.com.ar'],
       ['Panificadora La Espiga', '—', '—', '351 555-2200'],
     ])

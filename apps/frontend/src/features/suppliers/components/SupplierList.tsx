@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { formatCuit } from '../../../shared/lib/document'
 import { Button } from '../../../shared/ui/button'
+import { ContactLines } from '../../../shared/ui/contact-lines'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
 import type { Supplier } from '../types'
 
@@ -9,10 +10,6 @@ type SupplierListProps = {
   isLoading: boolean
   onEdit: (supplier: Supplier) => void
   onDelete: (supplier: Supplier) => void
-}
-
-function contact(supplier: Supplier) {
-  return [supplier.phone, supplier.email].filter(Boolean).join(' · ')
 }
 
 function Dash() {
@@ -40,7 +37,11 @@ export function SupplierList({ suppliers, isLoading, onEdit, onDelete }: Supplie
       header: 'Teléfono y email',
       className: 'max-w-64',
       cell: (supplier) =>
-        contact(supplier) ? <span className="block truncate text-muted-foreground">{contact(supplier)}</span> : <Dash />,
+        supplier.phone || supplier.email ? (
+          <ContactLines phone={supplier.phone} email={supplier.email} className="text-muted-foreground" />
+        ) : (
+          <Dash />
+        ),
     },
     {
       header: 'Acciones',
@@ -87,7 +88,9 @@ export function SupplierList({ suppliers, isLoading, onEdit, onDelete }: Supplie
             <div className="flex min-w-0 flex-col gap-1">
               <span className="font-medium">{supplier.businessName}</span>
               {summary && <span className="text-sm text-muted-foreground">{summary}</span>}
-              {contact(supplier) && <span className="truncate text-sm text-muted-foreground">{contact(supplier)}</span>}
+              {(supplier.phone || supplier.email) && (
+                <ContactLines phone={supplier.phone} email={supplier.email} className="text-sm text-muted-foreground" />
+              )}
             </div>
             <div className="flex gap-2">
               <Button

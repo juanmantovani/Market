@@ -142,7 +142,7 @@ describe('CustomersPage', () => {
     expect(rowTexts(await table())).toEqual([
       ['Ana Pérez', 'DNI 28.456.789', 'Consumidor final', '351 555-0101'],
       ['Juan del barrio', '—', 'Consumidor final', '—'],
-      ['Kiosco La Esquina SRL', 'CUIT 30-71234567-8', 'Responsable inscripto', '351 555-0303 · compras@laesquina.com.ar'],
+      ['Kiosco La Esquina SRL', 'CUIT 30-71234567-8', 'Responsable inscripto', '351 555-0303, compras@laesquina.com.ar'],
       ['Lucía Sosa', 'CUIL 27-23456789-4', 'Consumidor final', 'lucia@example.com'],
     ])
 
