@@ -151,9 +151,11 @@ hechas, no lo que mide la base completa.
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
 │   ├── router.tsx            # Inicio, /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
+│   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías y los proveedores (ver abajo)
 │   ├── StockRoute.tsx        # compone stock con las categorías (filtro) y los proveedores (ingreso e historial)
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
+│   ├── PageSkeleton.tsx      # skeleton del Suspense del layout mientras llega una página
 │   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
@@ -251,7 +253,8 @@ clientes, proveedores, vendedores).
 5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, listado,
    paginación, `FormDialog` para crear y editar, `ConfirmDialog` para
    eliminar, toasts).
-6. Ruta en `app/router.tsx` y sección en `app/navigation.ts`.
+6. Página diferida en `app/lazy-pages.ts`, ruta en `app/router.tsx` y
+   sección en `app/navigation.ts`.
 7. Tests de la página contra una API falsa en memoria que respeta las mismas
    reglas que el backend (ver `CategoriesPage.test.tsx`).
 
