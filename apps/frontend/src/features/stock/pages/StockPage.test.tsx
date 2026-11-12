@@ -184,7 +184,9 @@ describe('StockPage', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por categoría' }), 'Fiambrería')
     await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Queso cremoso']))
 
-    await user.type(screen.getByRole('searchbox', { name: 'Buscar artículos' }), 'yerba')
+    const searchbox = screen.getByRole('searchbox', { name: 'Buscar artículos' })
+    expect(searchbox).toHaveAccessibleDescription('Por nombre, código o código de barras')
+    await user.type(searchbox, 'yerba')
     expect(await screen.findByText('No se encontraron artículos')).toBeInTheDocument()
     expect(api.requests.at(-1)?.path).toBe('/api/v1/stock?q=yerba&page=1&limit=25&categoryId=c2&lowStock=true')
   })

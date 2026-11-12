@@ -4,7 +4,8 @@ import { CircleAlert, PackageCheck, PackagePlus, PackageSearch, SearchX } from '
 import { messageFromError } from '../../../shared/api/client'
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value'
 import { formatUnitQuantity } from '../../../shared/lib/quantity'
-import { Button, buttonVariants } from '../../../shared/ui/button'
+import { Button } from '../../../shared/ui/button'
+import { buttonVariants } from '../../../shared/ui/button-variants'
 import { EmptyState } from '../../../shared/ui/empty-state'
 import { FormDialog } from '../../../shared/ui/form-dialog'
 import { NativeSelect } from '../../../shared/ui/native-select'
@@ -163,7 +164,7 @@ export default function StockPage({ categories, suppliers }: StockPageProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchField
           label="Buscar artículos"
-          placeholder="Buscar por nombre, código o código de barras"
+          hint="Por nombre, código o código de barras"
           value={search}
           onChange={(value) => changeFilter(() => setSearch(value))}
           className="sm:max-w-sm"
