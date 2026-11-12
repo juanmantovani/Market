@@ -160,3 +160,9 @@ func TestDeleteSeller(t *testing.T) {
 	err = NewDeleteSeller(&gatewayfake.SellerRepository{DeleteErr: domain.ErrSellerNotFound}).Execute(context.Background(), DeleteSellerInput{Actor: admin, ID: "x"})
 	assertError(t, err, domain.ErrSellerNotFound)
 }
+
+func TestDeleteSellerWithSales(t *testing.T) {
+	err := NewDeleteSeller(&gatewayfake.SellerRepository{DeleteErr: domain.ErrSellerInUse}).Execute(context.Background(), DeleteSellerInput{Actor: admin, ID: "seller-1"})
+
+	assertError(t, err, domain.ErrSellerInUse)
+}

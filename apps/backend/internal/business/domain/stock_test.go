@@ -335,3 +335,45 @@ func TestStockLevelAdjust(t *testing.T) {
 		t.Fatalf("Adjust(under the minimum balance) error = %v, want ErrStockBalanceOutOfRange", err)
 	}
 }
+
+func TestStockLevelSell(t *testing.T) {
+	sale := Sale{Number: 7, ActorID: "u-cashier", CreatedAt: stockTime}
+	queso := SaleLine{ItemID: "item-1", Name: "Queso cremoso", Unit: UnitKilogram, Quantity: 250}
+	level := StockLevel{ItemID: "item-1", Quantity: 1800, UpdatedAt: stockTime.Add(-time.Hour)}
+
+	out, err := level.Sell(sale, queso, StockPolicy{})
+	if err != nil {
+		t.Fatalf("Sell() error = %v", err)
+	}
+	if out.ItemID != "item-1" || out.Type != MovementSale || out.Quantity != -250 || out.BalanceAfter != 1550 ||
+		out.Reference == nil || *out.Reference != "Venta 7" || out.ActorID != "u-cashier" || !out.CreatedAt.Equal(stockTime) ||
+		out.Reason != nil || out.SupplierID != nil || out.UnitCost != nil {
+		t.Fatalf("Sell() = %+v", out)
+	}
+
+	everything := queso
+	everything.Quantity = 1800
+	if out, err := level.Sell(sale, everything, StockPolicy{}); err != nil || out.BalanceAfter != 0 {
+		t.Fatalf("Sell(the whole stock) = %+v, %v", out, err)
+	}
+
+	tooMuch := queso
+	tooMuch.Quantity = 1801
+	_, err = level.Sell(sale, tooMuch, StockPolicy{})
+	assertDomainError(t, err, ErrInsufficientStock)
+	if !strings.Contains(err.Error(), "Queso cremoso") {
+		t.Fatalf("Sell(more than there is) message = %q, want the item name", err.Error())
+	}
+	if out, err := level.Sell(sale, tooMuch, StockPolicy{AllowNegative: true}); err != nil || out.BalanceAfter != -1 {
+		t.Fatalf("Sell(more than there is, negative allowed) = %+v, %v", out, err)
+	}
+
+	half := SaleLine{ItemID: "item-2", Name: "Gaseosa", Unit: UnitPiece, Quantity: 500}
+	if _, err := level.Sell(sale, half, StockPolicy{AllowNegative: true}); !errors.Is(err, ErrStockQuantityNotWhole) {
+		t.Fatalf("Sell(half a unit) error = %v, want ErrStockQuantityNotWhole", err)
+	}
+	bottom := StockLevel{ItemID: "item-1", Quantity: -MaxStockBalance}
+	if _, err := bottom.Sell(sale, queso, StockPolicy{AllowNegative: true}); !errors.Is(err, ErrStockBalanceOutOfRange) {
+		t.Fatalf("Sell(under the minimum balance) error = %v, want ErrStockBalanceOutOfRange", err)
+	}
+}

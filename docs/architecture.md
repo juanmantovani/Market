@@ -29,16 +29,16 @@ apps/backend/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager y un contrato de repositorio por agregado
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial
+    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta
     └── infrastructure/
-        ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
+        ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
         ├── repository/
         │   ├── memory/                    # Store + TxManager + un repositorio por agregado
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
-            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers, stock
+            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers, stock, sales
             ├── handler/                   # un handler por ruta + Adapt, decodeJSON, pageQuery
             ├── middleware/                # DevActor, Recover, RequestLog
             ├── response/                  # WriteJSON, WriteError (único mapeo Kind → status)
@@ -101,6 +101,11 @@ flowchart LR
   registro completo y así un opcional en `null` se borra.
 - Montos y cantidades viajan como enteros: centavos, centésimas de punto
   porcentual y milésimas de unidad.
+- `POST /api/v1/sales` exige el header `Idempotency-Key`: el frontend genera
+  la clave, la reutiliza mientras el alta falle y la rota al confirmar. Un
+  reintento con la misma clave y el mismo cuerpo responde la venta original
+  (`201`, sin registrarla de nuevo); con otro cuerpo, `409
+  idempotency_key_conflict`.
 - `Adapt(h, timeout)` acota el contexto al timeout de la ruta y el cuerpo a
   1 MiB (`handler.MaxBodyBytes`). Los deadlines del `http.Server` derivan del
   mayor timeout registrado (`route.MaxHandlerTimeout`).
@@ -115,9 +120,16 @@ flowchart LR
 - `WithinTx(ctx, fn)` toma el lock durante toda la unidad de trabajo, así que
   las transacciones son serializables. Un `ctx` que ya está dentro de una
   transacción del mismo store se une a ella en vez de bloquearse.
-- Cada escritura (`put`, `remove`, `appendRow`) registra cómo deshacerse. Si
-  `fn` devuelve error o entra en pánico, los pasos se deshacen en orden
-  inverso y las tablas quedan exactamente como estaban.
+- Cada escritura (`put`, `remove`, `appendRow`, `set`) registra cómo
+  deshacerse. Si `fn` devuelve error o entra en pánico, los pasos se deshacen
+  en orden inverso y las tablas quedan exactamente como estaban.
+- `NewStore` arranca vacío salvo por el cliente de sistema **Consumidor
+  Final** (`domain.FinalConsumer`, con ID fijo `domain.FinalConsumerID`); en
+  PostgreSQL lo insertará una migración.
+- El número de venta sale de un contador (`lastSaleNumber`, escrito con
+  `set`), que hace de secuencia. A diferencia de una secuencia, una unidad de
+  trabajo que falla devuelve su número; la suite de contrato no depende de
+  eso.
 - Los movimientos de stock viven en una tabla que solo crece
   (`appendRow`): su orden es el de registro y ningún repositorio los edita
   ni los borra.
@@ -126,6 +138,11 @@ flowchart LR
   store, dos ingresos simultáneos del mismo artículo nunca pisan su saldo
   (la suite de contrato lo prueba con 20 unidades de trabajo concurrentes).
   En PostgreSQL, `GetLevel` tendrá que bloquear la fila (`FOR UPDATE`).
+- Una venta corre entera en un `WithinTx`: busca la clave de idempotencia,
+  lee cliente, vendedor y artículos, deja que el dominio calcule la venta,
+  la guarda (el repositorio le asigna ID y número) y registra un movimiento
+  `sale` por línea. Si una línea no tiene stock, no queda ni la venta ni
+  ningún movimiento.
 - Las tablas guardan valores, y los repositorios copian los punteros y
   slices que guardan o devuelven (por ejemplo `cloneCategory`), para que
   nadie mute una tabla fuera del lock.
@@ -135,7 +152,10 @@ flowchart LR
   tenga artículos, los proveedores de un artículo tienen que existir y no
   se pueden borrar mientras un artículo los tenga, un documento por cliente,
   un CUIT por proveedor, un código por vendedor, el artículo y el proveedor
-  de un movimiento de stock tienen que existir y no se pueden borrar después)
+  de un movimiento de stock tienen que existir y no se pueden borrar después,
+  una venta por clave de idempotencia, y el cliente, el vendedor y los
+  artículos de una venta tienen que existir y el cliente y el vendedor no se
+  pueden borrar después)
   las verifica el repositorio dentro del lock, y la suite de contrato prueba
   que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en

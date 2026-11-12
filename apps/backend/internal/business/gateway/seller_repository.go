@@ -24,7 +24,7 @@ type SellerRepository interface {
 	// ErrSellerNotFound for an unknown ID.
 	Update(ctx context.Context, seller domain.Seller) (domain.Seller, error)
 	// Delete removes a seller for good. It returns ErrSellerNotFound for
-	// an unknown ID.
+	// an unknown ID and ErrSellerInUse while a sale names the seller.
 	Delete(ctx context.Context, id string) error
 	// List returns one page sorted by name.
 	List(ctx context.Context, filter SellerFilter) (domain.Page[domain.Seller], error)

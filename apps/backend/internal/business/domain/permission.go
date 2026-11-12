@@ -22,6 +22,8 @@ const (
 
 	PermissionViewStock   Permission = "stock:view"
 	PermissionManageStock Permission = "stock:manage"
+
+	PermissionCreateSales Permission = "sales:create"
 )
 
 // rolePermissions is the only place that grants permissions. Anyone who
@@ -36,6 +38,7 @@ var rolePermissions = map[Role][]Permission{
 		PermissionViewSuppliers, PermissionManageSuppliers,
 		PermissionViewSellers, PermissionManageSellers,
 		PermissionViewStock, PermissionManageStock,
+		PermissionCreateSales,
 	},
 	RoleManager: {
 		PermissionViewCatalog, PermissionManageCatalog,
@@ -43,12 +46,14 @@ var rolePermissions = map[Role][]Permission{
 		PermissionViewSuppliers, PermissionManageSuppliers,
 		PermissionViewSellers, PermissionManageSellers,
 		PermissionViewStock, PermissionManageStock,
+		PermissionCreateSales,
 	},
 	RoleCashier: {
 		PermissionViewCatalog,
 		PermissionViewCustomers, PermissionCreateCustomers,
 		PermissionViewSellers,
 		PermissionViewStock,
+		PermissionCreateSales,
 	},
 }
 

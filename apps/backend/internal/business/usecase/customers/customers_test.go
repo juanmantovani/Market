@@ -163,3 +163,31 @@ func TestDeleteCustomer(t *testing.T) {
 	err = NewDeleteCustomer(&gatewayfake.CustomerRepository{DeleteErr: domain.ErrCustomerNotFound}).Execute(context.Background(), DeleteCustomerInput{Actor: admin, ID: "x"})
 	assertError(t, err, domain.ErrCustomerNotFound)
 }
+
+func TestDeleteCustomerKeepsTheSystemCustomerAndCustomersWithSales(t *testing.T) {
+	repository := &gatewayfake.CustomerRepository{GetResult: domain.FinalConsumer(time.Now().UTC())}
+	err := NewDeleteCustomer(repository).Execute(context.Background(), DeleteCustomerInput{Actor: admin, ID: domain.FinalConsumerID})
+	assertError(t, err, domain.ErrCustomerIsSystem)
+	if len(repository.DeletedIDs) != 0 {
+		t.Fatal("the system customer reached Delete")
+	}
+
+	err = NewDeleteCustomer(&gatewayfake.CustomerRepository{DeleteErr: domain.ErrCustomerInUse}).Execute(context.Background(), DeleteCustomerInput{Actor: admin, ID: "customer-1"})
+	assertError(t, err, domain.ErrCustomerInUse)
+
+	err = NewDeleteCustomer(&gatewayfake.CustomerRepository{GetErr: domain.ErrCustomerNotFound}).Execute(context.Background(), DeleteCustomerInput{Actor: admin, ID: "x"})
+	assertError(t, err, domain.ErrCustomerNotFound)
+	err = NewDeleteCustomer(&gatewayfake.CustomerRepository{GetErr: errDown}).Execute(context.Background(), DeleteCustomerInput{Actor: admin, ID: "x"})
+	assertError(t, err, domain.ErrStorageUnavailable)
+}
+
+func TestUpdateCustomerKeepsTheSystemCustomer(t *testing.T) {
+	repository := &gatewayfake.CustomerRepository{GetResult: domain.FinalConsumer(time.Now().UTC())}
+
+	_, err := NewUpdateCustomer(repository).Execute(context.Background(), UpdateCustomerInput{Actor: admin, ID: domain.FinalConsumerID, Fields: fields()})
+
+	assertError(t, err, domain.ErrCustomerIsSystem)
+	if len(repository.Updated) != 0 {
+		t.Fatal("the system customer reached Update")
+	}
+}

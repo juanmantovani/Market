@@ -10,6 +10,7 @@ import (
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/sales"
 	"market/backend/internal/business/usecase/sellers"
 	"market/backend/internal/business/usecase/stock"
 	"market/backend/internal/business/usecase/suppliers"
@@ -23,6 +24,7 @@ type repositories struct {
 	suppliers  *memory.SupplierRepository
 	sellers    *memory.SellerRepository
 	stock      *memory.StockRepository
+	sales      *memory.SaleRepository
 }
 
 func newUseCases() (UseCases, repositories) {
@@ -34,6 +36,7 @@ func newUseCases() (UseCases, repositories) {
 		suppliers:  memory.NewSupplierRepository(store),
 		sellers:    memory.NewSellerRepository(store),
 		stock:      memory.NewStockRepository(store),
+		sales:      memory.NewSaleRepository(store),
 	}
 
 	return UseCases{
@@ -46,6 +49,8 @@ func newUseCases() (UseCases, repositories) {
 		RegisterInitialStock:    stock.NewRegisterInitialStock(store, repos.stock, repos.items),
 		RegisterStockEntry:      stock.NewRegisterStockEntry(store, repos.stock, repos.items, repos.suppliers),
 		RegisterStockAdjustment: stock.NewRegisterStockAdjustment(store, repos.stock, repos.items),
+
+		CreateSale: sales.NewCreateSale(store, repos.sales, repos.items, repos.customers, repos.sellers, repos.stock, domain.StockPolicy{}),
 	}, repos
 }
 
@@ -57,8 +62,8 @@ func TestSeedLoadsTheDemoCatalog(t *testing.T) {
 	}
 
 	customerPage, err := customers.NewListCustomers(repos.customers).Execute(context.Background(), customers.ListCustomersInput{Actor: seeder})
-	if err != nil || customerPage.Total != len(demoCustomers) {
-		t.Fatalf("seeded %d customers (%v), want %d", customerPage.Total, err, len(demoCustomers))
+	if err != nil || customerPage.Total != len(demoCustomers)+1 {
+		t.Fatalf("seeded %d customers (%v), want %d plus Consumidor Final", customerPage.Total, err, len(demoCustomers))
 	}
 
 	supplierPage, err := suppliers.NewListSuppliers(repos.suppliers).Execute(context.Background(), suppliers.ListSuppliersInput{Actor: seeder})
@@ -110,20 +115,65 @@ func TestSeedLoadsTheDemoStock(t *testing.T) {
 			low = append(low, level.Item.Code)
 		}
 	}
-	if quantities["BEB-001"] != domain.WholeQuantity(30) || quantities["KIO-001"] != domain.WholeQuantity(58) || quantities["FIA-001"] != 1_800 {
+	if quantities["BEB-001"] != domain.WholeQuantity(28) || quantities["KIO-001"] != domain.WholeQuantity(57) || quantities["FIA-001"] != 1_550 {
 		t.Fatalf("stock per item = %v", quantities)
 	}
 	if fmt.Sprint(low) != "[LAC-001 FIA-001 ALM-001]" {
 		t.Fatalf("items below their minimum = %v", low)
 	}
 
+	saleLines := 0
+	for _, sale := range demoSales {
+		saleLines += len(sale.lines)
+	}
 	movements, err := stock.NewListStockMovements(repos.stock).Execute(context.Background(), stock.ListStockMovementsInput{Actor: seeder, Limit: 100})
-	if err != nil || movements.Total != len(demoItems)+2 {
-		t.Fatalf("movements = %d (%v), want an opening one per item plus an entry and an adjustment", movements.Total, err)
+	if err != nil || movements.Total != len(demoItems)+2+saleLines {
+		t.Fatalf("movements = %d (%v), want an opening one per item, an entry, an adjustment and one per sale line", movements.Total, err)
 	}
-	if movements.Items[0].Type != domain.MovementAdjustment || movements.Items[1].Type != domain.MovementEntry {
-		t.Fatalf("latest movements = %s, %s", movements.Items[0].Type, movements.Items[1].Type)
+	byType := map[domain.MovementType]int{}
+	for _, movement := range movements.Items {
+		byType[movement.Type]++
 	}
+	if byType[domain.MovementEntry] != 1 || byType[domain.MovementAdjustment] != 1 || byType[domain.MovementSale] != saleLines {
+		t.Fatalf("movements by type = %v", byType)
+	}
+}
+
+func TestSeedLoadsTheDemoSales(t *testing.T) {
+	useCases, repos := newUseCases()
+	if err := Seed(context.Background(), useCases); err != nil {
+		t.Fatalf("Seed() error = %v", err)
+	}
+
+	for i, want := range demoSales {
+		sale, err := repos.sales.GetByIdempotencyKey(context.Background(), fmt.Sprintf("demo-sale-%d", i+1))
+		if err != nil {
+			t.Fatalf("demo sale %d: %v", i+1, err)
+		}
+		if sale.Number != int64(i+1) || sale.Total != want.total || len(sale.Lines) != len(want.lines) || (want.seller == "") != (sale.Seller == nil) {
+			t.Fatalf("demo sale %d = %+v", i+1, sale)
+		}
+		if want.customer == "" && sale.Customer.ID != domain.FinalConsumerID {
+			t.Fatalf("demo sale %d without customer went to %+v", i+1, sale.Customer)
+		}
+	}
+}
+
+func TestSeedReportsAFailedSale(t *testing.T) {
+	useCases, _ := newUseCases()
+	useCases.CreateSale = failingCreateSale{}
+
+	err := Seed(context.Background(), useCases)
+
+	if !errors.Is(err, domain.ErrStorageUnavailable) {
+		t.Fatalf("Seed() error = %v, want ErrStorageUnavailable", err)
+	}
+}
+
+type failingCreateSale struct{}
+
+func (failingCreateSale) Execute(context.Context, sales.CreateSaleInput) (domain.Sale, error) {
+	return domain.Sale{}, domain.ErrStorageUnavailable
 }
 
 func TestSeedReportsAFailedStockStep(t *testing.T) {

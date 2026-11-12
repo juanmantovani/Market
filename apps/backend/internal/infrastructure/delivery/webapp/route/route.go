@@ -10,12 +10,13 @@ import (
 const (
 	catalogTimeout = 5 * time.Second
 	stockTimeout   = 5 * time.Second
+	salesTimeout   = 5 * time.Second
 )
 
 // MaxHandlerTimeout is the longest timeout of any route registered here.
 // The HTTP server's deadlines derive from it, so a handler that runs to its
 // limit can still write its response.
-const MaxHandlerTimeout = max(catalogTimeout, stockTimeout)
+const MaxHandlerTimeout = max(catalogTimeout, stockTimeout, salesTimeout)
 
 // Handlers holds one handler per route. Each feature adds its own.
 type Handlers struct {
@@ -53,6 +54,8 @@ type Handlers struct {
 	ListStockMovements    *handler.ListStockMovementsHandler
 	CreateStockEntry      *handler.CreateStockEntryHandler
 	CreateStockAdjustment *handler.CreateStockAdjustmentHandler
+
+	CreateSale *handler.CreateSaleHandler
 }
 
 func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
@@ -93,4 +96,6 @@ func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
 	mux.Handle("GET /api/v1/stock/movements", handler.Adapt(handlers.ListStockMovements, stockTimeout))
 	mux.Handle("POST /api/v1/stock/entries", handler.Adapt(handlers.CreateStockEntry, stockTimeout))
 	mux.Handle("POST /api/v1/stock/adjustments", handler.Adapt(handlers.CreateStockAdjustment, stockTimeout))
+
+	mux.Handle("POST /api/v1/sales", handler.Adapt(handlers.CreateSale, salesTimeout))
 }

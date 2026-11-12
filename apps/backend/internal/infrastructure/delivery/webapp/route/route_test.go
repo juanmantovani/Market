@@ -74,6 +74,8 @@ func TestRegisterRoutes(t *testing.T) {
 		{method: http.MethodPost, path: "/api/v1/stock/entries", body: `{"lines":[{"itemId":"missing","quantity":1000}]}`, want: http.StatusBadRequest},
 		{method: http.MethodPost, path: "/api/v1/stock/adjustments", body: `{"itemId":"missing","quantity":1000,"reason":"Conteo"}`, want: http.StatusBadRequest},
 		{method: http.MethodPut, path: "/api/v1/stock", want: http.StatusNotFound},
+		{method: http.MethodPost, path: "/api/v1/sales", body: `{"lines":[{"itemId":"missing","quantity":1000}]}`, want: http.StatusBadRequest},
+		{method: http.MethodGet, path: "/api/v1/sales", want: http.StatusNotFound},
 		// The /api/ catch-all answers unsupported methods with the JSON 404
 		// instead of the mux's plain-text 405, so every API error shares one
 		// shape.

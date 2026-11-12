@@ -14,7 +14,8 @@ func TestNewBuildsTheMemoryGraph(t *testing.T) {
 
 	handlers := container.Handlers()
 	if handlers.ListCategories == nil || handlers.CreateCategory == nil || handlers.DeleteCategory == nil ||
-		handlers.ListStockLevels == nil || handlers.CreateStockEntry == nil || handlers.CreateStockAdjustment == nil {
+		handlers.ListStockLevels == nil || handlers.CreateStockEntry == nil || handlers.CreateStockAdjustment == nil ||
+		handlers.CreateSale == nil {
 		t.Fatalf("Handlers() left routes unwired: %+v", handlers)
 	}
 	if container.RegisterInitialStock == nil {

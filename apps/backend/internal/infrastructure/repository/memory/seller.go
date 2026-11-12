@@ -71,6 +71,9 @@ func (repository *SellerRepository) Delete(ctx context.Context, id string) error
 		if _, ok := repository.store.sellers[id]; !ok {
 			return domain.ErrSellerNotFound
 		}
+		if repository.store.hasSaleWhere(func(sale domain.Sale) bool { return sale.Seller != nil && sale.Seller.ID == id }) {
+			return domain.ErrSellerInUse
+		}
 		remove(current, repository.store.sellers, id)
 		return nil
 	})

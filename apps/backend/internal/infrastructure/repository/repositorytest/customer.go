@@ -50,6 +50,28 @@ func CustomerRepository(t *testing.T, newRepositories NewRepositories) {
 		return newRepositories(t).Customers
 	}
 
+	t.Run("a fresh repository holds the system customer Consumidor Final", func(t *testing.T) {
+		repository := newRepository(t)
+
+		got, err := repository.Get(ctx, domain.FinalConsumerID)
+		if err != nil {
+			t.Fatalf("Get(Consumidor Final) error = %v", err)
+		}
+		if got.ID != domain.FinalConsumerID || got.Name != "Consumidor Final" || !got.System ||
+			got.DocumentType != domain.DocumentNone || got.TaxCondition != domain.TaxFinalConsumer {
+			t.Fatalf("Get(Consumidor Final) = %+v", got)
+		}
+		listed, _ := repository.List(ctx, gateway.CustomerFilter{Search: "consumidor", Page: domain.PageRequest{Page: 1, Limit: 10}})
+		if listed.Total != 1 || !listed.Items[0].System {
+			t.Fatalf("List(consumidor) = %+v", listed)
+		}
+
+		created := mustCreateCustomer(t, repository, newCustomer(t, "Ana", domain.DocumentNone, ""))
+		if created.System {
+			t.Fatal("Create() stored a system customer")
+		}
+	})
+
 	t.Run("create assigns an id and get returns every field", func(t *testing.T) {
 		repository := newRepository(t)
 		customer := newCustomer(t, "La Esquina SRL", domain.DocumentCUIT, "30-71234567-8")
@@ -151,7 +173,7 @@ func CustomerRepository(t *testing.T, newRepositories NewRepositories) {
 			search string
 			want   []string
 		}{
-			{search: "", want: []string{"ana Pérez", "Beto", "La Esquina SRL"}},
+			{search: "", want: []string{"ana Pérez", "Beto", "Consumidor Final", "La Esquina SRL"}},
 			{search: "PEREZ", want: []string{"ana Pérez"}},
 			{search: "30-71234567", want: []string{"La Esquina SRL"}},
 			{search: "40.111", want: []string{"ana Pérez"}},
@@ -182,7 +204,7 @@ func CustomerRepository(t *testing.T, newRepositories NewRepositories) {
 		if err != nil {
 			t.Fatalf("List() error = %v", err)
 		}
-		if fmt.Sprint(customerNames(second.Items)) != "[C D]" || second.Total != 5 {
+		if fmt.Sprint(customerNames(second.Items)) != "[C Consumidor Final]" || second.Total != 6 {
 			t.Fatalf("page 2 = %v (total %d)", customerNames(second.Items), second.Total)
 		}
 	})

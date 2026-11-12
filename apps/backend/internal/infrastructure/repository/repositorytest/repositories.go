@@ -16,9 +16,12 @@ type Repositories struct {
 	Suppliers  gateway.SupplierRepository
 	Sellers    gateway.SellerRepository
 	Stock      gateway.StockRepository
+	Sales      gateway.SaleRepository
 	// Tx is the adapter's unit of work over these same repositories.
 	Tx gateway.TxManager
 }
 
-// NewRepositories must return empty repositories each time it's called.
+// NewRepositories must return repositories holding nothing but what every
+// storage starts with (the system customer Consumidor Final) each time it's
+// called.
 type NewRepositories func(t *testing.T) Repositories
