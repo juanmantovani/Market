@@ -143,7 +143,7 @@ export default function SellersPage() {
 
       <SearchField
         label="Buscar vendedores"
-        placeholder="Buscar por nombre o código"
+        hint="Por nombre o código"
         value={search}
         onChange={(value) => {
           setSearch(value)

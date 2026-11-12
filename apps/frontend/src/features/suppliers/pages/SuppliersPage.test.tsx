@@ -350,6 +350,7 @@ describe('SuppliersPage', () => {
     renderWithProviders(<SuppliersPage />)
     await table()
 
+    expect(screen.getByRole('searchbox', { name: 'Buscar proveedores' })).toHaveAccessibleDescription('Por razón social, CUIT o contacto')
     await user.type(screen.getByRole('searchbox', { name: 'Buscar proveedores' }), '30-70987')
     await waitFor(async () => expect(rowTexts(await table()).map((row) => row[0])).toEqual(['Lácteos del Sur']))
     expect(api.requests.at(-1)?.path).toContain('q=30-70987')
