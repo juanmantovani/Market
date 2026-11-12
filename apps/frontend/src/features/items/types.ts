@@ -34,7 +34,6 @@ export const itemSchema = z.object({
   salePrice: z.number().int(),
   cost: z.number().int().nullable(),
   taxRate: z.number().int(),
-  tracksStock: z.boolean(),
   minStock: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -70,7 +69,6 @@ export const itemFormSchema = z
       .string()
       .refine((value) => value.trim() === '' || parseMoney(value) !== null, 'Ingresar un costo válido, por ejemplo 800,00'),
     taxRate: z.string(),
-    tracksStock: z.boolean(),
     minStock: z
       .string()
       .refine((value) => value.trim() === '' || parseQuantity(value, true) !== null, 'Ingresar una cantidad, por ejemplo 2,5'),
@@ -96,7 +94,6 @@ export const itemFormSchema = z
       salePrice: parseMoney(values.salePrice) as number,
       cost,
       taxRate: Number(values.taxRate),
-      tracksStock: values.tracksStock,
       minStock,
     }
   })
@@ -137,7 +134,6 @@ export function toFormValues(item: Item | null): ItemFormValues {
     salePrice: item ? centsToInput(item.salePrice) : '',
     cost: item ? centsToInput(item.cost) : '',
     taxRate: String(item?.taxRate ?? 2100),
-    tracksStock: item?.tracksStock ?? true,
     minStock: item ? formatQuantity(item.minStock) : '0',
   }
 }

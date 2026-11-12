@@ -64,6 +64,9 @@ Códigos de error: `category_not_found`, `category_name_required`,
 
 ## Artículos
 
+Un artículo es un producto que se vende. Market no vende servicios: todo
+artículo controla stock y tiene stock mínimo.
+
 | Campo | Regla |
 | --- | --- |
 | `code` | Código interno (SKU). Obligatorio, hasta 30 caracteres, único sin distinguir mayúsculas ni acentos. |
@@ -76,7 +79,6 @@ Códigos de error: `category_not_found`, `category_name_required`,
 | `salePrice` | Centavos, mayor a 0 y hasta `MaxItemAmount` (mil millones de pesos). **Incluye IVA.** |
 | `cost` | Centavos, opcional, entre 0 y `MaxItemAmount`. |
 | `taxRate` | Alícuota de IVA en centésimas de punto: `0`, `1050`, `2100` o `2700`. Informativa hasta facturar. |
-| `tracksStock` | Si el artículo controla stock (un servicio no). |
 | `minStock` | Milésimas de la unidad, entre 0 y un millón de unidades; entero si se vende por unidad. Umbral de la alerta de stock bajo (Fase 3). |
 
 Editar reemplaza todos los campos (`PUT`): el formulario siempre manda el
