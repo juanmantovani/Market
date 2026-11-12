@@ -25,6 +25,17 @@ export default defineConfig(({ mode, command }) => {
         '@': path.resolve(import.meta.dirname, './src'),
       },
     },
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            // React and the router change far less often than the app, so
+            // their own chunk stays cached across deploys.
+            groups: [{ name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ }],
+          },
+        },
+      },
+    },
     server: {
       proxy: {
         '/api': proxyTarget,
