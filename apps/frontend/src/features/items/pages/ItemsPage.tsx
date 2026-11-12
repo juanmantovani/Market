@@ -122,7 +122,7 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers }: 
         <EmptyState
           icon={Package}
           title="Todavía no hay artículos"
-          description="Cargar los productos y servicios que se venden, con su precio y su código de barras."
+          description="Cargar los artículos que se venden, con su precio y su código de barras."
           action={
             <Button type="button" size="lg" onClick={() => openForm(null)}>
               <Plus aria-hidden />

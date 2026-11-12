@@ -263,7 +263,7 @@ apps/frontend/src/
 | Español (UI) | Código / API | Qué es |
 | --- | --- | --- |
 | Categoría | `Category` | Agrupa artículos para buscar y filtrar. |
-| Artículo | `Item` | Producto o servicio que se vende. |
+| Artículo | `Item` | Producto que se vende; todos controlan stock. |
 | Cliente | `Customer` | A quién se le vende. |
 | Proveedor | `Supplier` | A quién se le compra mercadería. |
 | Vendedor | `Seller` | Quién atiende la venta (comisiones a futuro). |
@@ -294,8 +294,8 @@ apps/frontend/src/
 - **Item**: `code` (SKU interno, único), `barcode?` (único si existe), `name`,
   `description?`, `categoryId`, `unit` (`unit | kg | l | m`), `salePrice`
   (> 0, IVA incluido), `cost?`, `taxRate` (0 / 10,5 / 21 / 27 %, informativo
-  hasta facturar), `tracksStock` (falso para servicios), `minStock`,
-  `supplierIds` (ninguno, uno o varios proveedores).
+  hasta facturar), `minStock`, `supplierIds` (ninguno, uno o varios
+  proveedores). Solo productos: todo artículo controla stock.
 - **Customer**: `name`, `documentType` (`dni | cuit | cuil | none`),
   `documentNumber` (solo dígitos, único por tipo), `taxCondition`
   (`final_consumer | monotax | registered | exempt`), `email?`, `phone?`,
@@ -328,7 +328,7 @@ apps/frontend/src/
 2. El ajuste exige motivo y puede ser positivo o negativo.
 3. El ingreso de mercadería exige cantidad > 0; proveedor y costo unitario son
    opcionales. Si se informa costo, actualiza `Item.cost`.
-4. La venta descuenta solo artículos con `tracksStock`.
+4. La venta descuenta el stock de cada artículo vendido: todos lo controlan.
 5. **Stock negativo**: `STOCK_ALLOW_NEGATIVE=false` por defecto → la venta
    falla con `insufficient_stock` (409) indicando el artículo. Es configurable
    porque muchos comercios prefieren no frenar la caja.
@@ -524,7 +524,7 @@ pasan a la Fase 1, donde tienen su primer uso real.
    feature del frontend. Es la entidad más simple y **define el patrón**: al
    terminarla se documenta la “receta de ABM” en `docs/architecture.md`.
 2. **Artículos**: el mismo patrón, más unidad, precio, alícuota,
-   `tracksStock`, stock mínimo y búsqueda por código o barras (`lookup`).
+   stock mínimo y búsqueda por código o barras (`lookup`).
 
 ### Fase 2 — Clientes, proveedores y vendedores
 

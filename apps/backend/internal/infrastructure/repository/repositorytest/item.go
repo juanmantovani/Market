@@ -64,7 +64,6 @@ func ItemRepository(t *testing.T, newRepositories NewRepositories) {
 		cost := domain.Money(60_000)
 		item.Cost = &cost
 		item.Unit = domain.UnitKilogram
-		item.TracksStock = true
 		item.MinStock = 2500
 
 		created := mustCreateItem(t, items, item)
@@ -81,7 +80,7 @@ func ItemRepository(t *testing.T, newRepositories NewRepositories) {
 			got.Description == nil || *got.Description != "Con palo" ||
 			got.Cost == nil || *got.Cost != 60_000 ||
 			got.Unit != domain.UnitKilogram || got.SalePrice != 100_000 || got.TaxRate != 2100 ||
-			!got.TracksStock || got.MinStock != 2500 || !got.CreatedAt.Equal(contractTime) {
+			got.MinStock != 2500 || !got.CreatedAt.Equal(contractTime) {
 			t.Fatalf("Get() = %+v", got)
 		}
 	})

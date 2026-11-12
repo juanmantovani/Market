@@ -61,11 +61,10 @@ type ItemFields struct {
 	SalePrice   Money
 	Cost        *Money
 	TaxRate     Percent
-	TracksStock bool
 	MinStock    Quantity
 }
 
-// Item is a product or service that can be sold. SalePrice includes IVA.
+// Item is a product that can be sold. SalePrice includes IVA.
 type Item struct {
 	ID string
 	ItemFields

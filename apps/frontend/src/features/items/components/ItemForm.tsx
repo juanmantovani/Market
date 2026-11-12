@@ -239,16 +239,6 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
       </Section>
 
       <Section title="Stock">
-        <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
-          <input
-            type="checkbox"
-            className="size-5 accent-primary"
-            checked={values.tracksStock}
-            onChange={(event) => change('tracksStock', event.target.checked)}
-          />
-          Controla stock
-          <span className="font-normal text-muted-foreground">(desmarcar para servicios)</span>
-        </label>
         <Field className="sm:max-w-xs">
           <FieldLabel htmlFor="item-minStock">
             Stock mínimo <span className="font-normal text-muted-foreground">({unitShort(values.unit)})</span>
@@ -257,7 +247,6 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
             {...errorProps('minStock', fieldErrors)}
             inputMode="decimal"
             autoComplete="off"
-            disabled={!values.tracksStock}
             value={values.minStock}
             onChange={(event) => change('minStock', event.target.value)}
           />
