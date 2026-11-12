@@ -151,6 +151,29 @@ Códigos de error: `supplier_not_found`, `supplier_business_name_required`,
 `supplier_email_invalid`, `supplier_phone_too_long`,
 `supplier_address_too_long`, `supplier_notes_too_long`.
 
+## Vendedores
+
+Un vendedor es quien atiende la venta, no un usuario de la app (a futuro un
+usuario podrá vincularse a un vendedor).
+
+| Campo | Regla |
+| --- | --- |
+| `name` | Obligatorio, hasta 80 caracteres. |
+| `code` | Lo que se tipea para elegirlo en la venta. De 1 a 6 letras o números, sin espacios; se guarda en mayúsculas (`jp` es `JP`) y es único. |
+| `commissionRate` | Opcional, en centésimas de punto porcentual (2,5 % = `250`), de 0 a 100 %. Informativa hasta que haya reportes de comisiones. |
+
+Editar reemplaza todos los campos (`PUT`). La búsqueda encuentra por nombre
+o código.
+
+Permisos: `sellers:view` para listar y consultar (también el cajero, que
+elige el vendedor al cobrar) y `sellers:manage` para crear, editar y
+eliminar. Cuando existan ventas (Fase 4), eliminar un vendedor que tenga
+ventas fallará con `seller_in_use`.
+
+Códigos de error: `seller_not_found`, `seller_name_required`,
+`seller_name_too_long`, `seller_code_required`, `seller_code_invalid`,
+`seller_code_in_use`, `seller_commission_invalid`.
+
 ## Actor, roles y permisos
 
 Toda operación la ejecuta un `Actor` (`ID`, `Name`, `Role`). Roles:
@@ -170,6 +193,8 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | `customers:manage` — editar y eliminar clientes | ✅ | ✅ | — |
 | `suppliers:view` — ver proveedores | ✅ | ✅ | — |
 | `suppliers:manage` — crear, editar y eliminar proveedores | ✅ | ✅ | — |
+| `sellers:view` — ver vendedores | ✅ | ✅ | ✅ |
+| `sellers:manage` — crear, editar y eliminar vendedores | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

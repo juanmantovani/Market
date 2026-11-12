@@ -11,6 +11,7 @@ import (
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/sellers"
 	"market/backend/internal/business/usecase/suppliers"
 )
 
@@ -22,6 +23,7 @@ type UseCases struct {
 	CreateItem     items.CreateItem
 	CreateCustomer customers.CreateCustomer
 	CreateSupplier suppliers.CreateSupplier
+	CreateSeller   sellers.CreateSeller
 }
 
 type demoCategory struct {
@@ -102,6 +104,22 @@ var demoSuppliers = []demoSupplier{
 	{"Panificadora La Espiga", "", "Rosa", "351 555-2200", ""},
 }
 
+type demoSeller struct {
+	name       string
+	code       string
+	commission *domain.Percent
+}
+
+func commission(rate domain.Percent) *domain.Percent {
+	return &rate
+}
+
+var demoSellers = []demoSeller{
+	{"Juan Pérez", "JP", commission(250)},
+	{"Lucía Fernández", "LF", commission(300)},
+	{"María Gómez", "MG", nil},
+}
+
 func Seed(ctx context.Context, useCases UseCases) error {
 	categoryIDs := map[string]string{}
 	for _, category := range demoCategories {
@@ -171,6 +189,16 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		})
 		if err != nil {
 			return fmt.Errorf("seeding supplier %q: %w", supplier.businessName, err)
+		}
+	}
+
+	for _, seller := range demoSellers {
+		_, err := useCases.CreateSeller.Execute(ctx, sellers.CreateSellerInput{
+			Actor:  seeder,
+			Fields: domain.SellerFields{Name: seller.name, Code: seller.code, CommissionRate: seller.commission},
+		})
+		if err != nil {
+			return fmt.Errorf("seeding seller %q: %w", seller.code, err)
 		}
 	}
 

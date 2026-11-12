@@ -24,6 +24,7 @@ type Store struct {
 	items      map[string]domain.Item
 	customers  map[string]domain.Customer
 	suppliers  map[string]domain.Supplier
+	sellers    map[string]domain.Seller
 }
 
 func NewStore() *Store {
@@ -32,6 +33,7 @@ func NewStore() *Store {
 		items:      map[string]domain.Item{},
 		customers:  map[string]domain.Customer{},
 		suppliers:  map[string]domain.Supplier{},
+		sellers:    map[string]domain.Seller{},
 	}
 }
 
