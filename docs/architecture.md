@@ -202,7 +202,7 @@ apps/frontend/src/
 | Componente | Para qué |
 | --- | --- |
 | `PageHeader` | Título, descripción y acción principal de la pantalla. |
-| `SearchField` | Búsqueda con ícono y botón para limpiar; se combina con `useDebouncedValue`. |
+| `SearchField` | Búsqueda con ícono y botón para limpiar; el placeholder es el propio label (corto, para que entre en el celular) y debajo muestra por qué campos busca (`hint`). Se combina con `useDebouncedValue`. |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
 | `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. |

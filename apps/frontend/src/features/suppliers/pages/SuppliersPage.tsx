@@ -143,7 +143,7 @@ export default function SuppliersPage() {
 
       <SearchField
         label="Buscar proveedores"
-        placeholder="Buscar por razón social, CUIT o contacto"
+        hint="Por razón social, CUIT o contacto"
         value={search}
         onChange={(value) => {
           setSearch(value)

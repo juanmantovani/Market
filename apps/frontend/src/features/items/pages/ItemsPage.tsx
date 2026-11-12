@@ -167,10 +167,10 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers }: 
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <SearchField
           label="Buscar artículos"
-          placeholder="Buscar por nombre, código o código de barras"
+          hint="Por nombre, código o código de barras"
           value={search}
           onChange={(value) => {
             setSearch(value)

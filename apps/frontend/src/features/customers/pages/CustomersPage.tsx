@@ -143,7 +143,7 @@ export default function CustomersPage() {
 
       <SearchField
         label="Buscar clientes"
-        placeholder="Buscar por nombre, documento, email o teléfono"
+        hint="Por nombre, documento, email o teléfono"
         value={search}
         onChange={(value) => {
           setSearch(value)
