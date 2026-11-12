@@ -9,7 +9,7 @@ export default function DashboardPage() {
       <EmptyState
         icon={ShoppingBag}
         title="Todavía no hay ventas hoy"
-        description="Cuando se registren ventas, acá vas a ver el total del día, los medios de pago y los artículos con stock bajo."
+        description="Cuando se registren ventas, aquí se verán el total del día, los medios de pago y los artículos con stock bajo."
       />
     </div>
   )

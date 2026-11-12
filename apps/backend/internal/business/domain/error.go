@@ -17,7 +17,7 @@ const (
 
 var (
 	ErrStorageUnavailable = &Error{Kind: KindUnavailable, Code: "storage_unavailable", Message: "El almacenamiento no está disponible"}
-	ErrForbidden          = &Error{Kind: KindForbidden, Code: "forbidden", Message: "No tenés permiso para realizar esta acción"}
+	ErrForbidden          = &Error{Kind: KindForbidden, Code: "forbidden", Message: "No hay permiso para realizar esta acción"}
 )
 
 // Error is a business error with a stable Code and a user-facing Message,

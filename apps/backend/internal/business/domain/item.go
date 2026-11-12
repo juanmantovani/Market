@@ -35,14 +35,14 @@ var (
 	ErrItemNameRequired       = &Error{Kind: KindInvalid, Code: "item_name_required", Message: "El nombre es obligatorio"}
 	ErrItemNameTooLong        = &Error{Kind: KindInvalid, Code: "item_name_too_long", Message: "El nombre admite hasta 100 caracteres"}
 	ErrItemDescriptionTooLong = &Error{Kind: KindInvalid, Code: "item_description_too_long", Message: "La descripción admite hasta 500 caracteres"}
-	ErrItemCategoryRequired   = &Error{Kind: KindInvalid, Code: "item_category_required", Message: "Elegí una categoría"}
+	ErrItemCategoryRequired   = &Error{Kind: KindInvalid, Code: "item_category_required", Message: "Elegir una categoría"}
 	ErrItemCategoryNotFound   = &Error{Kind: KindInvalid, Code: "item_category_not_found", Message: "La categoría elegida no existe"}
 	ErrItemUnitInvalid        = &Error{Kind: KindInvalid, Code: "item_unit_invalid", Message: "La unidad no es válida"}
 	ErrItemPriceInvalid       = &Error{Kind: KindInvalid, Code: "item_price_invalid", Message: "El precio tiene que ser mayor a cero"}
 	ErrItemCostInvalid        = &Error{Kind: KindInvalid, Code: "item_cost_invalid", Message: "El costo no puede ser negativo"}
 	ErrItemTaxRateInvalid     = &Error{Kind: KindInvalid, Code: "item_tax_rate_invalid", Message: "La alícuota de IVA no es válida"}
 	ErrItemMinStockInvalid    = &Error{Kind: KindInvalid, Code: "item_min_stock_invalid", Message: "El stock mínimo no es válido para la unidad del artículo"}
-	ErrCategoryInUse          = &Error{Kind: KindConflict, Code: "category_in_use", Message: "La categoría tiene artículos: cambiales la categoría antes de eliminarla"}
+	ErrCategoryInUse          = &Error{Kind: KindConflict, Code: "category_in_use", Message: "La categoría tiene artículos: cambiar la categoría de esos artículos antes de eliminarla"}
 )
 
 // ItemFields are the editable fields of an item. Creating and editing both

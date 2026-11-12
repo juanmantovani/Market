@@ -57,27 +57,27 @@ export const itemFormSchema = z
       .refine((value) => !/\s/.test(value), 'El código de barras no puede tener espacios'),
     name: z.string().trim().min(1, 'El nombre es obligatorio').max(100, 'El nombre admite hasta 100 caracteres'),
     description: z.string().trim().max(500, 'La descripción admite hasta 500 caracteres'),
-    categoryId: z.string().min(1, 'Elegí una categoría'),
+    categoryId: z.string().min(1, 'Elegir una categoría'),
     unit: unitSchema,
     salePrice: z.string().refine((value) => {
       const cents = parseMoney(value)
       return cents !== null && cents > 0
-    }, 'Ingresá un precio mayor a cero, por ejemplo 1.250,50'),
+    }, 'Ingresar un precio mayor a cero, por ejemplo 1.250,50'),
     cost: z
       .string()
-      .refine((value) => value.trim() === '' || parseMoney(value) !== null, 'Ingresá un costo válido, por ejemplo 800,00'),
+      .refine((value) => value.trim() === '' || parseMoney(value) !== null, 'Ingresar un costo válido, por ejemplo 800,00'),
     taxRate: z.string(),
     tracksStock: z.boolean(),
     minStock: z
       .string()
-      .refine((value) => value.trim() === '' || parseQuantity(value, true) !== null, 'Ingresá una cantidad, por ejemplo 2,5'),
+      .refine((value) => value.trim() === '' || parseQuantity(value, true) !== null, 'Ingresar una cantidad, por ejemplo 2,5'),
   })
   // Runs once every field is valid on its own: the only rule left is the one
   // that depends on two fields.
   .transform((values, ctx) => {
     const minStock = values.minStock.trim() === '' ? 0 : parseQuantity(values.minStock, values.unit !== 'unit')
     if (minStock === null) {
-      ctx.addIssue({ code: 'custom', path: ['minStock'], message: 'Ingresá una cantidad entera' })
+      ctx.addIssue({ code: 'custom', path: ['minStock'], message: 'Ingresar una cantidad entera' })
       return z.NEVER
     }
     const cost = values.cost.trim() === '' ? null : parseMoney(values.cost)

@@ -381,13 +381,14 @@ y prueban en los casos de uso desde ahora.
 ### Principios
 
 - **Simple**: una acción principal por pantalla; textos claros en español
-  rioplatense (“Revisá tu conexión”), sin jerga técnica en los errores.
+  neutro, con las indicaciones en infinitivo (“Revisar la conexión”), sin
+  jerga técnica en los errores.
 - **Rápida**: el POS se opera completo con teclado y lector de código de
   barras; lo frecuente queda a uno o dos clics.
 - **Moderna**: shadcn/ui (Base UI) + Tailwind v4 con tokens, tipografía Inter,
   íconos lucide, bordes redondeados, sombras sutiles, modo claro y oscuro,
   animaciones breves que respetan `prefers-reduced-motion`.
-- **Amigable**: estados vacíos con una acción (“Todavía no cargaste
+- **Amigable**: estados vacíos con una acción (“Todavía no hay
   artículos — Crear el primero”), skeletons en lugar de spinners, toasts de
   confirmación, confirmación solo en acciones destructivas y “Deshacer” donde
   se pueda (por ejemplo, al quitar una línea del carrito).

@@ -82,7 +82,7 @@ export default function CategoriesPage() {
       return (
         <EmptyState
           icon={CircleAlert}
-          title="No pudimos cargar las categorías"
+          title="No se pudieron cargar las categorías"
           description={messageFromError(categories.error)}
           action={
             <Button type="button" variant="outline" size="lg" onClick={() => void categories.refetch()}>
@@ -97,8 +97,8 @@ export default function CategoriesPage() {
       return isSearching ? (
         <EmptyState
           icon={SearchX}
-          title="No encontramos categorías"
-          description="Probá con otra búsqueda."
+          title="No se encontraron categorías"
+          description="Probar con otra búsqueda."
         />
       ) : (
         <EmptyState
@@ -164,7 +164,7 @@ export default function CategoriesPage() {
           if (!open) closeForm()
         }}
         title={isEditing ? 'Editar categoría' : 'Nueva categoría'}
-        description={form.category?.name ?? 'Completá los datos para crearla.'}
+        description={form.category?.name ?? 'Completar los datos para crearla.'}
       >
         <CategoryForm
           key={form.formKey}

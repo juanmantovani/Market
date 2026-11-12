@@ -76,7 +76,7 @@ export default function CustomersPage() {
       return (
         <EmptyState
           icon={CircleAlert}
-          title="No pudimos cargar los clientes"
+          title="No se pudieron cargar los clientes"
           description={messageFromError(customers.error)}
           action={
             <Button type="button" variant="outline" size="lg" onClick={() => void customers.refetch()}>
@@ -91,14 +91,14 @@ export default function CustomersPage() {
       return isSearching ? (
         <EmptyState
           icon={SearchX}
-          title="No encontramos clientes"
-          description="Probá con otra parte del nombre, el documento, el email o el teléfono."
+          title="No se encontraron clientes"
+          description="Probar con otra parte del nombre, el documento, el email o el teléfono."
         />
       ) : (
         <EmptyState
           icon={Users}
           title="Todavía no hay clientes"
-          description="Cargá a quienes te compran seguido o necesitan factura con sus datos."
+          description="Cargar a quienes compran seguido o necesitan factura, con sus datos."
           action={
             <Button type="button" size="lg" onClick={() => openForm(null)}>
               <Plus aria-hidden />
@@ -133,7 +133,7 @@ export default function CustomersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Clientes"
-        description="A quiénes les vendés, con sus datos para facturar."
+        description="A quiénes se les vende, con sus datos para facturar."
         actions={
           <Button type="button" size="lg" className="h-11 md:h-9" onClick={() => openForm(null)}>
             <Plus aria-hidden />
@@ -162,7 +162,7 @@ export default function CustomersPage() {
         }}
         size="wide"
         title={isEditing ? 'Editar cliente' : 'Nuevo cliente'}
-        description={form.customer?.name ?? 'Completá los datos para crearlo.'}
+        description={form.customer?.name ?? 'Completar los datos para crearlo.'}
       >
         <CustomerForm
           key={form.formKey}
