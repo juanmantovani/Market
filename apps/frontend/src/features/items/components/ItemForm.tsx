@@ -1,5 +1,8 @@
+import { Collapsible } from '@base-ui/react/collapsible'
+import { ChevronDown } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { ApiError, messageFromError } from '../../../shared/api/client'
+import { cn } from '../../../shared/lib/utils'
 import { Button } from '../../../shared/ui/button'
 import { Field, FieldError, FieldLabel } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
@@ -51,6 +54,7 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [suppliersOpen, setSuppliersOpen] = useState(false)
 
   function change<F extends ItemField>(field: F, value: ItemFormValues[F]) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -89,6 +93,7 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
       const field = error instanceof ApiError ? ITEM_FIELD_ERRORS[error.code] : undefined
       if (field) {
         setFieldErrors({ [field]: messageFromError(error) })
+        if (field === 'supplierIds') setSuppliersOpen(true)
       } else {
         setFormError(messageFromError(error))
       }
@@ -254,32 +259,54 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
         </Field>
       </Section>
 
-      <fieldset
-        className="flex flex-col gap-3"
-        aria-describedby={fieldErrors.supplierIds ? 'item-supplierIds-error' : undefined}
-      >
-        <legend className="mb-1 text-sm font-semibold text-muted-foreground">
-          Proveedores <span className="font-normal">(opcional)</span>
-        </legend>
-        {suppliers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Todavía no hay proveedores cargados.</p>
-        ) : (
-          <div className="grid max-h-48 gap-1 overflow-y-auto rounded-lg border p-2 sm:grid-cols-2">
-            {suppliers.map((supplier) => (
-              <label key={supplier.id} className="flex min-h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted">
-                <input
-                  type="checkbox"
-                  className="size-5 shrink-0 accent-primary"
-                  checked={values.supplierIds.includes(supplier.id)}
-                  onChange={(event) => toggleSupplier(supplier.id, event.target.checked)}
-                />
-                {supplier.name}
-              </label>
-            ))}
-          </div>
-        )}
+      <div className="flex flex-col gap-2">
+        <Collapsible.Root
+          open={suppliersOpen}
+          onOpenChange={setSuppliersOpen}
+          className={cn('rounded-lg border', fieldErrors.supplierIds && 'border-destructive')}
+        >
+          <Collapsible.Trigger className="group flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-sm font-semibold text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
+            <span>
+              Proveedores{' '}
+              {values.supplierIds.length > 0 ? (
+                <span className="text-foreground">
+                  · {values.supplierIds.length}{' '}
+                  <span className="sr-only">{values.supplierIds.length === 1 ? 'elegido' : 'elegidos'}</span>
+                </span>
+              ) : (
+                <span className="font-normal">(opcional)</span>
+              )}
+            </span>
+            <ChevronDown aria-hidden className="size-4 shrink-0 transition-transform group-data-panel-open:rotate-180" />
+          </Collapsible.Trigger>
+          <Collapsible.Panel className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
+            <fieldset
+              className="border-t p-2"
+              aria-describedby={fieldErrors.supplierIds ? 'item-supplierIds-error' : undefined}
+            >
+              <legend className="sr-only">Proveedores</legend>
+              {suppliers.length === 0 ? (
+                <p className="px-2 py-3 text-sm text-muted-foreground">Todavía no hay proveedores cargados.</p>
+              ) : (
+                <div className="grid max-h-48 gap-1 overflow-y-auto sm:grid-cols-2">
+                  {suppliers.map((supplier) => (
+                    <label key={supplier.id} className="flex min-h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted">
+                      <input
+                        type="checkbox"
+                        className="size-5 shrink-0 accent-primary"
+                        checked={values.supplierIds.includes(supplier.id)}
+                        onChange={(event) => toggleSupplier(supplier.id, event.target.checked)}
+                      />
+                      {supplier.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </fieldset>
+          </Collapsible.Panel>
+        </Collapsible.Root>
         {error('supplierIds')}
-      </fieldset>
+      </div>
 
       {formError && (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
