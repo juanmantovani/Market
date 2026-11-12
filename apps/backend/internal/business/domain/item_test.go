@@ -20,7 +20,6 @@ func validItemFields() ItemFields {
 		SalePrice:   350_000,
 		Cost:        ptr(Money(210_000)),
 		TaxRate:     2100,
-		TracksStock: true,
 		MinStock:    WholeQuantity(5),
 	}
 }
@@ -56,7 +55,6 @@ func TestNewItemAcceptsOptionalFieldsAbsent(t *testing.T) {
 	fields.Description = nil
 	fields.Cost = nil
 	fields.TaxRate = 0
-	fields.TracksStock = false
 	fields.MinStock = 0
 
 	item, err := NewItem(fields, itemTime)

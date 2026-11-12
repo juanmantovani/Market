@@ -32,7 +32,6 @@ function item(overrides: Partial<Item> & { name: string; code: string }): Omit<I
     salePrice: 100_000,
     cost: null,
     taxRate: 2100,
-    tracksStock: true,
     minStock: 0,
     createdAt: NOW,
     updatedAt: NOW,
@@ -195,7 +194,6 @@ describe('ItemsPage', () => {
           salePrice: 980_050,
           cost: 690_000,
           taxRate: 1050,
-          tracksStock: true,
           minStock: 2500,
         },
       },
@@ -308,21 +306,6 @@ describe('ItemsPage', () => {
     expect(write.method).toBe('PUT')
     expect(write.path).toBe('/api/v1/items/i1')
     expect(write.body).toMatchObject({ salePrice: 499_999, cost: null, barcode: '7790000000011', minStock: 6000 })
-  })
-
-  it('turns stock control off for services', async () => {
-    const api = fakeItemApi([item({ name: 'Envío a domicilio', code: 'SRV-1' })])
-    const user = userEvent.setup()
-    renderPage()
-
-    await user.click((await table()).getByRole('button', { name: 'Editar Envío a domicilio' }))
-    const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
-    await user.click(form.getByRole('checkbox', { name: /Controla stock/ }))
-
-    expect(form.getByLabelText(/Stock mínimo/)).toBeDisabled()
-    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
-    await waitFor(() => expect(api.writes()).toHaveLength(1))
-    expect(api.writes()[0].body).toMatchObject({ tracksStock: false })
   })
 
   it('deletes an item only after confirming', async () => {

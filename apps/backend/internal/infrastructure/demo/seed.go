@@ -211,7 +211,6 @@ func Seed(ctx context.Context, useCases UseCases) error {
 				SalePrice:   item.price,
 				Cost:        &cost,
 				TaxRate:     item.taxRate,
-				TracksStock: true,
 				MinStock:    item.minStock,
 			},
 		})
