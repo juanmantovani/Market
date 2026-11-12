@@ -14,6 +14,7 @@ const (
 	MaxSalePayments           = 10
 	MaxPaymentReferenceLength = 60
 	MaxIdempotencyKeyLength   = 100
+	MaxSaleVoidReasonLength   = 200
 
 	// MaxSaleAmount caps the total of a sale and the sum of its payments at
 	// a hundred thousand million pesos, so adding lines never overflows.
@@ -70,7 +71,18 @@ var (
 	ErrPaymentReferenceTooLong        = &Error{Kind: KindInvalid, Code: "payment_reference_too_long", Message: "La referencia del pago admite hasta 60 caracteres"}
 	ErrSalePaymentInsufficient        = &Error{Kind: KindInvalid, Code: "sale_payment_insufficient", Message: "Los pagos no cubren el total de la venta"}
 	ErrSaleNonCashPaymentExceedsTotal = &Error{Kind: KindInvalid, Code: "sale_non_cash_payment_exceeds_total", Message: "Solo el efectivo puede superar el total: ajustar los otros medios de pago"}
+	ErrSaleAlreadyVoided              = &Error{Kind: KindConflict, Code: "sale_already_voided", Message: "La venta ya está anulada"}
+	ErrSaleNotVoided                  = &Error{Kind: KindConflict, Code: "sale_not_voided", Message: "La venta no está anulada"}
+	ErrSaleVoidReasonRequired         = &Error{Kind: KindInvalid, Code: "sale_void_reason_required", Message: "Ingresar el motivo de la anulación"}
+	ErrSaleVoidReasonTooLong          = &Error{Kind: KindInvalid, Code: "sale_void_reason_too_long", Message: "El motivo admite hasta 200 caracteres"}
+	ErrSaleStatusInvalid              = &Error{Kind: KindInvalid, Code: "sale_status_invalid", Message: "El estado de la venta no es válido"}
+	ErrSaleDateInvalid                = &Error{Kind: KindInvalid, Code: "sale_date_invalid", Message: "La fecha del filtro no es válida"}
+	ErrSaleDateRangeInvalid           = &Error{Kind: KindInvalid, Code: "sale_date_range_invalid", Message: "La fecha de inicio tiene que ser anterior a la de fin"}
 )
+
+func (status SaleStatus) IsValid() bool {
+	return status == SaleCompleted || status == SaleVoided
+}
 
 // SaleRequestLine is one item the cashier wants to sell. DiscountPercent
 // applies to this line only; the "general discount" of the counter is the
@@ -267,6 +279,10 @@ type Sale struct {
 	// Fingerprint is the request's, to answer a retry with this same sale.
 	Fingerprint string
 	CreatedAt   time.Time
+	// VoidedAt, VoidReason and VoidedBy are set once the sale is voided.
+	VoidedAt   *time.Time
+	VoidReason *string
+	VoidedBy   *string
 }
 
 // NewSale computes a sale from a validated request and the stored records
@@ -387,6 +403,72 @@ func (sale Sale) Replays(request SaleRequest) error {
 	}
 
 	return nil
+}
+
+// Void returns the sale voided by actor with reason. Only a completed sale
+// can be voided, and the reason is required; voiding puts the stock back
+// with compensating movements (StockLevel.VoidSale).
+func (sale Sale) Void(reason string, actor Actor, now time.Time) (Sale, error) {
+	if sale.Status != SaleCompleted {
+		return Sale{}, ErrSaleAlreadyVoided
+	}
+	validReason, err := requiredText(reason, MaxSaleVoidReasonLength, ErrSaleVoidReasonRequired, ErrSaleVoidReasonTooLong)
+	if err != nil {
+		return Sale{}, err
+	}
+
+	voided := sale
+	voided.Status = SaleVoided
+	voided.VoidedAt = &now
+	voided.VoidReason = &validReason
+	voidedBy := actor.ID
+	voided.VoidedBy = &voidedBy
+
+	return voided, nil
+}
+
+// SaleFilter narrows a listing of sales. Zero values don't filter.
+type SaleFilter struct {
+	// From and To bound CreatedAt: From included, To excluded.
+	From       time.Time
+	To         time.Time
+	CustomerID string
+	SellerID   string
+	Status     SaleStatus
+}
+
+// NewSaleFilter validates a filter: a known status and a range that starts
+// before it ends.
+func NewSaleFilter(filter SaleFilter) (SaleFilter, error) {
+	if filter.Status != "" && !filter.Status.IsValid() {
+		return SaleFilter{}, ErrSaleStatusInvalid
+	}
+	if !filter.From.IsZero() && !filter.To.IsZero() && !filter.From.Before(filter.To) {
+		return SaleFilter{}, ErrSaleDateRangeInvalid
+	}
+	valid := filter
+	valid.CustomerID = strings.TrimSpace(filter.CustomerID)
+	valid.SellerID = strings.TrimSpace(filter.SellerID)
+
+	return valid, nil
+}
+
+// Matches reports whether sale passes the filter.
+func (filter SaleFilter) Matches(sale Sale) bool {
+	switch {
+	case !filter.From.IsZero() && sale.CreatedAt.Before(filter.From):
+		return false
+	case !filter.To.IsZero() && !sale.CreatedAt.Before(filter.To):
+		return false
+	case filter.CustomerID != "" && sale.Customer.ID != filter.CustomerID:
+		return false
+	case filter.SellerID != "" && (sale.Seller == nil || sale.Seller.ID != filter.SellerID):
+		return false
+	case filter.Status != "" && sale.Status != filter.Status:
+		return false
+	default:
+		return true
+	}
 }
 
 // Reference is how a stock movement names the sale that caused it.

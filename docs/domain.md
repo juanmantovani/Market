@@ -197,11 +197,11 @@ cuánto hay y **solo cambia mediante un movimiento** (`StockMovement`); no hay
 
 | Campo del movimiento | Regla |
 | --- | --- |
-| `type` | `initial` (stock inicial), `entry` (ingreso de mercadería), `adjustment` (ajuste), `sale` (venta) y `sale_void` (anulación de venta, todavía sin usar). |
+| `type` | `initial` (stock inicial), `entry` (ingreso de mercadería), `adjustment` (ajuste), `sale` (venta) y `sale_void` (anulación de una venta). |
 | `quantity` | Milésimas de la unidad, con signo: positiva si entra, negativa si sale. Entera si el artículo se vende por unidad. Hasta un millón de unidades por movimiento. |
 | `balanceAfter` | Existencia que deja el movimiento. La existencia no pasa de mil millones de unidades (ni baja de menos mil millones). |
 | `reason` | Motivo, obligatorio en los ajustes, hasta 200 caracteres. |
-| `reference` | Comprobante opcional del ingreso (remito o factura), hasta 60 caracteres. En una venta, `Venta <número>`. |
+| `reference` | Comprobante opcional del ingreso (remito o factura), hasta 60 caracteres. En una venta y en su anulación, `Venta <número>`. |
 | `supplierId` / `unitCost` | Opcionales, solo en ingresos. |
 | `actorId` / `createdAt` | Quién y cuándo (UTC). |
 
@@ -294,17 +294,40 @@ Reglas (`domain.NewSale`):
   pedido. La misma clave con el mismo pedido devuelve la venta original sin
   registrar nada; con otro pedido, `idempotency_key_conflict` (`409`).
 
-Permisos: `sales:create` para vender (todos los roles).
+**Listado** (`GET /api/v1/sales?from=&to=&customerId=&sellerId=&status=&page=&limit=`):
+de la más nueva a la más vieja (por `number`). `from` y `to` son instantes
+RFC 3339 (`2026-11-12T00:00:00-03:00`): el frontend sabe en qué zona horaria
+está el comercio y arma el día; `from` se incluye y `to` no. Una fecha mal
+escrita es `sale_date_invalid` y un `from` que no es anterior a `to`,
+`sale_date_range_invalid`. `status` es `completed` o `voided`.
 
-Códigos de error: `idempotency_key_required`, `idempotency_key_invalid`,
-`idempotency_key_conflict`, `sale_lines_required`, `sale_too_many_lines`,
-`sale_item_required`, `sale_item_repeated`, `sale_item_not_found`,
-`sale_quantity_invalid`, `sale_quantity_not_whole`, `sale_discount_invalid`,
-`sale_customer_not_found`, `sale_seller_not_found`, `sale_total_mismatch`,
-`sale_too_many_payments`, `payment_method_invalid`, `payment_amount_invalid`,
-`payment_reference_too_long`, `sale_payment_insufficient`,
-`sale_non_cash_payment_exceeds_total`, `amount_out_of_range`,
-`insufficient_stock`.
+**Detalle** (`GET /api/v1/sales/{id}`): la venta completa, con sus líneas,
+pagos y, si está anulada, `voidedAt`, `voidReason` y `voidedBy` (en una venta
+completada son `null`).
+
+**Anulación** (`POST /api/v1/sales/{id}/void`, cuerpo `{ "reason": "…" }`):
+solo una venta `completed` (`sale_already_voided`, `409`, si ya está
+anulada) y con motivo obligatorio de hasta 200 caracteres. Pasa a `voided`
+y, en el mismo `WithinTx`, cada línea registra un movimiento `sale_void` que
+devuelve su cantidad al stock (la referencia es la misma, `Venta <número>`).
+La venta y sus movimientos originales no se tocan: la anulación los
+compensa.
+
+Permisos: `sales:view` para listar y ver el detalle y `sales:create` para
+vender (todos los roles); `sales:void` para anular (solo `admin` y
+`manager`).
+
+Códigos de error: `sale_not_found`, `idempotency_key_required`,
+`idempotency_key_invalid`, `idempotency_key_conflict`, `sale_lines_required`,
+`sale_too_many_lines`, `sale_item_required`, `sale_item_repeated`,
+`sale_item_not_found`, `sale_quantity_invalid`, `sale_quantity_not_whole`,
+`sale_discount_invalid`, `sale_customer_not_found`, `sale_seller_not_found`,
+`sale_total_mismatch`, `sale_too_many_payments`, `payment_method_invalid`,
+`payment_amount_invalid`, `payment_reference_too_long`,
+`sale_payment_insufficient`, `sale_non_cash_payment_exceeds_total`,
+`amount_out_of_range`, `insufficient_stock`, `sale_already_voided`,
+`sale_void_reason_required`, `sale_void_reason_too_long`,
+`sale_status_invalid`, `sale_date_invalid`, `sale_date_range_invalid`.
 
 ## Actor, roles y permisos
 
@@ -329,7 +352,9 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | `sellers:manage` — crear, editar y eliminar vendedores | ✅ | ✅ | — |
 | `stock:view` — ver existencias y movimientos | ✅ | ✅ | ✅ |
 | `stock:manage` — registrar ingresos de mercadería y ajustes | ✅ | ✅ | — |
+| `sales:view` — ver ventas | ✅ | ✅ | ✅ |
 | `sales:create` — vender | ✅ | ✅ | ✅ |
+| `sales:void` — anular ventas | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

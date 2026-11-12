@@ -55,7 +55,8 @@ de carga, vacío y error. Nada de estado interno ni clases de Tailwind.
   tiene tests de flujo completo que levantan el contenedor real con memoria y
   van por HTTP: stock sobre los datos demo, y venta (alta de artículo →
   ingreso → venta → reintento idempotente → stock insuficiente → clientes y
-  vendedores con ventas).
+  vendedores con ventas → detalle, listado y anulación con reposición de
+  stock).
 
 ## Comandos
 

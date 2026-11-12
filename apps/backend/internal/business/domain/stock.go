@@ -290,6 +290,23 @@ func (level StockLevel) Sell(sale Sale, line SaleLine, policy StockPolicy) (Stoc
 	return movement, nil
 }
 
+// VoidSale is the movement that puts one line of a voided sale back in the
+// stock of its item, by whoever voided it and when. Movements are never
+// deleted: this one compensates the sale movement of the line.
+func (level StockLevel) VoidSale(voided Sale, line SaleLine) (StockMovement, error) {
+	if voided.Status != SaleVoided || voided.VoidedAt == nil || voided.VoidedBy == nil {
+		return StockMovement{}, ErrSaleNotVoided
+	}
+	movement, err := level.move(line.ItemID, line.Unit, MovementSaleVoid, line.Quantity, Actor{ID: *voided.VoidedBy}, *voided.VoidedAt)
+	if err != nil {
+		return StockMovement{}, err
+	}
+	reference := voided.Reference()
+	movement.Reference = &reference
+
+	return movement, nil
+}
+
 // move is the movement that changes the level of an item by quantity.
 func (level StockLevel) move(itemID string, unit Unit, movementType MovementType, quantity Quantity, actor Actor, now time.Time) (StockMovement, error) {
 	if !unit.AllowsFraction() && !quantity.IsWhole() {

@@ -409,3 +409,102 @@ func TestNewSaleLineGuardsTheDiscountAgainstOverflow(t *testing.T) {
 
 	assertDomainError(t, err, ErrAmountOutOfRange)
 }
+
+func completedSale(t *testing.T) Sale {
+	t.Helper()
+	sale, err := NewSale(mustSaleRequest(t, validSaleRequest()), saleCustomer(), saleSeller(), saleItems(), saleActor, saleTime)
+	if err != nil {
+		t.Fatalf("NewSale() error = %v", err)
+	}
+	sale.ID, sale.Number = "sale-1", 12
+	return sale
+}
+
+func TestSaleStatusIsValid(t *testing.T) {
+	if !SaleCompleted.IsValid() || !SaleVoided.IsValid() || SaleStatus("pending").IsValid() {
+		t.Fatal("IsValid() accepts the wrong statuses")
+	}
+}
+
+func TestSaleVoid(t *testing.T) {
+	sale := completedSale(t)
+	manager := Actor{ID: "u-manager", Role: RoleManager}
+	later := saleTime.Add(time.Hour)
+
+	voided, err := sale.Void("  El cliente se arrepintió ", manager, later)
+	if err != nil {
+		t.Fatalf("Void() error = %v", err)
+	}
+
+	if voided.Status != SaleVoided || voided.VoidedAt == nil || !voided.VoidedAt.Equal(later) ||
+		*voided.VoidReason != "El cliente se arrepintió" || *voided.VoidedBy != "u-manager" {
+		t.Fatalf("voided = %+v", voided)
+	}
+	if voided.ID != sale.ID || voided.Number != 12 || voided.Total != sale.Total || voided.ActorID != "u-cashier" {
+		t.Fatalf("voiding changed the sale itself: %+v", voided)
+	}
+	if sale.Status != SaleCompleted || sale.VoidedAt != nil {
+		t.Fatal("Void() changed the receiver")
+	}
+
+	_, err = voided.Void("Otra vez", manager, later)
+	assertDomainError(t, err, ErrSaleAlreadyVoided)
+	_, err = sale.Void("  ", manager, later)
+	assertDomainError(t, err, ErrSaleVoidReasonRequired)
+	_, err = sale.Void(strings.Repeat("m", MaxSaleVoidReasonLength+1), manager, later)
+	assertDomainError(t, err, ErrSaleVoidReasonTooLong)
+}
+
+func TestNewSaleFilter(t *testing.T) {
+	valid, err := NewSaleFilter(SaleFilter{From: saleTime, To: saleTime.Add(time.Hour), CustomerID: " c1 ", SellerID: " s1 ", Status: SaleVoided})
+	if err != nil {
+		t.Fatalf("NewSaleFilter() error = %v", err)
+	}
+	if valid.CustomerID != "c1" || valid.SellerID != "s1" || valid.Status != SaleVoided {
+		t.Fatalf("filter = %+v", valid)
+	}
+	if _, err := NewSaleFilter(SaleFilter{}); err != nil {
+		t.Fatalf("NewSaleFilter(empty) error = %v", err)
+	}
+	if _, err := NewSaleFilter(SaleFilter{From: saleTime}); err != nil {
+		t.Fatalf("NewSaleFilter(only from) error = %v", err)
+	}
+
+	_, err = NewSaleFilter(SaleFilter{Status: "pending"})
+	assertDomainError(t, err, ErrSaleStatusInvalid)
+	_, err = NewSaleFilter(SaleFilter{From: saleTime, To: saleTime})
+	assertDomainError(t, err, ErrSaleDateRangeInvalid)
+	_, err = NewSaleFilter(SaleFilter{From: saleTime, To: saleTime.Add(-time.Second)})
+	assertDomainError(t, err, ErrSaleDateRangeInvalid)
+}
+
+func TestSaleFilterMatches(t *testing.T) {
+	sale := completedSale(t)
+	withoutSeller := sale
+	withoutSeller.Seller = nil
+
+	tests := []struct {
+		name   string
+		filter SaleFilter
+		sale   Sale
+		want   bool
+	}{
+		{name: "no filter", filter: SaleFilter{}, sale: sale, want: true},
+		{name: "from includes the instant", filter: SaleFilter{From: saleTime}, sale: sale, want: true},
+		{name: "from after the sale", filter: SaleFilter{From: saleTime.Add(time.Nanosecond)}, sale: sale, want: false},
+		{name: "to excludes the instant", filter: SaleFilter{To: saleTime}, sale: sale, want: false},
+		{name: "to after the sale", filter: SaleFilter{To: saleTime.Add(time.Nanosecond)}, sale: sale, want: true},
+		{name: "same customer", filter: SaleFilter{CustomerID: "c1"}, sale: sale, want: true},
+		{name: "other customer", filter: SaleFilter{CustomerID: "c2"}, sale: sale, want: false},
+		{name: "same seller", filter: SaleFilter{SellerID: "s1"}, sale: sale, want: true},
+		{name: "other seller", filter: SaleFilter{SellerID: "s2"}, sale: sale, want: false},
+		{name: "a seller, the sale has none", filter: SaleFilter{SellerID: "s1"}, sale: withoutSeller, want: false},
+		{name: "same status", filter: SaleFilter{Status: SaleCompleted}, sale: sale, want: true},
+		{name: "other status", filter: SaleFilter{Status: SaleVoided}, sale: sale, want: false},
+	}
+	for _, test := range tests {
+		if got := test.filter.Matches(test.sale); got != test.want {
+			t.Errorf("%s: Matches() = %v, want %v", test.name, got, test.want)
+		}
+	}
+}

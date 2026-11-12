@@ -90,8 +90,20 @@ func describeSale(sale domain.Sale) string {
 	fmt.Fprintf(&builder, " subtotal=%d discount=%d total=%d change=%d by %s key=%s fingerprint=%s at %s",
 		sale.Subtotal, sale.DiscountTotal, sale.Total, sale.Change, sale.ActorID, sale.IdempotencyKey, sale.Fingerprint,
 		sale.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if sale.VoidedAt != nil {
+		fmt.Fprintf(&builder, " voided at %s", sale.VoidedAt.UTC().Format(time.RFC3339Nano))
+	}
+	fmt.Fprintf(&builder, " reason=%s by=%s", valueOf(sale.VoidReason), valueOf(sale.VoidedBy))
 
 	return builder.String()
+}
+
+func saleNumbers(sales []domain.Sale) []int64 {
+	result := make([]int64, len(sales))
+	for i, sale := range sales {
+		result[i] = sale.Number
+	}
+	return result
 }
 
 func valueOf(value *string) string {
@@ -333,6 +345,148 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 		got.ID, got.Number = "", 0
 		if describeSale(got) != want {
 			t.Fatalf("stored sale = %s\nwant %s", describeSale(got), want)
+		}
+	})
+
+	t.Run("get returns a sale and unknown ids are not found", func(t *testing.T) {
+		repositories := newRepositories(t)
+		created := mustCreateSale(t, repositories.Sales, newSale(newSaleParties(t, repositories), "key-1"))
+
+		got, err := repositories.Sales.Get(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("Get() error = %v", err)
+		}
+		if describeSale(got) != describeSale(created) {
+			t.Fatalf("Get() = %s\nwant %s", describeSale(got), describeSale(created))
+		}
+		if _, err := repositories.Sales.Get(ctx, "00000000-0000-7000-8000-000000000000"); !errors.Is(err, domain.ErrSaleNotFound) {
+			t.Fatalf("Get(unknown) error = %v, want ErrSaleNotFound", err)
+		}
+	})
+
+	t.Run("void stores the void and nothing else", func(t *testing.T) {
+		repositories := newRepositories(t)
+		created := mustCreateSale(t, repositories.Sales, newSale(newSaleParties(t, repositories), "key-1"))
+		voided, err := created.Void("Error de carga", domain.Actor{ID: "u-manager"}, contractTime.Add(time.Hour))
+		if err != nil {
+			t.Fatalf("Sale.Void() error = %v", err)
+		}
+		tampered := voided
+		tampered.Total, tampered.Lines = 1, nil
+
+		stored, err := repositories.Sales.Void(ctx, tampered)
+		if err != nil {
+			t.Fatalf("Void() error = %v", err)
+		}
+
+		got, _ := repositories.Sales.Get(ctx, created.ID)
+		if describeSale(stored) != describeSale(voided) || describeSale(got) != describeSale(voided) {
+			t.Fatalf("Void() = %s\nGet() = %s\nwant %s", describeSale(stored), describeSale(got), describeSale(voided))
+		}
+		*stored.VoidReason, *stored.VoidedBy = "changed", "changed"
+		*voided.VoidedAt = contractTime
+		again, _ := repositories.Sales.Get(ctx, created.ID)
+		if *again.VoidReason != "Error de carga" || *again.VoidedBy != "u-manager" || !again.VoidedAt.Equal(contractTime.Add(time.Hour)) {
+			t.Fatalf("stored void = %s", describeSale(again))
+		}
+
+		unknown := voided
+		unknown.ID = "00000000-0000-7000-8000-000000000000"
+		if _, err := repositories.Sales.Void(ctx, unknown); !errors.Is(err, domain.ErrSaleNotFound) {
+			t.Fatalf("Void(unknown) error = %v, want ErrSaleNotFound", err)
+		}
+	})
+
+	t.Run("a failed unit of work keeps the sale completed", func(t *testing.T) {
+		repositories := newRepositories(t)
+		created := mustCreateSale(t, repositories.Sales, newSale(newSaleParties(t, repositories), "key-1"))
+		voided, _ := created.Void("Error de carga", domain.Actor{ID: "u-manager"}, contractTime.Add(time.Hour))
+		failure := errors.New("the stock could not be restored")
+
+		err := repositories.Tx.WithinTx(ctx, func(ctx context.Context) error {
+			if _, err := repositories.Sales.Void(ctx, voided); err != nil {
+				return err
+			}
+			return failure
+		})
+		if !errors.Is(err, failure) {
+			t.Fatalf("WithinTx() error = %v, want %v", err, failure)
+		}
+
+		got, _ := repositories.Sales.Get(ctx, created.ID)
+		if describeSale(got) != describeSale(created) {
+			t.Fatalf("after the rollback = %s\nwant %s", describeSale(got), describeSale(created))
+		}
+	})
+
+	t.Run("list filters by period, customer, seller and status, newest first", func(t *testing.T) {
+		repositories := newRepositories(t)
+		parties := newSaleParties(t, repositories)
+		beto := mustCreateCustomer(t, repositories.Customers, newCustomer(t, "Beto", domain.DocumentNone, ""))
+		lucia := mustCreateSeller(t, repositories.Sellers, newSeller(t, "Lucía", "LF"))
+		create := func(key string, at time.Time, change func(*domain.Sale)) domain.Sale {
+			sale := newSale(parties, key)
+			sale.CreatedAt = at
+			if change != nil {
+				change(&sale)
+			}
+			return mustCreateSale(t, repositories.Sales, sale)
+		}
+		first := create("key-1", contractTime, nil)
+		second := create("key-2", contractTime.Add(time.Hour), func(sale *domain.Sale) {
+			sale.Customer.ID, sale.Customer.Name = beto.ID, beto.Name
+		})
+		third := create("key-3", contractTime.Add(2*time.Hour), func(sale *domain.Sale) {
+			sale.Seller = &domain.SaleSeller{ID: lucia.ID, Name: lucia.Name, Code: lucia.Code}
+		})
+		fourth := create("key-4", contractTime.Add(3*time.Hour), func(sale *domain.Sale) { sale.Seller = nil })
+		voided, _ := third.Void("Error", domain.Actor{ID: "u-manager"}, contractTime.Add(4*time.Hour))
+		if _, err := repositories.Sales.Void(ctx, voided); err != nil {
+			t.Fatalf("Void() error = %v", err)
+		}
+		all := domain.PageRequest{Page: 1, Limit: 10}
+
+		tests := []struct {
+			name   string
+			filter domain.SaleFilter
+			page   domain.PageRequest
+			want   []domain.Sale
+			total  int
+		}{
+			{name: "all", want: []domain.Sale{fourth, third, second, first}},
+			{name: "from, included", filter: domain.SaleFilter{From: contractTime.Add(time.Hour)}, want: []domain.Sale{fourth, third, second}},
+			{name: "to, excluded", filter: domain.SaleFilter{To: contractTime.Add(2 * time.Hour)}, want: []domain.Sale{second, first}},
+			{name: "a period", filter: domain.SaleFilter{From: contractTime.Add(time.Minute), To: contractTime.Add(3 * time.Hour)}, want: []domain.Sale{third, second}},
+			{name: "customer", filter: domain.SaleFilter{CustomerID: beto.ID}, want: []domain.Sale{second}},
+			{name: "seller", filter: domain.SaleFilter{SellerID: parties.seller.ID}, want: []domain.Sale{second, first}},
+			{name: "status", filter: domain.SaleFilter{Status: domain.SaleVoided}, want: []domain.Sale{third}},
+			{name: "seller and status", filter: domain.SaleFilter{SellerID: lucia.ID, Status: domain.SaleCompleted}, want: []domain.Sale{}},
+			{name: "second page", page: domain.PageRequest{Page: 2, Limit: 3}, want: []domain.Sale{first}, total: 4},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				page := test.page
+				if page.Page == 0 {
+					page = all
+				}
+				got, err := repositories.Sales.List(ctx, gateway.SaleFilter{SaleFilter: test.filter, Page: page})
+				if err != nil {
+					t.Fatalf("List() error = %v", err)
+				}
+				total := test.total
+				if total == 0 {
+					total = len(test.want)
+				}
+				if fmt.Sprint(saleNumbers(got.Items)) != fmt.Sprint(saleNumbers(test.want)) || got.Total != total || got.Items == nil ||
+					got.Page != page.Page || got.Limit != page.Limit {
+					t.Fatalf("List() = %v (total %d), want %v (total %d)", saleNumbers(got.Items), got.Total, saleNumbers(test.want), total)
+				}
+			})
+		}
+
+		listed, _ := repositories.Sales.List(ctx, gateway.SaleFilter{SaleFilter: domain.SaleFilter{Status: domain.SaleVoided}, Page: all})
+		if describeSale(listed.Items[0]) != describeSale(voided) {
+			t.Fatalf("listed = %s\nwant %s", describeSale(listed.Items[0]), describeSale(voided))
 		}
 	})
 }

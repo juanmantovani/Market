@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"market/backend/internal/business/domain"
+	"market/backend/internal/business/gateway"
 )
 
 // SaleRepository is a fake gateway.SaleRepository for use case tests. It
@@ -15,8 +16,19 @@ type SaleRepository struct {
 	CreateErr error
 	Created   []domain.Sale
 
+	GetResult domain.Sale
+	GetErr    error
+	GetIDs    []string
+
 	GetByKeyErr error
 	Keys        []string
+
+	VoidErr error
+	Voided  []domain.Sale
+
+	ListResult  domain.Page[domain.Sale]
+	ListErr     error
+	ListFilters []gateway.SaleFilter
 }
 
 func (fake *SaleRepository) Create(_ context.Context, sale domain.Sale) (domain.Sale, error) {
@@ -28,6 +40,15 @@ func (fake *SaleRepository) Create(_ context.Context, sale domain.Sale) (domain.
 	fake.Created = append(fake.Created, sale)
 
 	return sale, nil
+}
+
+func (fake *SaleRepository) Get(_ context.Context, id string) (domain.Sale, error) {
+	fake.GetIDs = append(fake.GetIDs, id)
+	if fake.GetErr != nil {
+		return domain.Sale{}, fake.GetErr
+	}
+
+	return fake.GetResult, nil
 }
 
 func (fake *SaleRepository) GetByIdempotencyKey(_ context.Context, key string) (domain.Sale, error) {
@@ -42,4 +63,22 @@ func (fake *SaleRepository) GetByIdempotencyKey(_ context.Context, key string) (
 	}
 
 	return domain.Sale{}, domain.ErrSaleNotFound
+}
+
+func (fake *SaleRepository) Void(_ context.Context, sale domain.Sale) (domain.Sale, error) {
+	if fake.VoidErr != nil {
+		return domain.Sale{}, fake.VoidErr
+	}
+	fake.Voided = append(fake.Voided, sale)
+
+	return sale, nil
+}
+
+func (fake *SaleRepository) List(_ context.Context, filter gateway.SaleFilter) (domain.Page[domain.Sale], error) {
+	fake.ListFilters = append(fake.ListFilters, filter)
+	if fake.ListErr != nil {
+		return domain.Page[domain.Sale]{}, fake.ListErr
+	}
+
+	return fake.ListResult, nil
 }

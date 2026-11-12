@@ -1,7 +1,10 @@
 package memory
 
 import (
+	"cmp"
 	"context"
+	"slices"
+	"time"
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
@@ -32,6 +35,64 @@ func (repository *SaleRepository) Create(ctx context.Context, sale domain.Sale) 
 	})
 
 	return created, err
+}
+
+func (repository *SaleRepository) Get(ctx context.Context, id string) (domain.Sale, error) {
+	var found domain.Sale
+	err := repository.store.run(ctx, func(*tx) error {
+		sale, ok := repository.store.sales[id]
+		if !ok {
+			return domain.ErrSaleNotFound
+		}
+		found = cloneSale(sale)
+		return nil
+	})
+
+	return found, err
+}
+
+func (repository *SaleRepository) Void(ctx context.Context, sale domain.Sale) (domain.Sale, error) {
+	var voided domain.Sale
+	err := repository.store.run(ctx, func(current *tx) error {
+		stored, ok := repository.store.sales[sale.ID]
+		if !ok {
+			return domain.ErrSaleNotFound
+		}
+		stored.Status = sale.Status
+		stored.VoidedAt = cloneTime(sale.VoidedAt)
+		stored.VoidReason = cloneString(sale.VoidReason)
+		stored.VoidedBy = cloneString(sale.VoidedBy)
+		put(current, repository.store.sales, stored.ID, stored)
+		voided = cloneSale(stored)
+		return nil
+	})
+
+	return voided, err
+}
+
+func (repository *SaleRepository) List(ctx context.Context, filter gateway.SaleFilter) (domain.Page[domain.Sale], error) {
+	page := domain.Page[domain.Sale]{Items: []domain.Sale{}, Page: filter.Page.Page, Limit: filter.Page.Limit}
+	err := repository.store.run(ctx, func(*tx) error {
+		var matches []domain.Sale
+		for _, sale := range repository.store.sales {
+			if filter.Matches(sale) {
+				matches = append(matches, sale)
+			}
+		}
+		slices.SortFunc(matches, func(a, b domain.Sale) int {
+			return cmp.Compare(b.Number, a.Number)
+		})
+
+		page.Total = len(matches)
+		start := min(filter.Page.Offset(), len(matches))
+		end := min(start+filter.Page.Limit, len(matches))
+		for _, sale := range matches[start:end] {
+			page.Items = append(page.Items, cloneSale(sale))
+		}
+		return nil
+	})
+
+	return page, err
 }
 
 func (repository *SaleRepository) GetByIdempotencyKey(ctx context.Context, key string) (domain.Sale, error) {
@@ -98,6 +159,18 @@ func cloneSale(sale domain.Sale) domain.Sale {
 		payments[i] = payment
 	}
 	sale.Payments = payments
+	sale.VoidedAt = cloneTime(sale.VoidedAt)
+	sale.VoidReason = cloneString(sale.VoidReason)
+	sale.VoidedBy = cloneString(sale.VoidedBy)
 
 	return sale
+}
+
+func cloneTime(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	copied := *value
+
+	return &copied
 }

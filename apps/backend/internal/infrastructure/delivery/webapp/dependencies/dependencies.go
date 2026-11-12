@@ -59,6 +59,9 @@ type Container struct {
 	RegisterInitialStock    stock.RegisterInitialStock
 
 	CreateSale sales.CreateSale
+	ListSales  sales.ListSales
+	GetSale    sales.GetSale
+	VoidSale   sales.VoidSale
 }
 
 type repositories struct {
@@ -116,6 +119,9 @@ func New(cfg environments.Server) (*Container, error) {
 		RegisterInitialStock:    stock.NewRegisterInitialStock(repos.tx, repos.stock, repos.items),
 
 		CreateSale: sales.NewCreateSale(repos.tx, repos.sales, repos.items, repos.customers, repos.sellers, repos.stock, domain.StockPolicy{AllowNegative: cfg.StockAllowNegative}),
+		ListSales:  sales.NewListSales(repos.sales),
+		GetSale:    sales.NewGetSale(repos.sales),
+		VoidSale:   sales.NewVoidSale(repos.tx, repos.sales, repos.stock),
 	}, nil
 }
 
@@ -176,6 +182,9 @@ func (container *Container) Handlers() route.Handlers {
 		CreateStockEntry:      handler.NewCreateStockEntryHandler(container.RegisterStockEntry),
 		CreateStockAdjustment: handler.NewCreateStockAdjustmentHandler(container.RegisterStockAdjustment),
 
+		ListSales:  handler.NewListSalesHandler(container.ListSales),
+		GetSale:    handler.NewGetSaleHandler(container.GetSale),
 		CreateSale: handler.NewCreateSaleHandler(container.CreateSale),
+		VoidSale:   handler.NewVoidSaleHandler(container.VoidSale),
 	}
 }

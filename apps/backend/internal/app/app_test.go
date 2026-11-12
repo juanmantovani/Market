@@ -360,6 +360,31 @@ func TestSaleFlow(t *testing.T) {
 	flow.expect(flow.call(http.MethodGet, "/api/v1/customers?q=consumidor", "", ""), http.StatusOK, `"system":true`)
 
 	flow.expect(flow.call(http.MethodGet, "/api/v1/stock/movements?itemId="+itemID+"&type=sale", "", ""), http.StatusOK, `"total":2`, `"reference":"Venta 2"`, `"reference":"Venta 1"`)
+
+	var first struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(strings.NewReader(sold.Body.String())).Decode(&first); err != nil {
+		t.Fatalf("decoding the first sale: %v", err)
+	}
+	flow.expect(flow.call(http.MethodGet, "/api/v1/sales/"+first.ID, "", ""), http.StatusOK, `"number":1`, `"voidedAt":null`)
+	flow.expect(flow.call(http.MethodGet, "/api/v1/sales?customerId="+customerID, "", ""), http.StatusOK, `"total":1`, `"number":2`)
+
+	flow.expect(flow.call(http.MethodPost, "/api/v1/sales/"+first.ID+"/void", "", `{"reason":" "}`), http.StatusBadRequest, "sale_void_reason_required")
+	flow.expect(flow.call(http.MethodPost, "/api/v1/sales/"+first.ID+"/void", "", `{"reason":"Error de carga"}`), http.StatusOK,
+		`"status":"voided"`, `"voidReason":"Error de carga"`, `"voidedBy":"dev"`)
+	if stock := flow.stockOf(itemID); stock != 3_000 {
+		t.Fatalf("stock after voiding the first sale = %d, want 3000", stock)
+	}
+	flow.expect(flow.call(http.MethodPost, "/api/v1/sales/"+first.ID+"/void", "", `{"reason":"Otra vez"}`), http.StatusConflict, "sale_already_voided")
+	if stock := flow.stockOf(itemID); stock != 3_000 {
+		t.Fatalf("stock after voiding twice = %d, want 3000", stock)
+	}
+
+	flow.expect(flow.call(http.MethodGet, "/api/v1/sales?status=voided", "", ""), http.StatusOK, `"total":1`, `"number":1`)
+	flow.expect(flow.call(http.MethodGet, "/api/v1/sales?status=completed", "", ""), http.StatusOK, `"total":1`, `"number":2`)
+	flow.expect(flow.call(http.MethodGet, "/api/v1/sales?from=2000-01-01T00:00:00Z&to=2000-01-02T00:00:00Z", "", ""), http.StatusOK, `"total":0`)
+	flow.expect(flow.call(http.MethodGet, "/api/v1/stock/movements?itemId="+itemID+"&type=sale_void", "", ""), http.StatusOK, `"total":1`, `"quantity":3000`, `"reference":"Venta 1"`)
 }
 
 func TestSaleFlowWithNegativeStockAllowed(t *testing.T) {

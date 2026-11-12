@@ -32,6 +32,7 @@ type UseCases struct {
 	RegisterStockAdjustment stock.RegisterStockAdjustment
 
 	CreateSale sales.CreateSale
+	VoidSale   sales.VoidSale
 }
 
 type demoCategory struct {
@@ -274,6 +275,8 @@ type demoSale struct {
 	lines    []demoSaleLine
 	payments []domain.Payment
 	total    domain.Money
+	// voidReason, when set, voids the sale right after making it.
+	voidReason string
 }
 
 // demoSales leave every item above its minimum but the ones the stock seed
@@ -304,6 +307,13 @@ var demoSales = []demoSale{
 		payments: []domain.Payment{{Method: domain.PaymentQR, Amount: 360_000}},
 		total:    360_000,
 	},
+	{
+		seller:     "JP",
+		lines:      []demoSaleLine{{"LIM-001", domain.WholeQuantity(2), 0}},
+		payments:   []domain.Payment{{Method: domain.PaymentCreditCard, Amount: 190_000}},
+		total:      190_000,
+		voidReason: "El cliente pagó con otra tarjeta",
+	},
 }
 
 func seedSales(ctx context.Context, useCases UseCases, itemIDs, customerIDs, sellerIDs map[string]string) error {
@@ -325,8 +335,15 @@ func seedSales(ctx context.Context, useCases UseCases, itemIDs, customerIDs, sel
 			request.Lines = append(request.Lines, domain.SaleRequestLine{ItemID: itemIDs[line.code], Quantity: line.quantity, DiscountPercent: line.discount})
 		}
 
-		if _, err := useCases.CreateSale.Execute(ctx, sales.CreateSaleInput{Actor: seeder, Request: request}); err != nil {
+		created, err := useCases.CreateSale.Execute(ctx, sales.CreateSaleInput{Actor: seeder, Request: request})
+		if err != nil {
 			return fmt.Errorf("seeding sale %d: %w", i+1, err)
+		}
+		if sale.voidReason == "" {
+			continue
+		}
+		if _, err := useCases.VoidSale.Execute(ctx, sales.VoidSaleInput{Actor: seeder, ID: created.ID, Reason: sale.voidReason}); err != nil {
+			return fmt.Errorf("voiding sale %d: %w", i+1, err)
 		}
 	}
 

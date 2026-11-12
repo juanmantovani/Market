@@ -94,7 +94,8 @@ type PaymentResponse struct {
 }
 
 // SaleResponse is a sale with every amount in cents. seller is null for a
-// sale nobody in particular attended.
+// sale nobody in particular attended; the void fields are null while the
+// sale is completed.
 type SaleResponse struct {
 	ID            string               `json:"id"`
 	Number        int64                `json:"number"`
@@ -109,6 +110,9 @@ type SaleResponse struct {
 	Change        int64                `json:"change"`
 	ActorID       string               `json:"actorId"`
 	CreatedAt     time.Time            `json:"createdAt"`
+	VoidedAt      *time.Time           `json:"voidedAt"`
+	VoidReason    *string              `json:"voidReason"`
+	VoidedBy      *string              `json:"voidedBy"`
 }
 
 func NewSaleResponse(sale domain.Sale) SaleResponse {
@@ -131,6 +135,9 @@ func NewSaleResponse(sale domain.Sale) SaleResponse {
 		Change:        int64(sale.Change),
 		ActorID:       sale.ActorID,
 		CreatedAt:     sale.CreatedAt,
+		VoidedAt:      sale.VoidedAt,
+		VoidReason:    sale.VoidReason,
+		VoidedBy:      sale.VoidedBy,
 	}
 	if sale.Seller != nil {
 		response.Seller = &SaleSellerResponse{ID: sale.Seller.ID, Name: sale.Seller.Name, Code: sale.Seller.Code}
@@ -154,4 +161,9 @@ func NewSaleResponse(sale domain.Sale) SaleResponse {
 	}
 
 	return response
+}
+
+// VoidSaleRequest is the body of POST /api/v1/sales/{id}/void.
+type VoidSaleRequest struct {
+	Reason string `json:"reason"`
 }

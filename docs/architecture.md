@@ -29,7 +29,7 @@ apps/backend/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager y un contrato de repositorio por agregado
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta
+    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta, listado, detalle y anulación
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
@@ -142,7 +142,8 @@ flowchart LR
   lee cliente, vendedor y artículos, deja que el dominio calcule la venta,
   la guarda (el repositorio le asigna ID y número) y registra un movimiento
   `sale` por línea. Si una línea no tiene stock, no queda ni la venta ni
-  ningún movimiento.
+  ningún movimiento. La anulación también: guarda el estado `voided` y un
+  movimiento `sale_void` por línea en la misma unidad de trabajo.
 - Las tablas guardan valores, y los repositorios copian los punteros y
   slices que guardan o devuelven (por ejemplo `cloneCategory`), para que
   nadie mute una tabla fuera del lock.

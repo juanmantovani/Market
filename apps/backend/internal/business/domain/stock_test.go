@@ -377,3 +377,29 @@ func TestStockLevelSell(t *testing.T) {
 		t.Fatalf("Sell(under the minimum balance) error = %v, want ErrStockBalanceOutOfRange", err)
 	}
 }
+
+func TestStockLevelVoidSale(t *testing.T) {
+	voidedAt := stockTime.Add(time.Hour)
+	voided := Sale{Number: 7, ActorID: "u-cashier", CreatedAt: stockTime, Status: SaleVoided, VoidedAt: &voidedAt, VoidedBy: textPtr("u-manager"), VoidReason: textPtr("Error de carga")}
+	queso := SaleLine{ItemID: "item-1", Name: "Queso cremoso", Unit: UnitKilogram, Quantity: 250}
+	level := StockLevel{ItemID: "item-1", Quantity: -100, UpdatedAt: stockTime}
+
+	back, err := level.VoidSale(voided, queso)
+	if err != nil {
+		t.Fatalf("VoidSale() error = %v", err)
+	}
+	if back.ItemID != "item-1" || back.Type != MovementSaleVoid || back.Quantity != 250 || back.BalanceAfter != 150 ||
+		*back.Reference != "Venta 7" || back.ActorID != "u-manager" || !back.CreatedAt.Equal(voidedAt) {
+		t.Fatalf("VoidSale() = %+v", back)
+	}
+
+	completed := voided
+	completed.Status, completed.VoidedAt, completed.VoidedBy = SaleCompleted, nil, nil
+	if _, err := level.VoidSale(completed, queso); !errors.Is(err, ErrSaleNotVoided) {
+		t.Fatalf("VoidSale(completed sale) error = %v, want ErrSaleNotVoided", err)
+	}
+	top := StockLevel{ItemID: "item-1", Quantity: MaxStockBalance}
+	if _, err := top.VoidSale(voided, queso); !errors.Is(err, ErrStockBalanceOutOfRange) {
+		t.Fatalf("VoidSale(over the maximum balance) error = %v, want ErrStockBalanceOutOfRange", err)
+	}
+}

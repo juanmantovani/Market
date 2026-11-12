@@ -51,6 +51,7 @@ func newUseCases() (UseCases, repositories) {
 		RegisterStockAdjustment: stock.NewRegisterStockAdjustment(store, repos.stock, repos.items),
 
 		CreateSale: sales.NewCreateSale(store, repos.sales, repos.items, repos.customers, repos.sellers, repos.stock, domain.StockPolicy{}),
+		VoidSale:   sales.NewVoidSale(store, repos.sales, repos.stock),
 	}, repos
 }
 
@@ -122,19 +123,22 @@ func TestSeedLoadsTheDemoStock(t *testing.T) {
 		t.Fatalf("items below their minimum = %v", low)
 	}
 
-	saleLines := 0
+	saleLines, voidedLines := 0, 0
 	for _, sale := range demoSales {
 		saleLines += len(sale.lines)
+		if sale.voidReason != "" {
+			voidedLines += len(sale.lines)
+		}
 	}
 	movements, err := stock.NewListStockMovements(repos.stock).Execute(context.Background(), stock.ListStockMovementsInput{Actor: seeder, Limit: 100})
-	if err != nil || movements.Total != len(demoItems)+2+saleLines {
-		t.Fatalf("movements = %d (%v), want an opening one per item, an entry, an adjustment and one per sale line", movements.Total, err)
+	if err != nil || movements.Total != len(demoItems)+2+saleLines+voidedLines {
+		t.Fatalf("movements = %d (%v), want an opening one per item, an entry, an adjustment one per sale line and one per voided line", movements.Total, err)
 	}
 	byType := map[domain.MovementType]int{}
 	for _, movement := range movements.Items {
 		byType[movement.Type]++
 	}
-	if byType[domain.MovementEntry] != 1 || byType[domain.MovementAdjustment] != 1 || byType[domain.MovementSale] != saleLines {
+	if byType[domain.MovementEntry] != 1 || byType[domain.MovementAdjustment] != 1 || byType[domain.MovementSale] != saleLines || byType[domain.MovementSaleVoid] != voidedLines || voidedLines == 0 {
 		t.Fatalf("movements by type = %v", byType)
 	}
 }
@@ -155,6 +159,13 @@ func TestSeedLoadsTheDemoSales(t *testing.T) {
 		}
 		if want.customer == "" && sale.Customer.ID != domain.FinalConsumerID {
 			t.Fatalf("demo sale %d without customer went to %+v", i+1, sale.Customer)
+		}
+		wantStatus := domain.SaleCompleted
+		if want.voidReason != "" {
+			wantStatus = domain.SaleVoided
+		}
+		if sale.Status != wantStatus {
+			t.Fatalf("demo sale %d status = %s", i+1, sale.Status)
 		}
 	}
 }
@@ -296,4 +307,21 @@ type failingCreateItem struct{}
 
 func (failingCreateItem) Execute(context.Context, items.CreateItemInput) (domain.Item, error) {
 	return domain.Item{}, domain.ErrStorageUnavailable
+}
+
+func TestSeedReportsAFailedVoid(t *testing.T) {
+	useCases, _ := newUseCases()
+	useCases.VoidSale = failingVoidSale{}
+
+	err := Seed(context.Background(), useCases)
+
+	if !errors.Is(err, domain.ErrStorageUnavailable) {
+		t.Fatalf("Seed() error = %v, want ErrStorageUnavailable", err)
+	}
+}
+
+type failingVoidSale struct{}
+
+func (failingVoidSale) Execute(context.Context, sales.VoidSaleInput) (domain.Sale, error) {
+	return domain.Sale{}, domain.ErrStorageUnavailable
 }
