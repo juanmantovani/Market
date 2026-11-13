@@ -548,8 +548,9 @@ independientes entre sí y se pueden hacer en paralelo.
 Dominio de existencias, movimientos y política; uso de `TxManager`; ingreso de
 mercadería (varias líneas, proveedor y costo opcionales), ajustes con motivo,
 existencias con filtro de stock bajo e historial de movimientos. En la UI:
-pantalla de stock con ajuste rápido, formulario de ingreso e historial. La
-existencia también se muestra en el detalle del artículo.
+el stock se maneja desde Artículos (sin pantalla propia): columna de stock con
+alerta, filtro de stock bajo, ajuste o carga de stock inicial por artículo,
+historial de movimientos e ingreso de mercadería.
 
 ### Fase 4 — Ventas
 

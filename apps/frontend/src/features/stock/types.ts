@@ -181,3 +181,34 @@ export const ENTRY_FIELD_ERRORS: Record<string, 'supplierId' | 'reference' | 'li
 export function emptyEntryLine(key: number, item: ItemChoice | null = null): EntryLineValues {
   return { key, item, quantity: '', unitCost: '' }
 }
+
+// The item a stock action is about: what Artículos knows of it, handed over
+// by app/ItemsRoute because stock doesn't import the items feature.
+export type StockItem = {
+  id: string
+  code: string
+  name: string
+  categoryId: string
+  unit: Unit
+  minStock: number
+}
+
+export function initialStockFormSchema(unit: Unit) {
+  return z
+    .object({ quantity: z.string() })
+    .superRefine((values, ctx) => {
+      if (positiveQuantity(values.quantity, unit) === null) {
+        ctx.addIssue({ code: 'custom', path: ['quantity'], message: quantityMessage(unit) })
+      }
+    })
+    .transform((values) => ({ quantity: positiveQuantity(values.quantity, unit) as number }))
+}
+
+export type InitialStockFormValues = z.input<ReturnType<typeof initialStockFormSchema>>
+export type InitialStockFields = z.output<ReturnType<typeof initialStockFormSchema>>
+export type StockInitialRequest = InitialStockFields & { itemId: string }
+
+export const INITIAL_STOCK_FIELD_ERRORS: Record<string, 'quantity'> = {
+  stock_quantity_not_whole: 'quantity',
+  stock_balance_out_of_range: 'quantity',
+}

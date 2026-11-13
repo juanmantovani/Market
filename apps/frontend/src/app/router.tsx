@@ -7,7 +7,6 @@ import {
   NotFoundPage,
   PosRoute,
   SellersPage,
-  StockRoute,
   SuppliersPage,
 } from './lazy-pages'
 import type { RouteHandle } from './use-page-title'
@@ -21,7 +20,6 @@ export const routes: RouteObject[] = [
       { index: true, element: <PosRoute />, handle: title('Punto de venta') },
       { path: 'articulos', element: <ItemsRoute />, handle: title('Artículos') },
       { path: 'categorias', element: <CategoriesPage />, handle: title('Categorías') },
-      { path: 'stock', element: <StockRoute />, handle: title('Stock') },
       { path: 'clientes', element: <CustomersPage />, handle: title('Clientes') },
       { path: 'proveedores', element: <SuppliersPage />, handle: title('Proveedores') },
       { path: 'vendedores', element: <SellersPage />, handle: title('Vendedores') },

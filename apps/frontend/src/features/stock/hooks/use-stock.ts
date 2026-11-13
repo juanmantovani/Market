@@ -3,21 +3,14 @@ import { queryKeys } from '../../../shared/api/query-keys'
 import {
   createStockAdjustment,
   createStockEntry,
+  createStockInitial,
   listStockLevels,
   listStockLevelsOf,
   listStockMovements,
   type MovementListParams,
   type StockListParams,
 } from '../api/stock'
-import type { ItemChoice, StockAdjustmentRequest, StockEntryRequest } from '../types'
-
-export function useStockLevels(params: StockListParams) {
-  return useQuery({
-    queryKey: queryKeys.stock.levels(params),
-    queryFn: ({ signal }) => listStockLevels(params, signal),
-    placeholderData: keepPreviousData,
-  })
-}
+import type { ItemChoice, StockAdjustmentRequest, StockEntryRequest, StockInitialRequest } from '../types'
 
 // The stock levels of the given items, which are not listed again while the
 // list is empty.
@@ -40,7 +33,7 @@ export function useStockMovements(params: MovementListParams) {
 const SEARCH_LIMIT = 8
 
 function searchParams(search: string): StockListParams {
-  return { search: search.trim(), categoryId: '', lowStock: false, page: 1, limit: SEARCH_LIMIT }
+  return { search: search.trim(), page: 1, limit: SEARCH_LIMIT }
 }
 
 // Items to pick for a stock entry, found by name, code or barcode. `find`
@@ -86,6 +79,15 @@ export function useRegisterStockAdjustment() {
 
   return useMutation({
     mutationFn: (request: StockAdjustmentRequest) => createStockAdjustment(request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
+  })
+}
+
+export function useRegisterStockInitial() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (request: StockInitialRequest) => createStockInitial(request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
   })
 }

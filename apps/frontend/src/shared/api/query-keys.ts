@@ -7,7 +7,7 @@ export const queryKeys = {
   },
   items: {
     all: ['items'] as const,
-    list: (params: ListParams & { categoryId: string }) => ['items', 'list', params] as const,
+    list: (params: ListParams & { categoryId: string; lowStock?: boolean }) => ['items', 'list', params] as const,
   },
   customers: {
     all: ['customers'] as const,
@@ -23,7 +23,7 @@ export const queryKeys = {
   },
   stock: {
     all: ['stock'] as const,
-    levels: (params: ListParams & { categoryId: string; lowStock: boolean }) => ['stock', 'levels', params] as const,
+    levels: (params: ListParams) => ['stock', 'levels', params] as const,
     levelsOf: (itemIds: readonly string[]) => ['stock', 'levels-of', itemIds] as const,
     movements: (params: { itemId: string; page: number; limit: number }) => ['stock', 'movements', params] as const,
   },
