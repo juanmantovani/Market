@@ -1,9 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../../../test/render'
-import type { CategoryOption, Item, SupplierOption, UseStockQuantities } from '../types'
+import type { CategoryOption, Item, RenderStockActions, SupplierOption, UseStockQuantities } from '../types'
 import ItemsPage from './ItemsPage'
 
 const NOW = '2026-11-10T15:00:00Z'
@@ -61,10 +62,12 @@ function fakeItemApi(initial: Array<ReturnType<typeof item>> = []) {
       if (url.pathname === '/api/v1/items' && method === 'GET') {
         const search = (url.searchParams.get('q') ?? '').toLowerCase()
         const categoryId = url.searchParams.get('categoryId') ?? ''
+        const lowStock = url.searchParams.get('lowStock') === 'true'
         const page = Number(url.searchParams.get('page') ?? 1)
         const limit = Number(url.searchParams.get('limit') ?? 25)
         const matches = items
           .filter((entry) => !categoryId || entry.categoryId === categoryId)
+          .filter((entry) => !lowStock || entry.minStock > 0)
           .filter((entry) => `${entry.name} ${entry.code} ${entry.barcode ?? ''}`.toLowerCase().includes(search))
           .sort((a, b) => a.name.localeCompare(b.name))
         return json({ items: matches.slice((page - 1) * limit, page * limit), total: matches.length, page, limit })
@@ -111,6 +114,7 @@ function renderPage(
   categories: CategoryOption[] = CATEGORIES,
   suppliers: SupplierOption[] = SUPPLIERS,
   useStockQuantities: UseStockQuantities = stockOf(),
+  extras: { renderStockActions?: RenderStockActions; headerActions?: ReactNode } = {},
 ) {
   return renderWithProviders(
     <MemoryRouter>
@@ -119,6 +123,7 @@ function renderPage(
         categoriesLoading={false}
         suppliers={suppliers}
         useStockQuantities={useStockQuantities}
+        {...extras}
       />
     </MemoryRouter>,
   )
@@ -200,6 +205,54 @@ describe('ItemsPage', () => {
 
     const cards = within(screen.getByRole('list', { name: 'Artículos' }))
     expect(cards.getAllByText('Stock bajo')).toHaveLength(2)
+  })
+
+  it('shows only the items with low stock when asked, and says so when there are none', async () => {
+    const api = fakeItemApi([
+      item({ name: 'Yerba', code: 'ALM-001', minStock: 6_000 }),
+      item({ name: 'Arroz', code: 'ALM-002', minStock: 0 }),
+    ])
+    const user = userEvent.setup()
+    renderPage()
+    await table()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Solo stock bajo' }))
+    await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Yerba']))
+    expect(api.requests.at(-1)?.path).toContain('lowStock=true')
+
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar artículos' }), 'arroz')
+    expect(await screen.findByText('No se encontraron artículos')).toBeInTheDocument()
+  })
+
+  it('says so when no item is below its minimum', async () => {
+    fakeItemApi([item({ name: 'Arroz', code: 'ALM-002', minStock: 0 })])
+    const user = userEvent.setup()
+    renderPage()
+    await table()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Solo stock bajo' }))
+    expect(await screen.findByText('No hay artículos con stock bajo')).toBeInTheDocument()
+  })
+
+  it('draws the stock actions of the route next to each item, with what is known of its stock', async () => {
+    fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' }), item({ name: 'Arroz', code: 'ALM-002' })])
+    const useStockQuantities: UseStockQuantities = () => ({
+      quantities: new Map([['i1', 4_000], ['i2', 0]]),
+      withoutMovements: new Set(['i2']),
+      isLoading: false,
+    })
+    const renderStockActions: RenderStockActions = (entry, stock, layout) => (
+      <span>
+        {layout}:{entry.name}:{String(stock.quantity)}:{String(stock.hasMovements)}
+      </span>
+    )
+    renderPage(CATEGORIES, SUPPLIERS, useStockQuantities, { renderStockActions, headerActions: <button type="button">Ingresar mercadería</button> })
+
+    const rows = await table()
+    expect(rows.getByText('icons:Yerba:4000:true')).toBeInTheDocument()
+    expect(rows.getByText('icons:Arroz:0:false')).toBeInTheDocument()
+    expect(screen.getByText('buttons:Yerba:4000:true')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ingresar mercadería' })).toBeInTheDocument()
   })
 
   it('asks for the stock of the items on the page only', async () => {

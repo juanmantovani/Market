@@ -172,10 +172,9 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # / (punto de venta), /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
+│   ├── router.tsx            # / (punto de venta), /articulos, /categorias, /clientes, /proveedores, /vendedores y página 404
 │   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías, los proveedores y el stock (ver abajo)
-│   ├── StockRoute.tsx        # compone stock con las categorías (filtro) y los proveedores (ingreso e historial)
 │   ├── PosRoute.tsx          # compone el punto de venta con las categorías, el catálogo, los clientes y los vendedores
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── PageSkeleton.tsx      # skeleton del Suspense del layout mientras llega una página
@@ -188,7 +187,7 @@ apps/frontend/src/
 │   ├── customers/            # ídem
 │   ├── suppliers/            # ídem
 │   ├── sellers/              # ídem
-│   ├── stock/                # existencias, ajuste, ingreso de mercadería (con buscador de artículos) e historial
+│   ├── stock/                # ajuste, stock inicial, ingreso de mercadería (con buscador de artículos) e historial; se usan desde Artículos
 │   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage y cobro con varios medios de pago
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
@@ -215,6 +214,14 @@ apps/frontend/src/
   `useStockLevelsOf` de stock; artículos no importa la feature de stock).
   Si esa lectura falla, la grilla sigue mostrando los artículos y el stock
   aparece como «—».
+- El stock se maneja desde Artículos, no hay pantalla propia: cada fila
+  ofrece **Ajustar stock** (con motivo) o, si el artículo no tiene
+  movimientos, **Cargar stock inicial**, y **Movimientos**; el encabezado
+  ofrece **Ingresar mercadería** y la grilla se filtra con **Solo stock bajo**
+  (`GET /api/v1/items?lowStock=true`). Artículos no importa la feature de
+  stock: `app/ItemsRoute` le pasa `renderStockActions` (que dibuja
+  `StockItemActions`) y `headerActions` (`ReceiveStock`). El ítem sin
+  movimientos se reconoce porque su existencia trae `updatedAt: null`.
 - El ingreso de mercadería busca los artículos en el endpoint de stock
   (`GET /api/v1/stock?q=`), que ya trae código, nombre, unidad y
   existencia: stock no depende de la feature de artículos. Enter elige el

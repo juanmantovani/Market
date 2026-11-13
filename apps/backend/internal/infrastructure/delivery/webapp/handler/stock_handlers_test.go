@@ -179,3 +179,33 @@ func TestCreateStockAdjustmentHandler(t *testing.T) {
 	}
 	assertStatus(t, serve(NewCreateStockAdjustmentHandler(registerStockAdjustment), categoryRequest(http.MethodPost, "/api/v1/stock/adjustments", strings.NewReader(`[`))), http.StatusBadRequest)
 }
+
+func TestCreateStockInitialHandler(t *testing.T) {
+	var received stock.RegisterInitialStockInput
+	opened := domain.StockMovement{ID: "m1", ItemID: "i1", Type: domain.MovementInitial, Quantity: 6_000, BalanceAfter: 6_000, ActorID: "u1", CreatedAt: handlerTime}
+	registerInitialStock := useCaseFunc[stock.RegisterInitialStockInput, domain.StockMovement](
+		func(_ context.Context, input stock.RegisterInitialStockInput) (domain.StockMovement, error) {
+			received = input
+			if input.ItemID == "used" {
+				return domain.StockMovement{}, domain.ErrStockAlreadyInitialized
+			}
+			return opened, nil
+		})
+
+	recorder := serve(NewCreateStockInitialHandler(registerInitialStock), categoryRequest(http.MethodPost, "/api/v1/stock/initial",
+		strings.NewReader(`{"itemId":"i1","quantity":6000}`)))
+
+	assertStatus(t, recorder, http.StatusCreated)
+	got := decodeBody[dto.StockMovementResponse](t, recorder)
+	if got.ID != "m1" || got.Type != "initial" || got.Quantity != 6_000 || got.BalanceAfter != 6_000 {
+		t.Fatalf("body = %+v", got)
+	}
+	if want := (stock.RegisterInitialStockInput{Actor: handlerActor, ItemID: "i1", Quantity: 6_000}); received != want {
+		t.Fatalf("input = %+v, want %+v", received, want)
+	}
+
+	used := serve(NewCreateStockInitialHandler(registerInitialStock), categoryRequest(http.MethodPost, "/api/v1/stock/initial",
+		strings.NewReader(`{"itemId":"used","quantity":6000}`)))
+	assertStatus(t, used, http.StatusConflict)
+	assertStatus(t, serve(NewCreateStockInitialHandler(registerInitialStock), categoryRequest(http.MethodPost, "/api/v1/stock/initial", strings.NewReader(`[`))), http.StatusBadRequest)
+}

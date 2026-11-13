@@ -11,7 +11,9 @@ type ItemFilter struct {
 	Search string
 	// CategoryID, when set, keeps only the items of that category.
 	CategoryID string
-	Page       domain.PageRequest
+	// LowStock keeps only the items whose stock reached their minimum.
+	LowStock bool
+	Page     domain.PageRequest
 }
 
 // ItemRepository stores items. Every implementation must pass the contract

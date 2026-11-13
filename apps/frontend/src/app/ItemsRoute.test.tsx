@@ -12,7 +12,7 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-function stubApi({ stockFails = false } = {}) {
+function stubApi({ stockFails = false, withoutMovements = false } = {}) {
   const fetchMock = vi.fn(async (input: string) => {
     const url = new URL(input, 'http://localhost')
     if (url.pathname === '/api/v1/stock') {
@@ -21,7 +21,7 @@ function stubApi({ stockFails = false } = {}) {
         items: [
           {
             itemId: 'i1', code: 'BEB-001', name: 'Agua mineral', categoryId: 'c2', unit: 'unit', minStock: 24_000,
-            quantity: 12_000, lowStock: true, updatedAt: NOW,
+            quantity: 12_000, lowStock: true, updatedAt: withoutMovements ? null : NOW,
           },
         ],
         total: 1,
@@ -93,6 +93,31 @@ describe('ItemsRoute', () => {
     expect(await row.findByText('12 u.')).toBeInTheDocument()
     expect(row.getByText('Stock bajo')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/stock?page=1&limit=1&itemId=i1', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it('offers to adjust the stock, see its movements and receive goods from the items screen', async () => {
+    stubApi()
+    renderRoute()
+
+    const table = within(await screen.findByRole('table', { name: 'Artículos' }))
+    const row = within(await table.findByRole('row', { name: /Agua mineral/ }))
+    expect(await row.findByRole('button', { name: 'Ajustar stock de Agua mineral' })).toBeEnabled()
+    expect(row.getByRole('button', { name: 'Movimientos de Agua mineral' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ingresar mercadería' })).toBeInTheDocument()
+
+    const user = userEvent.setup()
+    await user.click(row.getByRole('button', { name: 'Ajustar stock de Agua mineral' }))
+    expect(await screen.findByRole('dialog', { name: 'Ajustar stock' })).toBeInTheDocument()
+  })
+
+  it('offers the first count instead of an adjustment for an item without movements', async () => {
+    stubApi({ withoutMovements: true })
+    renderRoute()
+
+    const table = within(await screen.findByRole('table', { name: 'Artículos' }))
+    const row = within(await table.findByRole('row', { name: /Agua mineral/ }))
+    expect(await row.findByRole('button', { name: 'Cargar stock inicial de Agua mineral' })).toBeEnabled()
+    expect(row.queryByRole('button', { name: /Ajustar stock/ })).not.toBeInTheDocument()
   })
 
   it('keeps listing the items when their stock cannot be loaded', async () => {

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { CircleAlert, Package, Plus, SearchX, Tags } from 'lucide-react'
+import { CircleAlert, Package, PackageCheck, Plus, SearchX, Tags } from 'lucide-react'
 import { messageFromError } from '../../../shared/api/client'
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value'
 import { Button } from '../../../shared/ui/button'
@@ -21,6 +21,7 @@ import {
   type CategoryOption,
   type Item,
   type ItemRequest,
+  type RenderStockActions,
   type SupplierOption,
   type UseStockQuantities,
 } from '../types'
@@ -35,6 +36,10 @@ type ItemsPageProps = {
   categoriesLoading: boolean
   suppliers: readonly SupplierOption[]
   useStockQuantities: UseStockQuantities
+  // The stock actions of each item and the one that applies to the whole
+  // screen (receiving goods), drawn by app/ItemsRoute.
+  renderStockActions?: RenderStockActions
+  headerActions?: ReactNode
 }
 
 // `open` is kept apart from what the overlay shows, so its content stays in
@@ -42,15 +47,23 @@ type ItemsPageProps = {
 type FormState = { open: boolean; item: Item | null; formKey: number }
 type ConfirmState = { open: boolean; item: Item | null }
 
-export default function ItemsPage({ categories, categoriesLoading, suppliers, useStockQuantities }: ItemsPageProps) {
+export default function ItemsPage({
+  categories,
+  categoriesLoading,
+  suppliers,
+  useStockQuantities,
+  renderStockActions,
+  headerActions,
+}: ItemsPageProps) {
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [lowStock, setLowStock] = useState(false)
   const [page, setPage] = useState(1)
   const [form, setForm] = useState<FormState>({ open: false, item: null, formKey: 0 })
   const [confirm, setConfirm] = useState<ConfirmState>({ open: false, item: null })
   const debouncedSearch = useDebouncedValue(search)
 
-  const items = useItems({ search: debouncedSearch, categoryId, page, limit: PAGE_SIZE })
+  const items = useItems({ search: debouncedSearch, categoryId, lowStock, page, limit: PAGE_SIZE })
   const saveItem = useSaveItem()
   const deleteItem = useDeleteItem()
   const toast = useToast()
@@ -126,6 +139,15 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers, us
     }
 
     if (!items.isPending && rows.length === 0) {
+      if (lowStock && !isFiltered) {
+        return (
+          <EmptyState
+            icon={PackageCheck}
+            title="No hay artículos con stock bajo"
+            description="Todos los artículos están por encima de su stock mínimo."
+          />
+        )
+      }
       return isFiltered ? (
         <EmptyState icon={SearchX} title="No se encontraron artículos" description="Probar con otra búsqueda o cambiar la categoría." />
       ) : (
@@ -148,6 +170,7 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers, us
         <ItemList
           items={rows}
           stock={stock}
+          renderStockActions={renderStockActions}
           categoryName={(id) => categoryNames.get(id) ?? '—'}
           isLoading={items.isPending}
           onEdit={openForm}
@@ -165,20 +188,23 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers, us
       <PageHeader
         title="Artículos"
         actions={
-          <Button
-            type="button"
-            size="lg"
-            className="h-11 md:h-9"
-            disabled={categories.length === 0}
-            onClick={() => openForm(null)}
-          >
-            <Plus aria-hidden />
-            Nuevo artículo
-          </Button>
+          <>
+            {headerActions}
+            <Button
+              type="button"
+              size="lg"
+              className="h-11 md:h-9"
+              disabled={categories.length === 0}
+              onClick={() => openForm(null)}
+            >
+              <Plus aria-hidden />
+              Nuevo artículo
+            </Button>
+          </>
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
         <SearchField
           label="Buscar artículos"
           hint="Por nombre, código o código de barras"
@@ -205,6 +231,18 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers, us
             </option>
           ))}
         </NativeSelect>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border bg-card px-3 text-sm font-medium has-focus-visible:ring-3 has-focus-visible:ring-ring/50 md:min-h-9">
+          <input
+            type="checkbox"
+            className="size-5 shrink-0 accent-primary"
+            checked={lowStock}
+            onChange={(event) => {
+              setLowStock(event.target.checked)
+              setPage(1)
+            }}
+          />
+          Solo stock bajo
+        </label>
       </div>
 
       {renderContent()}

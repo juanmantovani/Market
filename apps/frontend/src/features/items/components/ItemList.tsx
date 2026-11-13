@@ -3,12 +3,13 @@ import { formatMoney } from '../../../shared/lib/money'
 import { unitShort } from '../../../shared/lib/quantity'
 import { Button } from '../../../shared/ui/button'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
-import type { Item, StockQuantities } from '../types'
+import type { Item, RenderStockActions, StockQuantities } from '../types'
 import { ItemStock } from './ItemStock'
 
 type ItemListProps = {
   items: readonly Item[]
   stock: StockQuantities
+  renderStockActions?: RenderStockActions
   categoryName: (categoryId: string) => string
   isLoading: boolean
   onEdit: (item: Item) => void
@@ -19,7 +20,14 @@ function price(item: Item) {
   return item.unit === 'unit' ? formatMoney(item.salePrice) : `${formatMoney(item.salePrice)} / ${unitShort(item.unit)}`
 }
 
-export function ItemList({ items, stock, categoryName, isLoading, onEdit, onDelete }: ItemListProps) {
+export function ItemList({ items, stock, renderStockActions, categoryName, isLoading, onEdit, onDelete }: ItemListProps) {
+  const stockActions = (item: Item, layout: 'icons' | 'buttons') =>
+    renderStockActions?.(
+      item,
+      { quantity: stock.quantities.get(item.id), hasMovements: !stock.withoutMovements?.has(item.id) },
+      layout,
+    )
+
   const columns: Column<Item>[] = [
     { header: 'Código', cell: (item) => <span className="font-mono text-xs text-muted-foreground">{item.code}</span> },
     {
@@ -43,6 +51,7 @@ export function ItemList({ items, stock, categoryName, isLoading, onEdit, onDele
       className: 'text-right',
       cell: (item) => (
         <div className="flex justify-end gap-1">
+          {stockActions(item, 'icons')}
           <Button type="button" variant="ghost" size="icon" aria-label={`Editar ${item.name}`} title="Editar" onClick={() => onEdit(item)}>
             <Pencil aria-hidden />
           </Button>
@@ -84,6 +93,7 @@ export function ItemList({ items, stock, categoryName, isLoading, onEdit, onDele
             <span className="text-muted-foreground">Stock</span>
             <ItemStock item={item} stock={stock} />
           </div>
+          {renderStockActions && <div className="flex gap-2">{stockActions(item, 'buttons')}</div>}
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="h-11 flex-1" aria-label={`Editar ${item.name}`} onClick={() => onEdit(item)}>
               <Pencil aria-hidden />

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { z } from 'zod'
 import { pageSchema } from '../../shared/api/pagination'
 import { centsToInput, parseMoney } from '../../shared/lib/money'
@@ -49,8 +50,14 @@ export type SupplierOption = { id: string; name: string }
 export type StockQuantities = {
   // In thousandths of each item's unit, by item ID.
   quantities: ReadonlyMap<string, number>
+  // IDs of the items that have no movements yet: their stock is still to be
+  // opened with a first count.
+  withoutMovements?: ReadonlySet<string>
   isLoading: boolean
 }
+
+// What app/ItemsRoute draws next to each item to manage its stock.
+export type RenderStockActions = (item: Item, stock: { quantity: number | undefined; hasMovements: boolean }, layout: 'icons' | 'buttons') => ReactNode
 
 export type UseStockQuantities = (itemIds: readonly string[]) => StockQuantities
 

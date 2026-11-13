@@ -73,6 +73,7 @@ func TestRegisterRoutes(t *testing.T) {
 		{method: http.MethodGet, path: "/api/v1/stock/movements?itemId=missing", want: http.StatusOK},
 		{method: http.MethodPost, path: "/api/v1/stock/entries", body: `{"lines":[{"itemId":"missing","quantity":1000}]}`, want: http.StatusBadRequest},
 		{method: http.MethodPost, path: "/api/v1/stock/adjustments", body: `{"itemId":"missing","quantity":1000,"reason":"Conteo"}`, want: http.StatusBadRequest},
+		{method: http.MethodPost, path: "/api/v1/stock/initial", body: `{"itemId":"missing","quantity":1000}`, want: http.StatusBadRequest},
 		{method: http.MethodPut, path: "/api/v1/stock", want: http.StatusNotFound},
 		{method: http.MethodPost, path: "/api/v1/sales", body: `{"lines":[{"itemId":"missing","quantity":1000}]}`, want: http.StatusBadRequest},
 		{method: http.MethodGet, path: "/api/v1/sales?status=completed", want: http.StatusOK},

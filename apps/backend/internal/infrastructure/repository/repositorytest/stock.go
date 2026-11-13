@@ -214,6 +214,26 @@ func StockRepository(t *testing.T, newRepositories NewRepositories) {
 			})
 		}
 
+		for name, filter := range map[string]gateway.ItemFilter{
+			"low stock":                  {LowStock: true, Page: page},
+			"low stock in its category":  {LowStock: true, CategoryID: almacen.ID, Page: page},
+			"low stock in another one":   {LowStock: true, CategoryID: bebidas.ID, Page: page},
+			"low stock matching a name":  {LowStock: true, Search: "yerba", Page: page},
+			"low stock not matching one": {LowStock: true, Search: "arroz", Page: page},
+		} {
+			items, err := repositories.Items.List(ctx, filter)
+			if err != nil {
+				t.Fatalf("Items.List(%s) error = %v", name, err)
+			}
+			want := map[string][]string{
+				"low stock": {"fideos", "Yerba mate"}, "low stock in its category": {"fideos", "Yerba mate"},
+				"low stock in another one": {}, "low stock matching a name": {"Yerba mate"}, "low stock not matching one": {},
+			}[name]
+			if fmt.Sprint(itemNames(items.Items)) != fmt.Sprint(want) || items.Total != len(want) {
+				t.Fatalf("Items.List(%s) = %v (total %d), want %v", name, itemNames(items.Items), items.Total, want)
+			}
+		}
+
 		got, _ := repositories.Stock.ListLevels(ctx, gateway.StockLevelFilter{CategoryID: bebidas.ID, Page: page})
 		if level := got.Items[0]; level.Item.ID != coca.ID || level.Level != (domain.StockLevel{ItemID: coca.ID}) || level.Item.Code != "COC-1" {
 			t.Fatalf("level of an item without movements = %+v", level)

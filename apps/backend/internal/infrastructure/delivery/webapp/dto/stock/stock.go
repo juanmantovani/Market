@@ -134,3 +134,10 @@ func moneyPtr(cents *int64) *domain.Money {
 
 	return &amount
 }
+
+// StockInitialRequest opens the stock of an item that has no movements: the
+// quantity is in thousandths of the item's unit.
+type StockInitialRequest struct {
+	ItemID   string `json:"itemId"`
+	Quantity int64  `json:"quantity"`
+}

@@ -7,18 +7,17 @@ import {
   stockMovementSchema,
   type StockAdjustmentRequest,
   type StockEntryRequest,
+  type StockInitialRequest,
 } from '../types'
 
 const STOCK_PATH = '/api/v1/stock'
 
-export type StockListParams = ListParams & { categoryId: string; lowStock: boolean }
+export type StockListParams = ListParams
 
 export type MovementListParams = { itemId: string; page: number; limit: number }
 
-export function listStockLevels({ categoryId, lowStock, ...params }: StockListParams, signal?: AbortSignal) {
+export function listStockLevels(params: StockListParams, signal?: AbortSignal) {
   const query = new URLSearchParams(listQuery(params))
-  if (categoryId) query.set('categoryId', categoryId)
-  if (lowStock) query.set('lowStock', 'true')
   return apiFetch(`${STOCK_PATH}?${query}`, stockLevelPageSchema, { signal })
 }
 
@@ -41,4 +40,8 @@ export function createStockEntry(request: StockEntryRequest) {
 
 export function createStockAdjustment(request: StockAdjustmentRequest) {
   return apiFetch(`${STOCK_PATH}/adjustments`, stockMovementSchema, { method: 'POST', body: request })
+}
+
+export function createStockInitial(request: StockInitialRequest) {
+  return apiFetch(`${STOCK_PATH}/initial`, stockMovementSchema, { method: 'POST', body: request })
 }

@@ -12,6 +12,7 @@ type ListItemsInput struct {
 	Actor      domain.Actor
 	Search     string
 	CategoryID string
+	LowStock   bool
 	Page       int
 	Limit      int
 }
@@ -41,6 +42,7 @@ func (useCase *listItems) Execute(ctx context.Context, input ListItemsInput) (do
 	result, err := useCase.repository.List(ctx, gateway.ItemFilter{
 		Search:     strings.TrimSpace(input.Search),
 		CategoryID: strings.TrimSpace(input.CategoryID),
+		LowStock:   input.LowStock,
 		Page:       page,
 	})
 	if err != nil {

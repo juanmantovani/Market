@@ -1,16 +1,15 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../../../test/render'
-import type { CategoryOption, StockLevel, StockMovement, SupplierOption } from '../types'
-import StockPage from './StockPage'
+import { formatUnitQuantity } from '../../../shared/lib/quantity'
+import { useQuery } from '@tanstack/react-query'
+import { listStockLevels } from '../api/stock'
+import type { StockLevel, StockMovement, SupplierOption } from '../types'
+import { ReceiveStock } from './ReceiveStock'
+import { StockItemActions } from './StockItemActions'
 
 const NOW = '2026-11-11T15:30:00Z'
-const CATEGORIES: CategoryOption[] = [
-  { id: 'c1', name: 'Almacén' },
-  { id: 'c2', name: 'Fiambrería' },
-]
 const SUPPLIERS: SupplierOption[] = [
   { id: 's1', name: 'Distribuidora del Centro' },
   { id: 's2', name: 'Mayorista Norte' },
@@ -30,6 +29,7 @@ function stockItem(overrides: Partial<FakeItem> & { itemId: string; name: string
 const DEMO = [
   stockItem({ itemId: 'yer', code: 'ALM-001', name: 'Yerba mate', minStock: 6000, quantity: 4000 }),
   stockItem({ itemId: 'arr', code: 'ALM-002', name: 'Arroz', minStock: 10_000, quantity: 25_000 }),
+  stockItem({ itemId: 'har', code: 'ALM-003', name: 'Harina' }),
   stockItem({ itemId: 'que', code: 'FIA-001', name: 'Queso cremoso', categoryId: 'c2', unit: 'kg', minStock: 2500, quantity: 1800 }),
 ]
 
@@ -37,9 +37,17 @@ const DEMO = [
 // stock only changes through movements, adjustments need a reason and can't
 // leave it below zero, an entry needs known suppliers, and low stock is
 // minStock > 0 && quantity <= minStock.
-function fakeStockApi(initial: FakeItem[] = DEMO, initialMovements: StockMovement[] = []) {
+function fakeStockApi(initial: FakeItem[] = DEMO, initialMovements?: StockMovement[]) {
   const items = initial.map((entry) => ({ ...entry }))
-  const movements: StockMovement[] = [...initialMovements]
+  // By default every item with stock already has its opening movement.
+  const movements: StockMovement[] = initialMovements
+    ? [...initialMovements]
+    : items
+        .filter((entry) => entry.quantity > 0)
+        .map((entry) => ({
+          id: `open-${entry.itemId}`, itemId: entry.itemId, type: 'initial' as const, quantity: entry.quantity, balanceAfter: entry.quantity,
+          reason: null, reference: null, supplierId: null, unitCost: null, actorId: 'dev', createdAt: NOW,
+        }))
   const requests: Array<{ method: string; path: string; body: unknown }> = []
   const failures: Failure[] = []
   let sequence = movements.length
@@ -102,6 +110,13 @@ function fakeStockApi(initial: FakeItem[] = DEMO, initialMovements: StockMovemen
         return json(record(item.itemId, 'adjustment', body.quantity, { reason: body.reason }), 201)
       }
 
+      if (url.pathname === '/api/v1/stock/initial' && method === 'POST') {
+        if (movements.some((movement) => movement.itemId === body.itemId)) {
+          return json({ code: 'stock_already_initialized', message: 'El artículo ya tiene movimientos de stock' }, 409)
+        }
+        return json(record(body.itemId, 'initial', body.quantity), 201)
+      }
+
       if (url.pathname === '/api/v1/stock/entries' && method === 'POST') {
         if (body.supplierId && !SUPPLIERS.some((supplier) => supplier.id === body.supplierId)) {
           return json({ code: 'stock_supplier_not_found', message: 'El proveedor elegido no existe' }, 400)
@@ -125,110 +140,61 @@ function fakeStockApi(initial: FakeItem[] = DEMO, initialMovements: StockMovemen
   }
 }
 
-function renderPage(categories: CategoryOption[] = CATEGORIES, suppliers: SupplierOption[] = SUPPLIERS) {
-  return renderWithProviders(
-    <MemoryRouter>
-      <StockPage categories={categories} suppliers={suppliers} />
-    </MemoryRouter>,
+// Artículos draws these actions next to each item; this stand-in lists the
+// items of the fake API with them.
+function Harness() {
+  const levels = useQuery({
+    queryKey: ['stock', 'levels', 'harness'],
+    queryFn: ({ signal }) => listStockLevels({ search: '', page: 1, limit: 25 }, signal),
+  })
+  const names = new Map(SUPPLIERS.map((supplier) => [supplier.id, supplier.name]))
+
+  return (
+    <>
+      <ReceiveStock suppliers={SUPPLIERS} />
+      <ul aria-label="Artículos">
+        {levels.data?.items.map((level) => (
+          <li key={level.itemId} aria-label={level.name}>
+            <span>{level.name}</span>
+            <output>{formatUnitQuantity(level.quantity, level.unit)}</output>
+            <StockItemActions
+              item={{ id: level.itemId, code: level.code, name: level.name, categoryId: level.categoryId, unit: level.unit, minStock: level.minStock }}
+              quantity={level.quantity}
+              hasMovements={level.updatedAt !== null}
+              supplierName={(id) => names.get(id) ?? 'Proveedor eliminado'}
+              layout="icons"
+            />
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 
-async function table() {
-  return within(await screen.findByRole('table', { name: 'Stock' }))
+function renderPage() {
+  return renderWithProviders(<Harness />)
 }
 
-function rowTexts(scope: Awaited<ReturnType<typeof table>>) {
-  return scope
-    .getAllByRole('row')
-    .slice(1)
-    .map((row: HTMLElement) => within(row).getAllByRole('cell').slice(0, 5).map((cell) => cell.textContent))
+async function items() {
+  await screen.findByText('Yerba mate')
+  return within(screen.getByRole('list', { name: 'Artículos' }))
+}
+
+async function loaded() {
+  await screen.findByText('Yerba mate')
 }
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('StockPage', () => {
-  it('lists the stock of every item with its minimum and the low stock alert, as a table and as cards', async () => {
-    fakeStockApi()
-    renderPage()
-
-    expect(rowTexts(await table())).toEqual([
-      ['ALM-002', 'Arroz', 'Almacén', '25 u.', '10 u.'],
-      ['FIA-001', 'Queso cremoso', 'Fiambrería', 'Stock bajo1,8 kg', '2,5 kg'],
-      ['ALM-001', 'Yerba mate', 'Almacén', 'Stock bajo4 u.', '6 u.'],
-    ])
-    const cards = within(screen.getByRole('list', { name: 'Stock' }))
-    expect(cards.getAllByRole('listitem')).toHaveLength(3)
-    expect(cards.getAllByText('Stock bajo')).toHaveLength(2)
-    expect(cards.getByText('Mínimo: 2,5 kg')).toBeInTheDocument()
-
-    const user = userEvent.setup()
-    await user.click(cards.getByRole('button', { name: 'Movimientos de Arroz' }))
-    expect(await screen.findByRole('dialog', { name: 'Movimientos' })).toHaveTextContent('Arroz')
-    await user.click(screen.getByRole('button', { name: 'Cerrar' }))
-    await user.click(cards.getByRole('button', { name: 'Ajustar Arroz' }))
-    expect(await screen.findByRole('dialog', { name: 'Ajustar stock' })).toHaveTextContent('25 u.')
-  })
-
-  it('searches, filters by category and shows only low stock', async () => {
-    const api = fakeStockApi()
-    const user = userEvent.setup()
-    renderPage()
-    await table()
-
-    await user.click(screen.getByRole('checkbox', { name: 'Solo stock bajo' }))
-    await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Queso cremoso', 'Yerba mate']))
-    expect(api.requests.at(-1)?.path).toContain('lowStock=true')
-
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por categoría' }), 'Fiambrería')
-    await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Queso cremoso']))
-
-    const searchbox = screen.getByRole('searchbox', { name: 'Buscar artículos' })
-    expect(searchbox).toHaveAccessibleDescription('Por nombre, código o código de barras')
-    await user.type(searchbox, 'yerba')
-    expect(await screen.findByText('No se encontraron artículos')).toBeInTheDocument()
-    expect(api.requests.at(-1)?.path).toBe('/api/v1/stock?q=yerba&page=1&limit=25&categoryId=c2&lowStock=true')
-  })
-
-  it('says so when no item is below its minimum', async () => {
-    fakeStockApi([stockItem({ itemId: 'arr', name: 'Arroz', minStock: 1000, quantity: 5000 })])
-    const user = userEvent.setup()
-    renderPage()
-    await table()
-
-    await user.click(screen.getByRole('checkbox', { name: 'Solo stock bajo' }))
-
-    expect(await screen.findByText('No hay artículos con stock bajo')).toBeInTheDocument()
-  })
-
-  it('points to the items screen while there are no items', async () => {
-    fakeStockApi([])
-    renderPage()
-
-    expect(await screen.findByText('Todavía no hay artículos')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ir a artículos' })).toHaveAttribute('href', '/articulos')
-  })
-
-  it('offers a retry when the stock cannot be loaded', async () => {
-    const api = fakeStockApi()
-    api.failNext({ status: 503, code: 'storage_unavailable', message: 'El almacenamiento no está disponible' })
-    const user = userEvent.setup()
-    renderPage()
-
-    expect(await screen.findByText('No se pudo cargar el stock')).toBeInTheDocument()
-    expect(screen.getByText('El almacenamiento no está disponible')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
-
-    expect(rowTexts(await table())).toHaveLength(3)
-  })
-
+describe('Stock actions', () => {
   it('adjusts the stock of an item with a reason and shows what is left', async () => {
     const api = fakeStockApi()
     const user = userEvent.setup()
     renderPage()
 
-    await user.click((await table()).getByRole('button', { name: 'Ajustar Yerba mate' }))
+    await user.click((await items()).getByRole('button', { name: 'Ajustar stock de Yerba mate' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Ajustar stock' }))
     expect(dialog.getByText('4 u.')).toBeInTheDocument()
 
@@ -258,7 +224,42 @@ describe('StockPage', () => {
     expect(api.writes()).toEqual([
       { method: 'POST', path: '/api/v1/stock/adjustments', body: { itemId: 'yer', quantity: -2000, reason: 'Rotura' } },
     ])
-    await waitFor(async () => expect(rowTexts(await table())[2][3]).toBe('Stock bajo2 u.'))
+    await waitFor(() => expect(within(screen.getByRole('listitem', { name: 'Yerba mate' })).getByRole('status')).toHaveTextContent('2 u.'))
+  })
+
+  it('opens the stock of an item without movements with its first count', async () => {
+    const api = fakeStockApi()
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: 'Ajustar stock de Arroz' })).toBeInTheDocument()
+    await user.click((await items()).getByRole('button', { name: 'Cargar stock inicial de Harina' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Cargar stock inicial' }))
+
+    await user.click(dialog.getByRole('button', { name: 'Cargar stock inicial' }))
+    expect(dialog.getByText('Ingresar una cantidad entera mayor a cero')).toBeInTheDocument()
+    expect(api.writes()).toHaveLength(0)
+
+    await user.type(dialog.getByRole('textbox', { name: /Cantidad/ }), '12')
+    await user.click(dialog.getByRole('button', { name: 'Cargar stock inicial' }))
+
+    expect(await screen.findByText('Stock inicial cargado')).toBeInTheDocument()
+    expect(screen.getByText('Ahora hay 12 u. de «Harina».')).toBeInTheDocument()
+    expect(api.writes()).toEqual([{ method: 'POST', path: '/api/v1/stock/initial', body: { itemId: 'har', quantity: 12_000 } }])
+    expect(await screen.findByRole('button', { name: 'Ajustar stock de Harina' })).toBeInTheDocument()
+  })
+
+  it('shows the backend error when the stock was already opened elsewhere', async () => {
+    const api = fakeStockApi()
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click((await items()).getByRole('button', { name: 'Cargar stock inicial de Harina' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Cargar stock inicial' }))
+    await user.type(dialog.getByRole('textbox', { name: /Cantidad/ }), '3')
+    api.failNext({ status: 409, code: 'stock_already_initialized', message: 'El artículo ya tiene movimientos de stock' })
+    await user.click(dialog.getByRole('button', { name: 'Cargar stock inicial' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent('El artículo ya tiene movimientos de stock')
   })
 
   it('adds stock with a positive adjustment and accepts fractions for items sold by weight', async () => {
@@ -266,7 +267,7 @@ describe('StockPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click((await table()).getByRole('button', { name: 'Ajustar Queso cremoso' }))
+    await user.click((await items()).getByRole('button', { name: 'Ajustar stock de Queso cremoso' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Ajustar stock' }))
     await user.click(dialog.getByRole('radio', { name: 'Sumar' }))
     await user.type(dialog.getByRole('textbox', { name: /Cantidad/ }), '0,25')
@@ -282,7 +283,7 @@ describe('StockPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click((await table()).getByRole('button', { name: 'Ajustar Arroz' }))
+    await user.click((await items()).getByRole('button', { name: 'Ajustar stock de Arroz' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Ajustar stock' }))
     await user.type(dialog.getByRole('textbox', { name: /Cantidad/ }), '3')
     await user.type(dialog.getByRole('combobox', { name: 'Motivo' }), 'Vencimiento')
@@ -305,7 +306,7 @@ describe('StockPage', () => {
     const api = fakeStockApi()
     const user = userEvent.setup()
     renderPage()
-    await table()
+    await loaded()
 
     await user.click(screen.getByRole('button', { name: 'Ingresar mercadería' }))
     await screen.findByRole('dialog', { name: 'Ingresar mercadería' })
@@ -331,7 +332,7 @@ describe('StockPage', () => {
     const api = fakeStockApi()
     const user = userEvent.setup()
     renderPage()
-    await table()
+    await loaded()
 
     await user.click(screen.getByRole('button', { name: 'Ingresar mercadería' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Ingresar mercadería' }))
@@ -375,14 +376,14 @@ describe('StockPage', () => {
         },
       },
     ])
-    await waitFor(async () => expect(rowTexts(await table())[2][3]).toBe('16 u.'))
+    await waitFor(() => expect(within(screen.getByRole('listitem', { name: 'Yerba mate' })).getByRole('status')).toHaveTextContent('16 u.'))
   })
 
   it('checks every line of an entry before sending it', async () => {
     const api = fakeStockApi()
     const user = userEvent.setup()
     renderPage()
-    await table()
+    await loaded()
 
     await user.click(screen.getByRole('button', { name: 'Ingresar mercadería' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Ingresar mercadería' }))
@@ -406,7 +407,7 @@ describe('StockPage', () => {
 
     await user.click(within(dialog.getByRole('listitem', { name: 'Línea 1' })).getByRole('button', { name: 'Cambiar Arroz' }))
     await waitFor(() => expect(dialog.getByRole('searchbox', { name: 'Artículo 1' })).toHaveFocus())
-    await user.type(dialog.getByRole('searchbox', { name: 'Artículo 1' }), 'harina{Enter}')
+    await user.type(dialog.getByRole('searchbox', { name: 'Artículo 1' }), 'azúcar{Enter}')
     expect(await dialog.findAllByText('No se encontraron artículos. Probar con otra búsqueda.')).not.toHaveLength(0)
     expect(api.writes()).toHaveLength(0)
   })
@@ -415,7 +416,7 @@ describe('StockPage', () => {
     const api = fakeStockApi()
     const user = userEvent.setup()
     renderPage()
-    await table()
+    await loaded()
 
     await user.click(screen.getByRole('button', { name: 'Ingresar mercadería' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Ingresar mercadería' }))
@@ -449,7 +450,7 @@ describe('StockPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click((await table()).getByRole('button', { name: 'Movimientos de Queso cremoso' }))
+    await user.click((await items()).getByRole('button', { name: 'Movimientos de Queso cremoso' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Movimientos' }))
     const list = within(await dialog.findByRole('list', { name: 'Movimientos de Queso cremoso' }))
     const entries = list.getAllByRole('listitem').map((entry) => entry.textContent)
@@ -459,7 +460,7 @@ describe('StockPage', () => {
     expect(entries[2]).toMatch(/^Stock inicial\+1 kg.*Queda: 1 kgProveedor eliminado$/)
 
     await user.click(dialog.getByRole('button', { name: 'Cerrar' }))
-    await user.click((await table()).getByRole('button', { name: 'Movimientos de Arroz' }))
+    await user.click((await items()).getByRole('button', { name: 'Movimientos de Arroz' }))
     expect(await screen.findByText('Todavía no hay movimientos')).toBeInTheDocument()
   })
 
@@ -471,10 +472,10 @@ describe('StockPage', () => {
     const api = fakeStockApi(DEMO, many)
     const user = userEvent.setup()
     renderPage()
-    await table()
+    await loaded()
 
     api.failNext({ status: 503, code: 'storage_unavailable', message: 'El almacenamiento no está disponible' })
-    await user.click((await table()).getByRole('button', { name: 'Movimientos de Arroz' }))
+    await user.click((await items()).getByRole('button', { name: 'Movimientos de Arroz' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Movimientos' }))
     expect(await dialog.findByText('No se pudieron cargar los movimientos')).toBeInTheDocument()
     await user.click(dialog.getByRole('button', { name: 'Reintentar' }))

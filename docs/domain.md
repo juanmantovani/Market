@@ -213,7 +213,7 @@ puede eliminar (`item_in_use`, `supplier_in_use`).
 
 - **Stock inicial** (`initial`): abre el stock de un artículo y solo se
   permite como su primer movimiento (`stock_already_initialized` si ya
-  tiene). Hoy lo usan los datos demo; todavía no hay pantalla para cargarlo.
+  tiene). Se carga con `POST /api/v1/stock/initial` (artículo y cantidad mayor a cero) y, en la pantalla de Artículos, con «Cargar stock inicial» para los artículos sin movimientos; también lo usan los datos demo.
 - **Ingreso de mercadería** (`POST /api/v1/stock/entries`): una o varias
   líneas (hasta 100), cada una con artículo, cantidad mayor a cero y costo
   unitario opcional; proveedor y comprobante opcionales. Un artículo no se
