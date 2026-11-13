@@ -70,6 +70,7 @@ export function useRegisterStockEntry() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.items.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
       ]),
   })
 }
@@ -79,7 +80,11 @@ export function useRegisterStockAdjustment() {
 
   return useMutation({
     mutationFn: (request: StockAdjustmentRequest) => createStockAdjustment(request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+      ]),
   })
 }
 
@@ -88,6 +93,10 @@ export function useRegisterStockInitial() {
 
   return useMutation({
     mutationFn: (request: StockInitialRequest) => createStockInitial(request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+      ]),
   })
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Page } from '../../shared/api/pagination'
+import { pageSchema, type Page } from '../../shared/api/pagination'
 import type { Unit } from '../../shared/lib/quantity'
 
 // What the counter needs to know about an item to sell it. The catalog
@@ -141,3 +141,79 @@ export type CreateSaleRequest = {
   payments: PaymentRequest[]
   expectedTotal: number
 }
+
+export const saleStatusSchema = z.enum(['completed', 'voided'])
+
+export type SaleStatus = z.infer<typeof saleStatusSchema>
+
+export const SALE_STATUS_LABELS: Record<SaleStatus, string> = {
+  completed: 'Completada',
+  voided: 'Anulada',
+}
+
+// Percent is in hundredths of a percent (10 % is 1000), amount in cents.
+export const discountSchema = z.object({
+  type: z.enum(['percent', 'amount']),
+  value: z.number().int(),
+})
+
+export type SaleDiscount = z.infer<typeof discountSchema>
+
+const saleLineRecordSchema = z.object({
+  itemId: z.string(),
+  code: z.string(),
+  name: z.string(),
+  unit: unitSchema,
+  quantity: z.number().int(),
+  unitPrice: z.number().int(),
+  discount: discountSchema.nullable(),
+  discountAmount: z.number().int(),
+  cartDiscountAmount: z.number().int(),
+  lineTotal: z.number().int(),
+})
+
+export type SaleLineRecord = z.infer<typeof saleLineRecordSchema>
+
+// A recorded sale as the history shows it: customer, seller and lines are
+// the copies taken when it was made.
+export const saleRecordSchema = z.object({
+  id: z.string().min(1),
+  number: z.number().int(),
+  status: saleStatusSchema,
+  customer: z.object({ id: z.string(), name: z.string() }),
+  seller: z.object({ id: z.string(), name: z.string(), code: z.string() }).nullable(),
+  lines: z.array(saleLineRecordSchema),
+  subtotal: z.number().int(),
+  cartDiscount: discountSchema.nullable(),
+  cartDiscountAmount: z.number().int(),
+  discountTotal: z.number().int(),
+  total: z.number().int(),
+  payments: z.array(
+    z.object({
+      method: paymentMethodSchema,
+      amount: z.number().int(),
+      reference: z.string().nullable(),
+    }),
+  ),
+  change: z.number().int(),
+  createdAt: z.string(),
+  voidedAt: z.string().nullable(),
+  voidReason: z.string().nullable(),
+})
+
+export type SaleRecord = z.infer<typeof saleRecordSchema>
+
+export const saleRecordPageSchema = pageSchema(saleRecordSchema)
+
+export type SaleStatusFilter = SaleStatus | ''
+
+export type SaleListParams = {
+  status: SaleStatusFilter
+  // Calendar days as typed in the date inputs ("2026-11-13"), or "".
+  from: string
+  to: string
+  page: number
+  limit: number
+}
+
+export const MAX_VOID_REASON_LENGTH = 200

@@ -26,11 +26,14 @@ const (
 	PermissionViewSales   Permission = "sales:view"
 	PermissionCreateSales Permission = "sales:create"
 	PermissionVoidSales   Permission = "sales:void"
+
+	PermissionViewDashboard Permission = "dashboard:view"
 )
 
 // rolePermissions is the only place that grants permissions. Anyone who
 // sells reads the catalog, checks the stock, picks the seller, registers
-// customers at the counter and looks up past sales; only managers maintain
+// customers at the counter, looks up past sales and sees the day's summary;
+// only managers maintain
 // the catalog and the sellers, edit or delete customers, deal with
 // suppliers, receive or adjust stock and void sales.
 var rolePermissions = map[Role][]Permission{
@@ -41,6 +44,7 @@ var rolePermissions = map[Role][]Permission{
 		PermissionViewSellers, PermissionManageSellers,
 		PermissionViewStock, PermissionManageStock,
 		PermissionViewSales, PermissionCreateSales, PermissionVoidSales,
+		PermissionViewDashboard,
 	},
 	RoleManager: {
 		PermissionViewCatalog, PermissionManageCatalog,
@@ -49,6 +53,7 @@ var rolePermissions = map[Role][]Permission{
 		PermissionViewSellers, PermissionManageSellers,
 		PermissionViewStock, PermissionManageStock,
 		PermissionViewSales, PermissionCreateSales, PermissionVoidSales,
+		PermissionViewDashboard,
 	},
 	RoleCashier: {
 		PermissionViewCatalog,
@@ -56,6 +61,7 @@ var rolePermissions = map[Role][]Permission{
 		PermissionViewSellers,
 		PermissionViewStock,
 		PermissionViewSales, PermissionCreateSales,
+		PermissionViewDashboard,
 	},
 }
 
