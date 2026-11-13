@@ -65,6 +65,7 @@ func ItemRepository(t *testing.T, newRepositories NewRepositories) {
 		item.Cost = &cost
 		item.Unit = domain.UnitKilogram
 		item.MinStock = 2500
+		item.Discontinued = true
 
 		created := mustCreateItem(t, items, item)
 		if created.ID == "" {
@@ -80,7 +81,7 @@ func ItemRepository(t *testing.T, newRepositories NewRepositories) {
 			got.Description == nil || *got.Description != "Con palo" ||
 			got.Cost == nil || *got.Cost != 60_000 ||
 			got.Unit != domain.UnitKilogram || got.SalePrice != 100_000 || got.TaxRate != 2100 ||
-			got.MinStock != 2500 || !got.CreatedAt.Equal(contractTime) {
+			got.MinStock != 2500 || !got.Discontinued || !got.CreatedAt.Equal(contractTime) {
 			t.Fatalf("Get() = %+v", got)
 		}
 	})
@@ -234,6 +235,30 @@ func ItemRepository(t *testing.T, newRepositories NewRepositories) {
 					t.Fatalf("List() = %v (total %d), want %v", itemNames(got.Items), got.Total, test.want)
 				}
 			})
+		}
+	})
+
+	t.Run("list leaves out the discontinued items unless asked", func(t *testing.T) {
+		items, almacen, _ := setup(t)
+		mustCreateItem(t, items, newItem(t, almacen.ID, "ACE-1", "Aceite"))
+		old := newItem(t, almacen.ID, "VIE-1", "Viejo")
+		old.Discontinued = true
+		mustCreateItem(t, items, old)
+		page := domain.PageRequest{Page: 1, Limit: 10}
+
+		for name, test := range map[string]struct {
+			filter gateway.ItemFilter
+			want   []string
+		}{
+			"by default":                {gateway.ItemFilter{Page: page}, []string{"Aceite"}},
+			"when included":             {gateway.ItemFilter{IncludeDiscontinued: true, Page: page}, []string{"Aceite", "Viejo"}},
+			"searching by it":           {gateway.ItemFilter{Search: "viejo", Page: page}, []string{}},
+			"included, searching by it": {gateway.ItemFilter{Search: "viejo", IncludeDiscontinued: true, Page: page}, []string{"Viejo"}},
+		} {
+			got, err := items.List(ctx, test.filter)
+			if err != nil || fmt.Sprint(itemNames(got.Items)) != fmt.Sprint(test.want) || got.Total != len(test.want) {
+				t.Fatalf("List(%s) = %v (total %d), %v; want %v", name, itemNames(got.Items), got.Total, err, test.want)
+			}
 		}
 	})
 

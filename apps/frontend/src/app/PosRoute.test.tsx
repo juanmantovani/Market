@@ -15,7 +15,7 @@ function json(body: unknown) {
 function item(id: string, code: string, name: string, categoryId: string, salePrice: number) {
   return {
     id, code, barcode: null, name, description: null, categoryId, supplierIds: [], unit: 'unit', salePrice,
-    cost: null, taxRate: 2100, minStock: 0, createdAt: NOW, updatedAt: NOW,
+    cost: null, taxRate: 2100, minStock: 0, discontinued: false, createdAt: NOW, updatedAt: NOW,
   }
 }
 

@@ -6,6 +6,10 @@ import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
 import type { Item, RenderStockActions, StockQuantities } from '../types'
 import { ItemStock } from './ItemStock'
 
+function DiscontinuedBadge() {
+  return <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">Discontinuado</span>
+}
+
 type ItemListProps = {
   items: readonly Item[]
   stock: StockQuantities
@@ -33,7 +37,12 @@ export function ItemList({ items, stock, renderStockActions, categoryName, isLoa
     {
       header: 'Nombre',
       className: 'w-full max-w-0',
-      cell: (item) => <span className="block truncate font-medium">{item.name}</span>,
+      cell: (item) => (
+        <span className="flex items-center gap-2 font-medium">
+          <span className="truncate">{item.name}</span>
+          {item.discontinued && <DiscontinuedBadge />}
+        </span>
+      ),
     },
     {
       header: 'Categoría',
@@ -82,7 +91,10 @@ export function ItemList({ items, stock, renderStockActions, categoryName, isLoa
         <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-1">
-              <span className="font-medium">{item.name}</span>
+              <span className="flex flex-wrap items-center gap-2 font-medium">
+                {item.name}
+                {item.discontinued && <DiscontinuedBadge />}
+              </span>
               <span className="text-sm text-muted-foreground">
                 <span className="font-mono text-xs">{item.code}</span> · {categoryName(item.categoryId)}
               </span>

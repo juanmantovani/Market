@@ -17,7 +17,7 @@ func NewListItemsHandler(listItems items.ListItems) *ListItemsHandler {
 	return &ListItemsHandler{listItems: listItems}
 }
 
-// Handle serves GET /api/v1/items?q=&categoryId=&lowStock=true&page=&limit=.
+// Handle serves GET /api/v1/items?q=&categoryId=&lowStock=true&includeDiscontinued=true&page=&limit=.
 func (handler *ListItemsHandler) Handle(w http.ResponseWriter, request *http.Request) error {
 	page, limit, err := pageQuery(request)
 	if err != nil {
@@ -26,12 +26,13 @@ func (handler *ListItemsHandler) Handle(w http.ResponseWriter, request *http.Req
 
 	query := request.URL.Query()
 	result, err := handler.listItems.Execute(request.Context(), items.ListItemsInput{
-		Actor:      actorFrom(request),
-		Search:     query.Get("q"),
-		CategoryID: query.Get("categoryId"),
-		LowStock:   query.Get("lowStock") == "true",
-		Page:       page,
-		Limit:      limit,
+		Actor:               actorFrom(request),
+		Search:              query.Get("q"),
+		CategoryID:          query.Get("categoryId"),
+		LowStock:            query.Get("lowStock") == "true",
+		IncludeDiscontinued: query.Get("includeDiscontinued") == "true",
+		Page:                page,
+		Limit:               limit,
 	})
 	if err != nil {
 		return err

@@ -9,12 +9,13 @@ import (
 )
 
 type ListItemsInput struct {
-	Actor      domain.Actor
-	Search     string
-	CategoryID string
-	LowStock   bool
-	Page       int
-	Limit      int
+	Actor               domain.Actor
+	Search              string
+	CategoryID          string
+	LowStock            bool
+	IncludeDiscontinued bool
+	Page                int
+	Limit               int
 }
 
 type ListItems interface {
@@ -40,10 +41,11 @@ func (useCase *listItems) Execute(ctx context.Context, input ListItemsInput) (do
 	}
 
 	result, err := useCase.repository.List(ctx, gateway.ItemFilter{
-		Search:     strings.TrimSpace(input.Search),
-		CategoryID: strings.TrimSpace(input.CategoryID),
-		LowStock:   input.LowStock,
-		Page:       page,
+		Search:              strings.TrimSpace(input.Search),
+		CategoryID:          strings.TrimSpace(input.CategoryID),
+		LowStock:            input.LowStock,
+		IncludeDiscontinued: input.IncludeDiscontinued,
+		Page:                page,
 	})
 	if err != nil {
 		return domain.Page[domain.Item]{}, domain.FromStorage(err)

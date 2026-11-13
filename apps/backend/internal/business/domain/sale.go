@@ -59,6 +59,7 @@ var (
 	ErrSaleItemRequired               = &Error{Kind: KindInvalid, Code: "sale_item_required", Message: "Elegir el artículo"}
 	ErrSaleItemRepeated               = &Error{Kind: KindInvalid, Code: "sale_item_repeated", Message: "Un artículo aparece en más de una línea: sumar las cantidades en una sola"}
 	ErrSaleItemNotFound               = &Error{Kind: KindInvalid, Code: "sale_item_not_found", Message: "Uno de los artículos de la venta ya no existe"}
+	ErrSaleItemDiscontinued           = &Error{Kind: KindConflict, Code: "sale_item_discontinued", Message: "Uno de los artículos de la venta está discontinuado y no se puede vender: quitarlo de la venta"}
 	ErrSaleQuantityInvalid            = &Error{Kind: KindInvalid, Code: "sale_quantity_invalid", Message: "La cantidad tiene que ser mayor a cero y de hasta un millón de unidades"}
 	ErrSaleQuantityNotWhole           = &Error{Kind: KindInvalid, Code: "sale_quantity_not_whole", Message: "El artículo se vende por unidad: la cantidad tiene que ser entera"}
 	ErrSaleCustomerNotFound           = &Error{Kind: KindInvalid, Code: "sale_customer_not_found", Message: "El cliente elegido no existe"}
@@ -338,6 +339,9 @@ func NewSale(request SaleRequest, customer Customer, seller *Seller, items map[s
 		item, ok := items[requested.ItemID]
 		if !ok {
 			return Sale{}, ErrSaleItemNotFound
+		}
+		if item.Discontinued {
+			return Sale{}, ErrSaleItemDiscontinued
 		}
 		line, err := newSaleLine(item, requested)
 		if err != nil {

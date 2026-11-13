@@ -34,6 +34,7 @@ export const itemSchema = z.object({
   cost: z.number().int().nullable(),
   taxRate: z.number().int(),
   minStock: z.number().int(),
+  discontinued: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -87,6 +88,7 @@ export const itemFormSchema = z
     minStock: z
       .string()
       .refine((value) => value.trim() === '' || parseQuantity(value, true) !== null, 'Ingresar una cantidad, por ejemplo 2,5'),
+    discontinued: z.boolean(),
   })
   // Runs once every field is valid on its own: the only rule left is the one
   // that depends on two fields.
@@ -110,6 +112,7 @@ export const itemFormSchema = z
       cost,
       taxRate: Number(values.taxRate),
       minStock,
+      discontinued: values.discontinued,
     }
   })
 
@@ -150,5 +153,6 @@ export function toFormValues(item: Item | null): ItemFormValues {
     cost: item ? centsToInput(item.cost) : '',
     taxRate: String(item?.taxRate ?? 2100),
     minStock: item ? formatQuantity(item.minStock) : '0',
+    discontinued: item?.discontinued ?? false,
   }
 }

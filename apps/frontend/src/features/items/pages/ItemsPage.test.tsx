@@ -34,6 +34,7 @@ function item(overrides: Partial<Item> & { name: string; code: string }): Omit<I
     cost: null,
     taxRate: 2100,
     minStock: 0,
+    discontinued: false,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -63,10 +64,12 @@ function fakeItemApi(initial: Array<ReturnType<typeof item>> = []) {
         const search = (url.searchParams.get('q') ?? '').toLowerCase()
         const categoryId = url.searchParams.get('categoryId') ?? ''
         const lowStock = url.searchParams.get('lowStock') === 'true'
+        const includeDiscontinued = url.searchParams.get('includeDiscontinued') === 'true'
         const page = Number(url.searchParams.get('page') ?? 1)
         const limit = Number(url.searchParams.get('limit') ?? 25)
         const matches = items
           .filter((entry) => !categoryId || entry.categoryId === categoryId)
+          .filter((entry) => includeDiscontinued || !entry.discontinued)
           .filter((entry) => !lowStock || entry.minStock > 0)
           .filter((entry) => `${entry.name} ${entry.code} ${entry.barcode ?? ''}`.toLowerCase().includes(search))
           .sort((a, b) => a.name.localeCompare(b.name))
@@ -336,6 +339,7 @@ describe('ItemsPage', () => {
           cost: 690_000,
           taxRate: 1050,
           minStock: 2500,
+          discontinued: false,
         },
       },
     ])
@@ -369,6 +373,38 @@ describe('ItemsPage', () => {
 
     await user.type(form.getByLabelText('Nombre'), 'A')
     expect(form.queryByText('El nombre es obligatorio')).not.toBeInTheDocument()
+  })
+
+  it('retires an item by marking it as discontinued', async () => {
+    const api = fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' })])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    expect(form.getByRole('checkbox', { name: /Discontinuado/ })).not.toBeChecked()
+    await user.click(form.getByRole('checkbox', { name: /Discontinuado/ }))
+    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(api.writes()).toHaveLength(1))
+    expect(api.writes()[0].body).toMatchObject({ discontinued: true })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar artículo' })).not.toBeInTheDocument())
+    expect(await screen.findByText('Todavía no hay artículos')).toBeInTheDocument()
+  })
+
+  it('leaves the discontinued items out until asked, and marks them when shown', async () => {
+    const api = fakeItemApi([
+      item({ name: 'Yerba', code: 'ALM-001' }),
+      item({ name: 'Arroz viejo', code: 'ALM-002', discontinued: true }),
+    ])
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Yerba'])
+    await user.click(screen.getByRole('checkbox', { name: 'Mostrar discontinuados' }))
+    await waitFor(async () => expect(rowTexts(await table()).map((row) => row[1])).toEqual(['Arroz viejoDiscontinuado', 'Yerba']))
+    expect(api.requests.at(-1)?.path).toContain('includeDiscontinued=true')
+    expect((await table()).getByText('Discontinuado')).toBeInTheDocument()
   })
 
   it('asks for a whole minimum stock for items sold by the piece', async () => {

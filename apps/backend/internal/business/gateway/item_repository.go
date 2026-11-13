@@ -13,7 +13,10 @@ type ItemFilter struct {
 	CategoryID string
 	// LowStock keeps only the items whose stock reached their minimum.
 	LowStock bool
-	Page     domain.PageRequest
+	// IncludeDiscontinued also lists the discontinued items, which are left
+	// out otherwise.
+	IncludeDiscontinued bool
+	Page                domain.PageRequest
 }
 
 // ItemRepository stores items. Every implementation must pass the contract

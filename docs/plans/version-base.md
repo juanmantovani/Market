@@ -198,7 +198,8 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 - Listados paginados: `?q=&page=&limit=` →
   `{ "items": [...], "total": 120, "page": 1, "limit": 25 }`; `limit` máximo 100.
 - `PATCH` parcial: un campo ausente no cambia.
-- ABM = alta, edición y eliminación (sin activar/desactivar). `DELETE`
+- ABM = alta, edición y eliminación (sin activar/desactivar; el artículo se
+  puede marcar `discontinued`, ver `docs/domain.md`). `DELETE`
   borra y responde `204`; si otro registro lo referencia, `409`
   `<entidad>_in_use`.
 - `POST /api/v1/sales` exige `Idempotency-Key`.
