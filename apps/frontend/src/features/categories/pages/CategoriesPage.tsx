@@ -170,7 +170,6 @@ export default function CategoriesPage() {
           initialValues={toFormValues(form.category)}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear categoría'}
           onSubmit={save}
-          onCancel={closeForm}
         />
       </FormDialog>
 

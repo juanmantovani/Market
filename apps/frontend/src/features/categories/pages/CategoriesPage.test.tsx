@@ -296,6 +296,101 @@ describe('CategoriesPage', () => {
     await waitFor(() => expect(deleteButton).toHaveFocus())
   })
 
+  it('closes the form with Escape without asking when nothing changed, even after typing and undoing', async () => {
+    const api = fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Bebidas' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar categoría' }))
+    await user.type(form.getByLabelText('Nombre'), 's')
+    await user.keyboard('{Backspace}')
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(api.writes()).toEqual([])
+  })
+
+  it('asks before discarding changes and keeps editing when told so', async () => {
+    const api = fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+    await table()
+
+    await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
+    await user.type(form.getByLabelText('Nombre'), 'Kiosco')
+    await user.keyboard('{Escape}')
+
+    const prompt = within(await screen.findByRole('alertdialog', { name: '¿Descartar los cambios?' }))
+    expect(prompt.getByText('Lo ingresado en el formulario se perderá.')).toBeInTheDocument()
+    await waitFor(() => expect(prompt.getByRole('button', { name: 'Seguir editando' })).toHaveFocus())
+    await user.click(prompt.getByRole('button', { name: 'Seguir editando' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: 'Nueva categoría' })).toBeInTheDocument()
+    expect(form.getByLabelText('Nombre')).toHaveValue('Kiosco')
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'Nueva categoría' }).contains(document.activeElement)).toBe(true),
+    )
+    expect(api.writes()).toEqual([])
+  })
+
+  it('discards the changes only after confirming, and the next form starts empty', async () => {
+    const api = fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+    await table()
+
+    await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
+    await user.type(form.getByLabelText('Nombre'), 'Kiosco')
+    await user.click(form.getByRole('button', { name: 'Cancelar' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Descartar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(api.writes()).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
+    expect(await screen.findByRole('dialog', { name: 'Nueva categoría' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByLabelText('Nombre')).toHaveValue('')
+  })
+
+  it.each([
+    ['the X button', async (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole('button', { name: 'Cerrar' }))],
+    ['a click outside', async (user: ReturnType<typeof userEvent.setup>) => user.click(document.body)],
+  ])('asks before discarding changes when closing with %s', async (_, close) => {
+    fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Bebidas' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar categoría' }))
+    await user.type(form.getByLabelText('Nombre'), ' frías')
+    await close(user)
+
+    expect(await screen.findByRole('alertdialog', { name: '¿Descartar los cambios?' })).toBeInTheDocument()
+    expect(form.getByLabelText('Nombre')).toHaveValue('Bebidas frías')
+  })
+
+  it('closes without asking once the form is saved', async () => {
+    fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Bebidas' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar categoría' }))
+    await user.type(form.getByLabelText('Nombre'), ' frías')
+    await user.click(form.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(await screen.findByText('Categoría actualizada')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
   it('deletes a category only after confirming', async () => {
     const api = fakeCategoryApi([{ name: 'Bebidas' }, { name: 'Kiosco' }])
     const user = userEvent.setup()

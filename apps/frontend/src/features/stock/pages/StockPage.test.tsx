@@ -297,7 +297,34 @@ describe('StockPage', () => {
     expect(await dialog.findByRole('alert')).toHaveTextContent('El almacenamiento no está disponible')
 
     await user.click(dialog.getByRole('button', { name: 'Cancelar' }))
+    await user.click(within(await screen.findByRole('alertdialog', { name: '¿Descartar los cambios?' })).getByRole('button', { name: 'Descartar' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustar stock' })).not.toBeInTheDocument())
+  })
+
+  it('asks before discarding a stock entry in progress', async () => {
+    const api = fakeStockApi()
+    const user = userEvent.setup()
+    renderPage()
+    await table()
+
+    await user.click(screen.getByRole('button', { name: 'Ingresar mercadería' }))
+    await screen.findByRole('dialog', { name: 'Ingresar mercadería' })
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ingresar mercadería' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Ingresar mercadería' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Ingresar mercadería' }))
+    await user.type(dialog.getByLabelText(/Comprobante/), 'R-0001')
+    await user.keyboard('{Escape}')
+    await user.click(within(await screen.findByRole('alertdialog', { name: '¿Descartar los cambios?' })).getByRole('button', { name: 'Seguir editando' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(dialog.getByLabelText(/Comprobante/)).toHaveValue('R-0001')
+
+    await user.click(dialog.getByRole('button', { name: 'Cancelar' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Descartar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ingresar mercadería' })).not.toBeInTheDocument())
+    expect(api.writes()).toEqual([])
   })
 
   it('registers a stock entry with several items, found by search or with a scanner', async () => {

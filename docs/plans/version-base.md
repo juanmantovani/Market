@@ -455,7 +455,8 @@ igual y cada ABM nuevo sale rápido:
   paginación.
 - Alta y edición en un modal (`FormDialog`), igual para todas las entidades,
   con validación inline con Zod y errores del backend asociados al campo
-  según su `code`.
+  según su `code`. Si hay cambios sin guardar, cerrar el modal pide
+  confirmación («¿Descartar los cambios?»).
 - Eliminación con `ConfirmDialog`: es definitiva, así que siempre se
   confirma.
 
