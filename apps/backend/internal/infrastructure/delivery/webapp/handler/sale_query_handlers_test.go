@@ -77,7 +77,7 @@ func TestGetSaleHandler(t *testing.T) {
 	recorder := serve(NewGetSaleHandler(getSale), request)
 
 	assertStatus(t, recorder, http.StatusOK)
-	if got := decodeBody[dto.SaleResponse](t, recorder); got.ID != "sale-1" || got.Total != 189_000 || len(got.Lines) != 1 {
+	if got := decodeBody[dto.SaleResponse](t, recorder); got.ID != "sale-1" || got.Total != 179_550 || len(got.Lines) != 1 {
 		t.Fatalf("body = %+v", got)
 	}
 

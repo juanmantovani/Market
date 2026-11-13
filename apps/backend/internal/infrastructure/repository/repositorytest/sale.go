@@ -35,8 +35,9 @@ func newSaleParties(t *testing.T, repositories Repositories) saleParties {
 	}
 }
 
-// newSale is a completed sale of 2 colas and 0,750 kg of bread with 10 %
-// off, paid by debit card and cash, made under key.
+// newSale is a completed sale of 2 colas with $ 200 off and 0,750 kg of
+// bread with 10 % off, plus a 10 % general discount, paid by debit card and
+// cash, made under key.
 func newSale(parties saleParties, key string) domain.Sale {
 	return domain.Sale{
 		Customer: domain.SaleCustomer{
@@ -45,17 +46,25 @@ func newSale(parties saleParties, key string) domain.Sale {
 		},
 		Seller: &domain.SaleSeller{ID: parties.seller.ID, Name: parties.seller.Name, Code: parties.seller.Code},
 		Lines: []domain.SaleLine{
-			{ItemID: parties.coca.ID, Code: "BEB-1", Name: "Gaseosa cola", Unit: domain.UnitPiece, TaxRate: 2100, Quantity: 2_000, UnitPrice: 100_000, LineTotal: 200_000},
-			{ItemID: parties.pan.ID, Code: "PAN-1", Name: "Pan francés", Unit: domain.UnitKilogram, TaxRate: 2100, Quantity: 750, UnitPrice: 100_000, DiscountPercent: 1_000, DiscountAmount: 7_500, LineTotal: 67_500},
+			{
+				ItemID: parties.coca.ID, Code: "BEB-1", Name: "Gaseosa cola", Unit: domain.UnitPiece, TaxRate: 2100, Quantity: 2_000, UnitPrice: 100_000,
+				Discount: &domain.Discount{Type: domain.DiscountAmount, Value: 20_000}, DiscountAmount: 20_000, CartDiscountAmount: 18_000, LineTotal: 162_000,
+			},
+			{
+				ItemID: parties.pan.ID, Code: "PAN-1", Name: "Pan francés", Unit: domain.UnitKilogram, TaxRate: 2100, Quantity: 750, UnitPrice: 100_000,
+				Discount: &domain.Discount{Type: domain.DiscountPercent, Value: 1_000}, DiscountAmount: 7_500, CartDiscountAmount: 6_750, LineTotal: 60_750,
+			},
 		},
-		Subtotal:      275_000,
-		DiscountTotal: 7_500,
-		Total:         267_500,
+		Subtotal:           275_000,
+		CartDiscount:       &domain.Discount{Type: domain.DiscountPercent, Value: 1_000},
+		CartDiscountAmount: 24_750,
+		DiscountTotal:      52_250,
+		Total:              222_750,
 		Payments: []domain.Payment{
 			{Method: domain.PaymentDebitCard, Amount: 200_000, Reference: text("Cupón 4471")},
 			{Method: domain.PaymentCash, Amount: 100_000},
 		},
-		Change:         32_500,
+		Change:         77_250,
 		Status:         domain.SaleCompleted,
 		ActorID:        "u-contract",
 		IdempotencyKey: key,
@@ -87,8 +96,8 @@ func describeSale(sale domain.Sale) string {
 	for _, payment := range sale.Payments {
 		fmt.Fprintf(&builder, " payment=%s:%d:%s", payment.Method, payment.Amount, valueOf(payment.Reference))
 	}
-	fmt.Fprintf(&builder, " subtotal=%d discount=%d total=%d change=%d by %s key=%s fingerprint=%s at %s",
-		sale.Subtotal, sale.DiscountTotal, sale.Total, sale.Change, sale.ActorID, sale.IdempotencyKey, sale.Fingerprint,
+	fmt.Fprintf(&builder, " subtotal=%d cart-discount=%s:%d discount=%d total=%d change=%d by %s key=%s fingerprint=%s at %s",
+		sale.Subtotal, sale.CartDiscount, sale.CartDiscountAmount, sale.DiscountTotal, sale.Total, sale.Change, sale.ActorID, sale.IdempotencyKey, sale.Fingerprint,
 		sale.CreatedAt.UTC().Format(time.RFC3339Nano))
 	if sale.VoidedAt != nil {
 		fmt.Fprintf(&builder, " voided at %s", sale.VoidedAt.UTC().Format(time.RFC3339Nano))
@@ -147,16 +156,19 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 		}
 	})
 
-	t.Run("a sale without seller", func(t *testing.T) {
+	t.Run("a sale without seller or discounts", func(t *testing.T) {
 		repositories := newRepositories(t)
 		sale := newSale(newSaleParties(t, repositories), "key-1")
-		sale.Seller = nil
+		sale.Seller, sale.CartDiscount = nil, nil
+		for i := range sale.Lines {
+			sale.Lines[i].Discount = nil
+		}
 
 		mustCreateSale(t, repositories.Sales, sale)
 
 		got, err := repositories.Sales.GetByIdempotencyKey(ctx, "key-1")
-		if err != nil || got.Seller != nil {
-			t.Fatalf("GetByIdempotencyKey() = %s, %v; want no seller", describeSale(got), err)
+		if err != nil || got.Seller != nil || got.CartDiscount != nil || got.Lines[0].Discount != nil || got.Lines[1].Discount != nil {
+			t.Fatalf("GetByIdempotencyKey() = %s, %v; want no seller and no discounts", describeSale(got), err)
 		}
 	})
 
@@ -338,8 +350,10 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 
 		created := mustCreateSale(t, repositories.Sales, sale)
 		sale.Lines[0].Quantity, *sale.Payments[0].Reference, sale.Seller.Name = 9, "changed", "changed"
+		sale.Lines[0].Discount.Value, sale.CartDiscount.Value = 1, 1
 		created.Lines[1].LineTotal, created.Payments[1].Amount, created.Seller.Code = 1, 1, "XX"
 		*created.Payments[0].Reference = "changed"
+		created.Lines[1].Discount.Value, created.CartDiscount.Type = 1, domain.DiscountAmount
 
 		got, _ := repositories.Sales.GetByIdempotencyKey(ctx, "key-1")
 		got.ID, got.Number = "", 0
