@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ListParams } from '../../../shared/api/pagination'
+import { listAllPages, type ListParams } from '../../../shared/api/pagination'
 import { queryKeys } from '../../../shared/api/query-keys'
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '../api/suppliers'
 import type { SupplierRequest } from '../types'
@@ -12,14 +12,16 @@ export function useSuppliers(params: ListParams) {
   })
 }
 
-// Enough for the item form to offer every supplier of a small business.
-const ALL_SUPPLIERS: ListParams = { search: '', page: 1, limit: 100 }
-
+// Every supplier, for the item form and stock entries, however many pages
+// it takes.
 export function useSupplierOptions() {
-  const query = useSuppliers(ALL_SUPPLIERS)
+  const query = useQuery({
+    queryKey: queryKeys.suppliers.options,
+    queryFn: ({ signal }) => listAllPages((page, limit) => listSuppliers({ search: '', page, limit }, signal)),
+  })
 
   return {
-    suppliers: (query.data?.items ?? []).map(({ id, businessName }) => ({ id, name: businessName })),
+    suppliers: (query.data ?? []).map(({ id, businessName }) => ({ id, name: businessName })),
   }
 }
 
