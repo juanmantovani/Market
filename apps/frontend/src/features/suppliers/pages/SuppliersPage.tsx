@@ -168,7 +168,6 @@ export default function SuppliersPage() {
           initialValues={toFormValues(form.supplier)}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear proveedor'}
           onSubmit={save}
-          onCancel={closeForm}
         />
       </FormDialog>
 

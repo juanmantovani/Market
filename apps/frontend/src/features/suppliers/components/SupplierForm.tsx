@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { ApiError, messageFromError } from '../../../shared/api/client'
+import { useFormDialog, useUnsavedChanges } from '../../../shared/hooks/use-form-dialog'
 import { Button } from '../../../shared/ui/button'
 import { Field, FieldError, FieldLabel } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
@@ -16,7 +17,6 @@ type SupplierFormProps = {
   initialValues: SupplierFormValues
   submitLabel: string
   onSubmit: (request: SupplierRequest) => Promise<unknown>
-  onCancel: () => void
 }
 
 type FieldErrors = Partial<Record<SupplierField, string>>
@@ -42,8 +42,10 @@ function errorProps(field: SupplierField, errors: FieldErrors) {
   }
 }
 
-export function SupplierForm({ initialValues, submitLabel, onSubmit, onCancel }: SupplierFormProps) {
+export function SupplierForm({ initialValues, submitLabel, onSubmit }: SupplierFormProps) {
   const [values, setValues] = useState(initialValues)
+  const { requestClose } = useFormDialog()
+  useUnsavedChanges(values)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -188,7 +190,7 @@ export function SupplierForm({ initialValues, submitLabel, onSubmit, onCancel }:
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={onCancel}>
+        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={requestClose}>
           Cancelar
         </Button>
         <Button type="submit" size="lg" className="h-11 md:h-9" disabled={isSubmitting}>

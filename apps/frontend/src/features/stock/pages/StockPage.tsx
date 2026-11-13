@@ -204,7 +204,7 @@ export default function StockPage({ categories, suppliers }: StockPageProps) {
         description={adjustment.level?.name}
       >
         {adjustment.level && (
-          <AdjustmentForm key={adjustment.formKey} level={adjustment.level} onSubmit={adjust} onCancel={closeAdjustment} />
+          <AdjustmentForm key={adjustment.formKey} level={adjustment.level} onSubmit={adjust} />
         )}
       </FormDialog>
 
@@ -216,7 +216,7 @@ export default function StockPage({ categories, suppliers }: StockPageProps) {
         size="wide"
         title="Ingresar mercadería"
       >
-        <EntryForm key={entry.formKey} suppliers={suppliers} onSubmit={receive} onCancel={closeEntry} />
+        <EntryForm key={entry.formKey} suppliers={suppliers} onSubmit={receive} />
       </FormDialog>
 
       <FormDialog

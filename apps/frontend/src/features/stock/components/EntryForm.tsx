@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { ApiError, messageFromError } from '../../../shared/api/client'
 import { unitShort } from '../../../shared/lib/quantity'
+import { useFormDialog, useUnsavedChanges } from '../../../shared/hooks/use-form-dialog'
 import { Button } from '../../../shared/ui/button'
 import { Field, FieldError, FieldLabel } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
@@ -20,15 +21,16 @@ import { ItemPicker } from './ItemPicker'
 type EntryFormProps = {
   suppliers: readonly SupplierOption[]
   onSubmit: (request: StockEntryRequest) => Promise<unknown>
-  onCancel: () => void
 }
 
 // Errors are keyed by their path in the form: "reference", "lines",
 // "lines.0.quantity"…
 type FieldErrors = Record<string, string | undefined>
 
-export function EntryForm({ suppliers, onSubmit, onCancel }: EntryFormProps) {
+export function EntryForm({ suppliers, onSubmit }: EntryFormProps) {
   const [values, setValues] = useState<EntryFormValues>({ supplierId: '', reference: '', lines: [emptyEntryLine(1)] })
+  const { requestClose } = useFormDialog()
+  useUnsavedChanges(values)
   const [nextKey, setNextKey] = useState(2)
   // The newest line's search takes the focus, so a scanner can go on reading
   // codes after "Agregar artículo".
@@ -252,7 +254,7 @@ export function EntryForm({ suppliers, onSubmit, onCancel }: EntryFormProps) {
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={onCancel}>
+        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={requestClose}>
           Cancelar
         </Button>
         <Button type="submit" size="lg" className="h-11 md:h-9" disabled={isSubmitting}>

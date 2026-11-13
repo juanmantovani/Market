@@ -214,7 +214,6 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers }: 
           suppliers={suppliers}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear artículo'}
           onSubmit={save}
-          onCancel={closeForm}
         />
       </FormDialog>
 

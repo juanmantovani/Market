@@ -226,7 +226,7 @@ apps/frontend/src/
 | `SearchField` | Búsqueda con ícono y botón para limpiar; el placeholder es el propio label (corto, para que entre en el celular) y debajo muestra por qué campos busca (`hint`). Se combina con `useDebouncedValue`. |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
-| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. |
+| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. Si el formulario tiene cambios sin guardar (`useUnsavedChanges(values)`), cerrarlo con Escape, la X, tocando afuera o «Cancelar» (`useFormDialog().requestClose`) pregunta «¿Descartar los cambios?»; cerrarlo desde la página después de guardar no pregunta. |
 | `NativeSelect` | `<select>` nativo con estilo: teclado, lector de pantalla y selector del celular funcionan sin más. |
 | `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`). |
 | `EmptyState` | Vacío, sin resultados o error, siempre con una salida. |
@@ -270,7 +270,8 @@ clientes, proveedores, vendedores).
 3. `hooks/`: `use<Entidades>` (listado) y las mutaciones que invalidan la
    clave de la entidad.
 4. `components/`: formulario (validación con Zod + errores del backend en el
-   campo correspondiente), listado sobre `ResponsiveList`.
+   campo correspondiente; llama a `useUnsavedChanges(values)` y su botón
+   «Cancelar» a `useFormDialog().requestClose`), listado sobre `ResponsiveList`.
 5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, listado,
    paginación, `FormDialog` para crear y editar, `ConfirmDialog` para
    eliminar, toasts).
