@@ -54,6 +54,7 @@ type Handlers struct {
 	ListStockMovements    *handler.ListStockMovementsHandler
 	CreateStockEntry      *handler.CreateStockEntryHandler
 	CreateStockAdjustment *handler.CreateStockAdjustmentHandler
+	CreateStockInitial    *handler.CreateStockInitialHandler
 
 	ListSales  *handler.ListSalesHandler
 	GetSale    *handler.GetSaleHandler
@@ -99,6 +100,7 @@ func RegisterRoutes(mux *http.ServeMux, handlers Handlers) {
 	mux.Handle("GET /api/v1/stock/movements", handler.Adapt(handlers.ListStockMovements, stockTimeout))
 	mux.Handle("POST /api/v1/stock/entries", handler.Adapt(handlers.CreateStockEntry, stockTimeout))
 	mux.Handle("POST /api/v1/stock/adjustments", handler.Adapt(handlers.CreateStockAdjustment, stockTimeout))
+	mux.Handle("POST /api/v1/stock/initial", handler.Adapt(handlers.CreateStockInitial, stockTimeout))
 
 	mux.Handle("GET /api/v1/sales", handler.Adapt(handlers.ListSales, salesTimeout))
 	mux.Handle("POST /api/v1/sales", handler.Adapt(handlers.CreateSale, salesTimeout))

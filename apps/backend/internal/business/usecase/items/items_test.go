@@ -105,7 +105,7 @@ func TestListItems(t *testing.T) {
 	repository := &gatewayfake.ItemRepository{ListResult: page}
 
 	got, err := NewListItems(repository).Execute(context.Background(), ListItemsInput{
-		Actor: cashier, Search: " yer ", CategoryID: " category-1 ", Page: 2, Limit: 10,
+		Actor: cashier, Search: " yer ", CategoryID: " category-1 ", LowStock: true, Page: 2, Limit: 10,
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
@@ -114,7 +114,7 @@ func TestListItems(t *testing.T) {
 	if got.Total != 1 {
 		t.Fatalf("page = %+v", got)
 	}
-	want := gateway.ItemFilter{Search: "yer", CategoryID: "category-1", Page: domain.PageRequest{Page: 2, Limit: 10}}
+	want := gateway.ItemFilter{Search: "yer", CategoryID: "category-1", LowStock: true, Page: domain.PageRequest{Page: 2, Limit: 10}}
 	if repository.ListFilters[0] != want {
 		t.Fatalf("filter = %+v, want %+v", repository.ListFilters[0], want)
 	}

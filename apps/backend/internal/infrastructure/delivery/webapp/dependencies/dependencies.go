@@ -181,6 +181,7 @@ func (container *Container) Handlers() route.Handlers {
 		ListStockMovements:    handler.NewListStockMovementsHandler(container.ListStockMovements),
 		CreateStockEntry:      handler.NewCreateStockEntryHandler(container.RegisterStockEntry),
 		CreateStockAdjustment: handler.NewCreateStockAdjustmentHandler(container.RegisterStockAdjustment),
+		CreateStockInitial:    handler.NewCreateStockInitialHandler(container.RegisterInitialStock),
 
 		ListSales:  handler.NewListSalesHandler(container.ListSales),
 		GetSale:    handler.NewGetSaleHandler(container.GetSale),
