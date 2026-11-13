@@ -146,3 +146,28 @@ func TestCustomerReplace(t *testing.T) {
 		t.Fatalf("Replace(invalid) error = %v", err)
 	}
 }
+
+func TestFinalConsumerIsASystemCustomer(t *testing.T) {
+	finalConsumer := FinalConsumer(customerTime)
+
+	if finalConsumer.ID != FinalConsumerID || finalConsumer.Name != "Consumidor Final" || !finalConsumer.System ||
+		finalConsumer.DocumentType != DocumentNone || finalConsumer.DocumentKey() != "" || finalConsumer.TaxCondition != TaxFinalConsumer ||
+		!finalConsumer.CreatedAt.Equal(customerTime) || !finalConsumer.UpdatedAt.Equal(customerTime) {
+		t.Fatalf("FinalConsumer() = %+v", finalConsumer)
+	}
+	if _, err := NewCustomer(finalConsumer.CustomerFields, customerTime); err != nil {
+		t.Fatalf("Consumidor Final has invalid fields: %v", err)
+	}
+
+	if !errors.Is(finalConsumer.EnsureChangeable(), ErrCustomerIsSystem) {
+		t.Fatal("EnsureChangeable() accepted the system customer")
+	}
+	if _, err := finalConsumer.Replace(validCustomerFields(), customerTime); !errors.Is(err, ErrCustomerIsSystem) {
+		t.Fatalf("Replace(system customer) error = %v, want ErrCustomerIsSystem", err)
+	}
+
+	customer, _ := NewCustomer(validCustomerFields(), customerTime)
+	if customer.System || customer.EnsureChangeable() != nil {
+		t.Fatalf("a new customer is a system one: %+v", customer)
+	}
+}

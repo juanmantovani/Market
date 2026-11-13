@@ -3,10 +3,12 @@ package dependencies
 import (
 	"fmt"
 
+	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/sales"
 	"market/backend/internal/business/usecase/sellers"
 	"market/backend/internal/business/usecase/stock"
 	"market/backend/internal/business/usecase/suppliers"
@@ -55,6 +57,11 @@ type Container struct {
 	RegisterStockEntry      stock.RegisterStockEntry
 	RegisterStockAdjustment stock.RegisterStockAdjustment
 	RegisterInitialStock    stock.RegisterInitialStock
+
+	CreateSale sales.CreateSale
+	ListSales  sales.ListSales
+	GetSale    sales.GetSale
+	VoidSale   sales.VoidSale
 }
 
 type repositories struct {
@@ -64,6 +71,7 @@ type repositories struct {
 	suppliers  gateway.SupplierRepository
 	sellers    gateway.SellerRepository
 	stock      gateway.StockRepository
+	sales      gateway.SaleRepository
 	tx         gateway.TxManager
 }
 
@@ -109,6 +117,11 @@ func New(cfg environments.Server) (*Container, error) {
 		RegisterStockEntry:      stock.NewRegisterStockEntry(repos.tx, repos.stock, repos.items, repos.suppliers),
 		RegisterStockAdjustment: stock.NewRegisterStockAdjustment(repos.tx, repos.stock, repos.items),
 		RegisterInitialStock:    stock.NewRegisterInitialStock(repos.tx, repos.stock, repos.items),
+
+		CreateSale: sales.NewCreateSale(repos.tx, repos.sales, repos.items, repos.customers, repos.sellers, repos.stock, domain.StockPolicy{AllowNegative: cfg.StockAllowNegative}),
+		ListSales:  sales.NewListSales(repos.sales),
+		GetSale:    sales.NewGetSale(repos.sales),
+		VoidSale:   sales.NewVoidSale(repos.tx, repos.sales, repos.stock),
 	}, nil
 }
 
@@ -123,6 +136,7 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 			suppliers:  memory.NewSupplierRepository(store),
 			sellers:    memory.NewSellerRepository(store),
 			stock:      memory.NewStockRepository(store),
+			sales:      memory.NewSaleRepository(store),
 			tx:         store,
 		}, nil
 	default:
@@ -167,5 +181,10 @@ func (container *Container) Handlers() route.Handlers {
 		ListStockMovements:    handler.NewListStockMovementsHandler(container.ListStockMovements),
 		CreateStockEntry:      handler.NewCreateStockEntryHandler(container.RegisterStockEntry),
 		CreateStockAdjustment: handler.NewCreateStockAdjustmentHandler(container.RegisterStockAdjustment),
+
+		ListSales:  handler.NewListSalesHandler(container.ListSales),
+		GetSale:    handler.NewGetSaleHandler(container.GetSale),
+		CreateSale: handler.NewCreateSaleHandler(container.CreateSale),
+		VoidSale:   handler.NewVoidSaleHandler(container.VoidSale),
 	}
 }

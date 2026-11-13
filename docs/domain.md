@@ -118,15 +118,23 @@ Permisos: `customers:view` para listar y consultar, `customers:create` para
 dar de alta (el cajero también, para cargar un cliente durante una venta) y
 `customers:manage` para editar y eliminar.
 
-El cliente de sistema **Consumidor Final** que propone el plan llega con
-ventas (Fase 4), que es quien lo usa.
+**Consumidor Final** es un cliente de sistema: existe desde que arranca el
+almacenamiento (también sin datos demo), siempre con el mismo ID
+(`00000000-0000-7000-8000-000000000001`, `domain.FinalConsumerID`), sin
+documento y como consumidor final. Aparece en el listado con
+`"system": true` y no se edita ni se elimina (`customer_is_system`, `409`).
+Una venta sin cliente se le hace a él.
+
+Eliminar un cliente con ventas falla con `customer_in_use` (`409`): la venta
+guarda una copia de sus datos, pero sigue apuntando a él.
 
 Códigos de error: `customer_not_found`, `customer_name_required`,
 `customer_name_too_long`, `customer_document_type_invalid`,
 `customer_document_invalid`, `customer_document_in_use`,
 `customer_tax_condition_invalid`, `customer_tax_condition_requires_cuit`,
 `customer_email_invalid`, `customer_phone_too_long`,
-`customer_address_too_long`, `customer_notes_too_long`.
+`customer_address_too_long`, `customer_notes_too_long`,
+`customer_is_system`, `customer_in_use`.
 
 ## Proveedores
 
@@ -174,12 +182,12 @@ o código.
 
 Permisos: `sellers:view` para listar y consultar (también el cajero, que
 elige el vendedor al cobrar) y `sellers:manage` para crear, editar y
-eliminar. Cuando existan ventas (Fase 4), eliminar un vendedor que tenga
-ventas fallará con `seller_in_use`.
+eliminar. Eliminar un vendedor que tenga ventas falla con `seller_in_use`
+(`409`).
 
 Códigos de error: `seller_not_found`, `seller_name_required`,
 `seller_name_too_long`, `seller_code_required`, `seller_code_invalid`,
-`seller_code_in_use`, `seller_commission_invalid`.
+`seller_code_in_use`, `seller_commission_invalid`, `seller_in_use`.
 
 ## Stock
 
@@ -189,11 +197,11 @@ cuánto hay y **solo cambia mediante un movimiento** (`StockMovement`); no hay
 
 | Campo del movimiento | Regla |
 | --- | --- |
-| `type` | `initial` (stock inicial), `entry` (ingreso de mercadería), `adjustment` (ajuste), `sale` y `sale_void` (llegan con ventas, Fase 4). |
+| `type` | `initial` (stock inicial), `entry` (ingreso de mercadería), `adjustment` (ajuste), `sale` (venta) y `sale_void` (anulación de una venta). |
 | `quantity` | Milésimas de la unidad, con signo: positiva si entra, negativa si sale. Entera si el artículo se vende por unidad. Hasta un millón de unidades por movimiento. |
 | `balanceAfter` | Existencia que deja el movimiento. La existencia no pasa de mil millones de unidades (ni baja de menos mil millones). |
 | `reason` | Motivo, obligatorio en los ajustes, hasta 200 caracteres. |
-| `reference` | Comprobante opcional del ingreso (remito o factura), hasta 60 caracteres. |
+| `reference` | Comprobante opcional del ingreso (remito o factura), hasta 60 caracteres. En una venta y en su anulación, `Venta <número>`. |
 | `supplierId` / `unitCost` | Opcionales, solo en ingresos. |
 | `actorId` / `createdAt` | Quién y cuándo (UTC). |
 
@@ -238,6 +246,89 @@ Códigos de error: `stock_item_required`, `stock_item_not_found`,
 `stock_movement_type_invalid`, `stock_already_initialized`,
 `insufficient_stock`.
 
+## Ventas
+
+Una venta (`Sale`) es un comprobante confirmado (no fiscal). **Nunca se edita
+ni se borra.** El carrito vive en el frontend; el backend recibe la venta
+completa y la registra o la rechaza entera.
+
+**Alta** (`POST /api/v1/sales`, header `Idempotency-Key` obligatorio):
+
+| Campo del pedido | Regla |
+| --- | --- |
+| `customerId` | Opcional. Sin cliente, la venta se le hace a Consumidor Final. Tiene que existir (`sale_customer_not_found`). |
+| `sellerId` | Opcional: una venta puede no tener vendedor. Si viene, tiene que existir (`sale_seller_not_found`). |
+| `lines` | De 1 a 100 líneas, una por artículo (`sale_item_repeated` si se repite). |
+| `lines[].quantity` | Milésimas, mayor a cero y hasta un millón de unidades; entera si el artículo se vende por unidad (`sale_quantity_not_whole`). |
+| `lines[].discountPercent` | Centésimas de punto, de 0 a 100 %. El “descuento general” de la pantalla es el mismo porcentaje en todas las líneas. |
+| `payments` | Hasta 10 pagos: `method` (`cash`, `debit_card`, `credit_card`, `transfer`, `qr`), `amount` en centavos mayor a cero y `reference` opcional (cupón, número de transferencia), hasta 60 caracteres. |
+| `expectedTotal` | El total que vio el cajero, en centavos. |
+
+Reglas (`domain.NewSale`):
+
+- **El backend recalcula todo** con el precio actual de cada artículo. Si el
+  total no coincide con `expectedTotal`, falla con `sale_total_mismatch`
+  (`409`): el cajero nunca cobra un importe distinto del que vio.
+- **Importe de línea**: precio × cantidad ÷ 1000 redondeado al centavo; el
+  descuento es ese importe × porcentaje, redondeado al centavo; la línea
+  vale la diferencia. El redondeo es *half away from zero*. `subtotal` suma
+  los importes sin descuento, `discountTotal` los descuentos y `total` las
+  líneas, así que el ticket siempre suma exacto.
+- **Copia de datos**: cada línea guarda código, nombre, unidad, alícuota y
+  precio del artículo; la venta guarda nombre, documento y condición frente
+  al IVA del cliente, y nombre y código del vendedor. Editarlos después no
+  cambia ventas pasadas.
+- **Pagos**: la suma tiene que cubrir el total (`sale_payment_insufficient`);
+  los medios que no son efectivo no pueden superarlo
+  (`sale_non_cash_payment_exceeds_total`); lo que el efectivo pague de más
+  es el vuelto (`change`). Una venta de total cero no necesita pagos.
+- **Stock**: cada línea registra un movimiento `sale` con la referencia
+  `Venta <número>`. Con `STOCK_ALLOW_NEGATIVE=false` (por defecto), una línea
+  que el stock no cubre falla con `insufficient_stock` (`409`) nombrando el
+  artículo; con `true`, la existencia queda negativa.
+- **Atomicidad**: dentro de un `TxManager.WithinTx` se busca la clave de
+  idempotencia, se leen cliente, vendedor y artículos, el dominio calcula la
+  venta, el repositorio la guarda (le asigna el ID y el `number`
+  correlativo) y se registran los movimientos. Si algo falla, no queda nada.
+- **Idempotencia**: la venta guarda su clave y una huella (`SHA-256`) del
+  pedido. La misma clave con el mismo pedido devuelve la venta original sin
+  registrar nada; con otro pedido, `idempotency_key_conflict` (`409`).
+
+**Listado** (`GET /api/v1/sales?from=&to=&customerId=&sellerId=&status=&page=&limit=`):
+de la más nueva a la más vieja (por `number`). `from` y `to` son instantes
+RFC 3339 (`2026-11-12T00:00:00-03:00`): el frontend sabe en qué zona horaria
+está el comercio y arma el día; `from` se incluye y `to` no. Una fecha mal
+escrita es `sale_date_invalid` y un `from` que no es anterior a `to`,
+`sale_date_range_invalid`. `status` es `completed` o `voided`.
+
+**Detalle** (`GET /api/v1/sales/{id}`): la venta completa, con sus líneas,
+pagos y, si está anulada, `voidedAt`, `voidReason` y `voidedBy` (en una venta
+completada son `null`).
+
+**Anulación** (`POST /api/v1/sales/{id}/void`, cuerpo `{ "reason": "…" }`):
+solo una venta `completed` (`sale_already_voided`, `409`, si ya está
+anulada) y con motivo obligatorio de hasta 200 caracteres. Pasa a `voided`
+y, en el mismo `WithinTx`, cada línea registra un movimiento `sale_void` que
+devuelve su cantidad al stock (la referencia es la misma, `Venta <número>`).
+La venta y sus movimientos originales no se tocan: la anulación los
+compensa.
+
+Permisos: `sales:view` para listar y ver el detalle y `sales:create` para
+vender (todos los roles); `sales:void` para anular (solo `admin` y
+`manager`).
+
+Códigos de error: `sale_not_found`, `idempotency_key_required`,
+`idempotency_key_invalid`, `idempotency_key_conflict`, `sale_lines_required`,
+`sale_too_many_lines`, `sale_item_required`, `sale_item_repeated`,
+`sale_item_not_found`, `sale_quantity_invalid`, `sale_quantity_not_whole`,
+`sale_discount_invalid`, `sale_customer_not_found`, `sale_seller_not_found`,
+`sale_total_mismatch`, `sale_too_many_payments`, `payment_method_invalid`,
+`payment_amount_invalid`, `payment_reference_too_long`,
+`sale_payment_insufficient`, `sale_non_cash_payment_exceeds_total`,
+`amount_out_of_range`, `insufficient_stock`, `sale_already_voided`,
+`sale_void_reason_required`, `sale_void_reason_too_long`,
+`sale_status_invalid`, `sale_date_invalid`, `sale_date_range_invalid`.
+
 ## Actor, roles y permisos
 
 Toda operación la ejecuta un `Actor` (`ID`, `Name`, `Role`). Roles:
@@ -261,6 +352,9 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | `sellers:manage` — crear, editar y eliminar vendedores | ✅ | ✅ | — |
 | `stock:view` — ver existencias y movimientos | ✅ | ✅ | ✅ |
 | `stock:manage` — registrar ingresos de mercadería y ajustes | ✅ | ✅ | — |
+| `sales:view` — ver ventas | ✅ | ✅ | ✅ |
+| `sales:create` — vender | ✅ | ✅ | ✅ |
+| `sales:void` — anular ventas | ✅ | ✅ | — |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

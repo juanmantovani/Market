@@ -46,9 +46,31 @@ var (
 	ErrCustomerPhoneTooLong             = &Error{Kind: KindInvalid, Code: "customer_phone_too_long", Message: "El teléfono admite hasta 30 caracteres"}
 	ErrCustomerAddressTooLong           = &Error{Kind: KindInvalid, Code: "customer_address_too_long", Message: "La dirección admite hasta 200 caracteres"}
 	ErrCustomerNotesTooLong             = &Error{Kind: KindInvalid, Code: "customer_notes_too_long", Message: "Las notas admiten hasta 500 caracteres"}
+	ErrCustomerIsSystem                 = &Error{Kind: KindConflict, Code: "customer_is_system", Message: "Consumidor Final es un cliente del sistema: no se puede editar ni eliminar"}
+	ErrCustomerInUse                    = &Error{Kind: KindConflict, Code: "customer_in_use", Message: "El cliente tiene ventas registradas y no se puede eliminar"}
 	documentSeparators                  = strings.NewReplacer(" ", "", ".", "", "-", "", "/", "")
 	digitsOnly                          = regexp.MustCompile(`^[0-9]+$`)
 )
+
+// FinalConsumerID identifies Consumidor Final, the system customer every
+// storage starts with. A sale without customer is made to it.
+const FinalConsumerID = "00000000-0000-7000-8000-000000000001"
+
+// FinalConsumer is the system customer as storage creates it: an adapter
+// stores it when it starts empty (in PostgreSQL, a migration inserts it).
+func FinalConsumer(createdAt time.Time) Customer {
+	return Customer{
+		ID: FinalConsumerID,
+		CustomerFields: CustomerFields{
+			Name:         "Consumidor Final",
+			DocumentType: DocumentNone,
+			TaxCondition: TaxFinalConsumer,
+		},
+		System:    true,
+		CreatedAt: createdAt,
+		UpdatedAt: createdAt,
+	}
+}
 
 // CustomerFields are the editable fields of a customer. Creating and editing
 // both take the whole set, so an optional field is cleared by leaving it
@@ -67,6 +89,8 @@ type CustomerFields struct {
 type Customer struct {
 	ID string
 	CustomerFields
+	// System marks Consumidor Final, which can't be edited or deleted.
+	System    bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -84,6 +108,9 @@ func NewCustomer(fields CustomerFields, now time.Time) (Customer, error) {
 
 // Replace returns the customer with all its editable fields replaced.
 func (customer Customer) Replace(fields CustomerFields, now time.Time) (Customer, error) {
+	if err := customer.EnsureChangeable(); err != nil {
+		return Customer{}, err
+	}
 	valid, err := validateCustomerFields(fields)
 	if err != nil {
 		return Customer{}, err
@@ -94,6 +121,16 @@ func (customer Customer) Replace(fields CustomerFields, now time.Time) (Customer
 	updated.UpdatedAt = now
 
 	return updated, nil
+}
+
+// EnsureChangeable fails for the system customer, which is neither edited
+// nor deleted.
+func (customer Customer) EnsureChangeable() error {
+	if customer.System {
+		return ErrCustomerIsSystem
+	}
+
+	return nil
 }
 
 // DocumentKey identifies the customer's document for duplicate checks. It is

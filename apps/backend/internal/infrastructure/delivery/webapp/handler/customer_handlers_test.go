@@ -167,3 +167,19 @@ func TestCustomerHandlersPassErrorsThrough(t *testing.T) {
 	assertStatus(t, serve(NewUpdateCustomerHandler(useCaseFunc[customers.UpdateCustomerInput, domain.Customer](forbidden)), categoryRequest(http.MethodPut, "/api/v1/customers/cu1", strings.NewReader(customerBody))), http.StatusForbidden)
 	assertStatus(t, serve(NewListCustomersHandler(useCaseFunc[customers.ListCustomersInput, domain.Page[domain.Customer]](down)), categoryRequest(http.MethodGet, "/api/v1/customers", nil)), http.StatusServiceUnavailable)
 }
+
+func TestCustomerHandlersMarkTheSystemCustomer(t *testing.T) {
+	getCustomer := useCaseFunc[customers.GetCustomerInput, domain.Customer](
+		func(context.Context, customers.GetCustomerInput) (domain.Customer, error) {
+			return domain.FinalConsumer(handlerTime), nil
+		})
+
+	request := categoryRequest(http.MethodGet, "/api/v1/customers/"+domain.FinalConsumerID, nil)
+	request.SetPathValue("id", domain.FinalConsumerID)
+	recorder := serve(NewGetCustomerHandler(getCustomer), request)
+
+	assertStatus(t, recorder, http.StatusOK)
+	if got := decodeBody[dto.CustomerResponse](t, recorder); !got.System || got.Name != "Consumidor Final" || got.ID != domain.FinalConsumerID {
+		t.Fatalf("body = %+v", got)
+	}
+}
