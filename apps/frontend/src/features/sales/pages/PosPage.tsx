@@ -11,16 +11,21 @@ import { CartSheet } from '../components/CartSheet'
 import { CatalogGrid } from '../components/CatalogGrid'
 import { CategoryFilter } from '../components/CategoryFilter'
 import { CheckoutDialog } from '../components/CheckoutDialog'
+import { CustomerPicker, SellerPicker } from '../components/PartyPickers'
 import { QuantityDialog } from '../components/QuantityDialog'
+import { SaleParties } from '../components/SaleParties'
 import { useCart } from '../hooks/use-cart'
+import { useSeller } from '../hooks/use-seller'
 import { CATALOG_LIMIT, useCatalog, useCodeLookup } from '../hooks/use-catalog'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { addItem, cartTotal } from '../lib/cart'
-import type { CatalogItem, CategoryOption, SearchCatalog } from '../types'
+import type { CatalogItem, CategoryOption, SearchCatalog, SearchCustomers, SearchSellers } from '../types'
 
 type PosPageProps = {
   categories: CategoryOption[]
   searchCatalog: SearchCatalog
+  searchCustomers: SearchCustomers
+  searchSellers: SearchSellers
 }
 
 // Phones and tablets type with an on-screen keyboard: focusing the search
@@ -29,8 +34,10 @@ function hasFinePointer() {
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches
 }
 
-export default function PosPage({ categories, searchCatalog }: PosPageProps) {
+export default function PosPage({ categories, searchCatalog, searchCustomers, searchSellers }: PosPageProps) {
   const cart = useCart()
+  const [seller, setSeller] = useSeller()
+  const [picker, setPicker] = useState<'customer' | 'seller' | null>(null)
   const toast = useToast()
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -51,8 +58,14 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
       searchRef.current?.focus()
       searchRef.current?.select()
     },
+    F4: () => {
+      if (!checkoutOpen) setPicker('seller')
+    },
+    F6: () => {
+      if (!checkoutOpen) setPicker('customer')
+    },
     F9: () => {
-      if (!checkoutOpen) startCheckout()
+      if (!checkoutOpen && picker === null) startCheckout()
     },
   })
 
@@ -127,7 +140,7 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
 
   function clear() {
     const cleared = cart.clear()
-    if (cleared.length > 0) toast.undoable('Se vació la venta', () => cart.restoreAll(cleared))
+    if (cleared.lines.length > 0 || cleared.customer) toast.undoable('Se vació la venta', () => cart.restoreAll(cleared))
   }
 
   function startCheckout() {
@@ -151,6 +164,14 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
       onQuantityChange={cart.setQuantity}
       onRemove={remove}
       onClear={clear}
+      parties={
+        <SaleParties
+          customer={cart.customer}
+          seller={seller}
+          onChooseCustomer={() => setPicker('customer')}
+          onChooseSeller={() => setPicker('seller')}
+        />
+      }
       headerAction={headerAction}
       className={className}
     >
@@ -210,7 +231,11 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
         open={checkoutOpen}
         lines={cart.lines}
         total={cart.total}
+        customerId={cart.customer?.id ?? null}
+        sellerId={seller?.id ?? null}
         onSold={() => {
+          // The next sale starts empty and for Consumidor Final; the seller
+          // stays.
           cart.clear()
           setNotice(null)
         }}
@@ -219,6 +244,15 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
           if (hasFinePointer()) focusSearch()
         }}
       />
+
+      <CustomerPicker
+        open={picker === 'customer'}
+        onClose={() => setPicker(null)}
+        search={searchCustomers}
+        current={cart.customer}
+        onPick={cart.setCustomer}
+      />
+      <SellerPicker open={picker === 'seller'} onClose={() => setPicker(null)} search={searchSellers} current={seller} onPick={setSeller} />
 
       <QuantityDialog
         open={weighOpen}

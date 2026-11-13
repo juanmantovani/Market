@@ -12,6 +12,8 @@ type CartPanelProps = {
   onQuantityChange: (itemId: string, quantity: number) => void
   onRemove: (itemId: string) => void
   onClear: () => void
+  // Who the sale is for and who attends it, above the lines.
+  parties?: ReactNode
   // Extra controls for the header, such as the close button of the sheet.
   headerAction?: ReactNode
   // What goes under the total.
@@ -19,7 +21,7 @@ type CartPanelProps = {
   className?: string
 }
 
-export function CartPanel({ lines, total, onQuantityChange, onRemove, onClear, headerAction, children, className }: CartPanelProps) {
+export function CartPanel({ lines, total, onQuantityChange, onRemove, onClear, parties, headerAction, children, className }: CartPanelProps) {
   const titleId = useId()
 
   return (
@@ -37,6 +39,8 @@ export function CartPanel({ lines, total, onQuantityChange, onRemove, onClear, h
           {headerAction}
         </div>
       </header>
+
+      {parties}
 
       {lines.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">

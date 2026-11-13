@@ -27,12 +27,15 @@ type CheckoutDialogProps = {
   open: boolean
   lines: CartLine[]
   total: number
+  // null sells to Consumidor Final and without seller.
+  customerId: string | null
+  sellerId: string | null
   // Called once the sale is recorded, so the cart can start empty.
   onSold: (sale: Sale) => void
   onClose: () => void
 }
 
-export function CheckoutDialog({ open, lines, total, onSold, onClose }: CheckoutDialogProps) {
+export function CheckoutDialog({ open, lines, total, customerId, sellerId, onSold, onClose }: CheckoutDialogProps) {
   const create = useCreateSale()
   const [sale, setSale] = useState<Sale | null>(null)
   // The key is reused while the same sale is retried after a failure, and
@@ -47,8 +50,8 @@ export function CheckoutDialog({ open, lines, total, onSold, onClose }: Checkout
 
   function submit(payments: PaymentRequest[]) {
     const request = {
-      customerId: null,
-      sellerId: null,
+      customerId,
+      sellerId,
       lines: lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
       payments,
       expectedTotal: total,

@@ -17,9 +17,10 @@ type SearchFieldProps = {
   // focuses the field and Enter acts on what was typed.
   inputRef?: Ref<HTMLInputElement>
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>
+  autoFocus?: boolean
 }
 
-export function SearchField({ label, value, onChange, hint, className, inputRef, onKeyDown }: SearchFieldProps) {
+export function SearchField({ label, value, onChange, hint, className, inputRef, onKeyDown, autoFocus }: SearchFieldProps) {
   const hintId = useId()
 
   return (
@@ -32,6 +33,7 @@ export function SearchField({ label, value, onChange, hint, className, inputRef,
         <Input
           ref={inputRef}
           onKeyDown={onKeyDown}
+          autoFocus={autoFocus}
           type="search"
           aria-label={label}
           aria-describedby={hintId}
