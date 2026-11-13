@@ -21,6 +21,7 @@ export function useVoidSale() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.sales.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.items.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.stock.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
     },
   })
 }

@@ -3,6 +3,7 @@ import AppLayout from './AppLayout'
 import {
   CategoriesPage,
   CustomersPage,
+  DashboardPage,
   ItemsRoute,
   NotFoundPage,
   PosRoute,
@@ -25,6 +26,7 @@ export const routes: RouteObject[] = [
       { path: 'clientes', element: <CustomersPage />, handle: title('Clientes') },
       { path: 'proveedores', element: <SuppliersPage />, handle: title('Proveedores') },
       { path: 'vendedores', element: <SellersPage />, handle: title('Vendedores') },
+      { path: 'resumen', element: <DashboardPage />, handle: title('Resumen') },
       { path: '*', element: <NotFoundPage />, handle: title('Página no encontrada') },
     ],
   },

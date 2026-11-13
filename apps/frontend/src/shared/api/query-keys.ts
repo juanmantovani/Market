@@ -27,6 +27,10 @@ export const queryKeys = {
     all: ['sales'] as const,
     list: (params: { status: string; from: string; to: string; page: number; limit: number }) => ['sales', 'list', params] as const,
   },
+  dashboard: {
+    all: ['dashboard'] as const,
+    summary: (from: string, to: string) => ['dashboard', 'summary', from, to] as const,
+  },
   stock: {
     all: ['stock'] as const,
     levels: (params: ListParams) => ['stock', 'levels', params] as const,
