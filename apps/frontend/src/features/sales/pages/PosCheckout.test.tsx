@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatMoney } from '../../../shared/lib/money'
 import { renderWithProviders } from '../../../test/render'
-import type { CatalogItem, CreateSaleRequest } from '../types'
+import type { CatalogItem, CreateSaleRequest, CustomerOption, SellerOption } from '../types'
 import PosPage from './PosPage'
 
 const ITEMS: CatalogItem[] = [
@@ -56,10 +56,21 @@ function fakeSalesApi() {
 
 type User = ReturnType<typeof userEvent.setup>
 
+const CUSTOMERS: CustomerOption[] = [
+  { id: 'ana', name: 'Ana Pérez', documentType: 'dni', documentNumber: '28456789', system: false },
+  { id: 'final', name: 'Consumidor Final', documentType: 'none', documentNumber: '', system: true },
+]
+
+const SELLERS: SellerOption[] = [{ id: 'jp', name: 'Juan Pérez', code: 'JP' }]
+
 function renderPos(): User {
   const user = userEvent.setup()
   const searchCatalog = vi.fn(async () => ({ items: ITEMS, total: ITEMS.length, page: 1, limit: 24 }))
-  renderWithProviders(<PosPage categories={[]} searchCatalog={searchCatalog} />)
+  const searchCustomers = vi.fn(async () => ({ items: CUSTOMERS, total: CUSTOMERS.length, page: 1, limit: 20 }))
+  const searchSellers = vi.fn(async () => ({ items: SELLERS, total: SELLERS.length, page: 1, limit: 20 }))
+  renderWithProviders(
+    <PosPage categories={[]} searchCatalog={searchCatalog} searchCustomers={searchCustomers} searchSellers={searchSellers} />,
+  )
   return user
 }
 
@@ -111,6 +122,32 @@ describe('PosPage checkout', () => {
 
     await user.click(screen.getByRole('button', { name: 'Nueva venta' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('sells to the chosen customer and seller, then starts the next sale for Consumidor Final with the same seller', async () => {
+    const api = fakeSalesApi()
+    const user = renderPos()
+    await addCola(user)
+    const sale = () => within(screen.getByRole('region', { name: 'Venta actual' }))
+
+    await user.keyboard('{F6}')
+    await user.click(await within(await screen.findByRole('dialog', { name: 'Elegir cliente' })).findByRole('button', { name: /Ana Pérez/ }))
+    await user.keyboard('{F4}')
+    await user.type(await screen.findByRole('searchbox', { name: 'Buscar vendedor' }), 'jp{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await user.keyboard('{F9}')
+    await screen.findByRole('dialog', { name: 'Cobrar' })
+    await user.keyboard('{F4}{F6}')
+    expect(screen.queryByRole('dialog', { name: /Elegir/ })).not.toBeInTheDocument()
+    await user.click(checkout().getByRole('button', { name: 'Confirmar venta' }))
+
+    await screen.findByRole('dialog', { name: 'Venta registrada' })
+    expect(api.requests[0].body).toMatchObject({ customerId: 'ana', sellerId: 'jp' })
+    await user.click(screen.getByRole('button', { name: 'Nueva venta' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(sale().getByRole('button', { name: /^Cliente: Consumidor Final/ })).toBeInTheDocument()
+    expect(sale().getByRole('button', { name: /^Vendedor: Juan Pérez/ })).toBeInTheDocument()
   })
 
   it('splits the sale between two payment methods', async () => {

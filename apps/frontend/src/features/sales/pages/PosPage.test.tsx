@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatMoney } from '../../../shared/lib/money'
 import { renderWithProviders } from '../../../test/render'
 import { CART_STORAGE_KEY } from '../hooks/use-cart'
-import type { CatalogItem, CatalogParams, CategoryOption } from '../types'
+import { SELLER_STORAGE_KEY } from '../hooks/use-seller'
+import type { CatalogItem, CatalogParams, CategoryOption, CustomerOption, PartyParams, SellerOption } from '../types'
 import PosPage from './PosPage'
 
 const CATEGORIES: CategoryOption[] = [
@@ -33,10 +34,35 @@ function fakeCatalog() {
   })
 }
 
-function renderPos(searchCatalog = fakeCatalog()) {
+const CUSTOMERS: CustomerOption[] = [
+  { id: 'ana', name: 'Ana Pérez', documentType: 'dni', documentNumber: '28456789', system: false },
+  { id: 'final', name: 'Consumidor Final', documentType: 'none', documentNumber: '', system: true },
+  { id: 'esquina', name: 'Kiosco La Esquina SRL', documentType: 'cuit', documentNumber: '30712345678', system: false },
+]
+
+const SELLERS: SellerOption[] = [
+  { id: 'jp', name: 'Juan Pérez', code: 'JP' },
+  { id: 'lf', name: 'Lucía Fernández', code: 'LF' },
+  { id: 'mg', name: 'María Gómez', code: 'MG' },
+]
+
+// Answers like the customers and sellers APIs: search by name or code,
+// sorted by name.
+function fakeParties<T extends { name: string }>(records: T[], fields: (record: T) => string[]) {
+  return vi.fn(async ({ search, limit }: PartyParams) => {
+    const wanted = search.trim().toLowerCase()
+    const matches = records.filter((record) => !wanted || fields(record).some((text) => text.toLowerCase().includes(wanted)))
+    return { items: matches.slice(0, limit), total: matches.length, page: 1, limit }
+  })
+}
+
+function renderPos(searchCatalog = fakeCatalog(), searchCustomers = fakeParties(CUSTOMERS, (customer) => [customer.name, customer.documentNumber])) {
   const user = userEvent.setup()
-  const view = renderWithProviders(<PosPage categories={CATEGORIES} searchCatalog={searchCatalog} />)
-  return { user, searchCatalog, ...view }
+  const searchSellers = fakeParties(SELLERS, (seller) => [seller.name, seller.code])
+  const view = renderWithProviders(
+    <PosPage categories={CATEGORIES} searchCatalog={searchCatalog} searchCustomers={searchCustomers} searchSellers={searchSellers} />,
+  )
+  return { user, searchCatalog, searchCustomers, ...view }
 }
 
 // Testing Library compares text with its spaces collapsed, and formatMoney
@@ -239,5 +265,123 @@ describe('PosPage', () => {
     await user.keyboard('{F2}')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(search()).toHaveFocus()
+  })
+})
+
+describe('PosPage customer and seller', () => {
+  const parties = () => within(screen.getByRole('region', { name: 'Venta actual' }))
+
+  it('sells to Consumidor Final until another customer is chosen with F6', async () => {
+    const { user } = renderPos()
+    expect(parties().getByRole('button', { name: 'Cliente: Consumidor Final. Cambiar (F6)' })).toBeInTheDocument()
+
+    await user.keyboard('{F6}')
+    const picker = within(await screen.findByRole('dialog', { name: 'Elegir cliente' }))
+    const results = within(picker.getByRole('list', { name: 'Resultados' }))
+    expect(await results.findByRole('button', { name: /Consumidor Final/ })).toHaveAttribute('aria-current', 'true')
+    expect(results.getByRole('button', { name: /Ana Pérez/ })).toHaveTextContent('DNI 28.456.789')
+    expect(results.getByRole('button', { name: /Kiosco La Esquina SRL/ })).toHaveTextContent('CUIT 30-71234567-8')
+
+    await user.keyboard('esquina{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(parties().getByRole('button', { name: 'Cliente: Kiosco La Esquina SRL. Cambiar (F6)' })).toHaveTextContent('CUIT 30-71234567-8')
+    expect(JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY)!)).toMatchObject({ customer: { id: 'esquina' } })
+
+    await user.click(parties().getByRole('button', { name: /^Cliente:/ }))
+    const again = within(await screen.findByRole('dialog', { name: 'Elegir cliente' }))
+    await user.click(await again.findByRole('button', { name: /Consumidor Final/ }))
+    expect(parties().getByRole('button', { name: 'Cliente: Consumidor Final. Cambiar (F6)' })).toBeInTheDocument()
+  })
+
+  it('walks the customers with the arrows and says when nobody matches', async () => {
+    const { user } = renderPos()
+
+    await user.keyboard('{F6}')
+    const picker = within(await screen.findByRole('dialog', { name: 'Elegir cliente' }))
+    await picker.findByRole('button', { name: /Ana Pérez/ })
+    await user.keyboard('{ArrowDown}')
+    expect(picker.getByRole('button', { name: /Ana Pérez/ })).toHaveFocus()
+    await user.keyboard('{ArrowDown}')
+    expect(picker.getByRole('button', { name: /Consumidor Final/ })).toHaveFocus()
+    await user.keyboard('{ArrowUp}{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(parties().getByRole('button', { name: /^Cliente: Ana Pérez/ })).toBeInTheDocument()
+
+    await user.keyboard('{F6}')
+    const second = within(await screen.findByRole('dialog', { name: 'Elegir cliente' }))
+    await user.type(second.getByRole('searchbox', { name: 'Buscar cliente' }), 'nadie')
+    expect(await second.findByText('No hay clientes que coincidan. Probar con otra búsqueda.')).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(await second.findByRole('status')).toHaveTextContent(/No hay resultados para .nadie./)
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(parties().getByRole('button', { name: /^Cliente: Ana Pérez/ })).toBeInTheDocument()
+  })
+
+  it('picks the seller by code with F4 and keeps it for the next sales', async () => {
+    const { user, unmount } = renderPos()
+    expect(parties().getByRole('button', { name: 'Vendedor: Sin vendedor. Cambiar (F4)' })).toBeInTheDocument()
+
+    await user.keyboard('{F4}')
+    const picker = within(await screen.findByRole('dialog', { name: 'Elegir vendedor' }))
+    expect(picker.getByRole('button', { name: /Sin vendedor/ })).toHaveAttribute('aria-current', 'true')
+    await user.keyboard('lf{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(parties().getByRole('button', { name: 'Vendedor: Lucía Fernández. Cambiar (F4)' })).toHaveTextContent('LF')
+
+    await user.click(await catalog().findByRole('button', { name: /Gaseosa cola/ }))
+    await user.click(parties().getByRole('button', { name: /^Cliente:/ }))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: /Ana Pérez/ }))
+    await user.click(cart().getByRole('button', { name: 'Vaciar' }))
+    expect(parties().getByRole('button', { name: /^Cliente: Consumidor Final/ })).toBeInTheDocument()
+    expect(parties().getByRole('button', { name: /^Vendedor: Lucía Fernández/ })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Deshacer' }))
+    expect(parties().getByRole('button', { name: /^Cliente: Ana Pérez/ })).toBeInTheDocument()
+    expect(cart().getByText('Gaseosa cola')).toBeInTheDocument()
+
+    unmount()
+    renderPos()
+    expect(parties().getByRole('button', { name: /^Vendedor: Lucía Fernández/ })).toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem(SELLER_STORAGE_KEY)!)).toEqual(SELLERS[1])
+
+    await user.keyboard('{F4}')
+    await user.click(await within(await screen.findByRole('dialog', { name: 'Elegir vendedor' })).findByRole('button', { name: /Sin vendedor/ }))
+    expect(parties().getByRole('button', { name: 'Vendedor: Sin vendedor. Cambiar (F4)' })).toBeInTheDocument()
+    expect(window.localStorage.getItem(SELLER_STORAGE_KEY)).toBeNull()
+  })
+
+  it('picks the first seller that matches a name and offers to retry a failed search', async () => {
+    const failing = vi.fn(async () => {
+      throw new Error('down')
+    })
+    const user = userEvent.setup()
+    renderWithProviders(
+      <PosPage
+        categories={CATEGORIES}
+        searchCatalog={fakeCatalog()}
+        searchCustomers={failing}
+        searchSellers={fakeParties(SELLERS, (seller) => [seller.name, seller.code])}
+      />,
+    )
+
+    await user.keyboard('{F4}')
+    await user.type(await screen.findByRole('searchbox', { name: 'Buscar vendedor' }), 'maría{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(parties().getByRole('button', { name: /^Vendedor: María Gómez/ })).toBeInTheDocument()
+
+    await user.keyboard('{F6}')
+    const picker = within(await screen.findByRole('dialog', { name: 'Elegir cliente' }))
+    expect(await picker.findByText('No se pudo buscar. Revisar la conexión.')).toBeInTheDocument()
+    expect(picker.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(await picker.findByRole('status')).toHaveTextContent('Ocurrió un error inesperado')
+  })
+
+  it('ignores a stored seller or customer that is damaged', () => {
+    window.localStorage.setItem(SELLER_STORAGE_KEY, '{"id":1}')
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ version: 1, lines: [], customer: { id: 'x' } }))
+    renderPos()
+    expect(parties().getByRole('button', { name: /^Vendedor: Sin vendedor/ })).toBeInTheDocument()
+    expect(parties().getByRole('button', { name: /^Cliente: Consumidor Final/ })).toBeInTheDocument()
   })
 })

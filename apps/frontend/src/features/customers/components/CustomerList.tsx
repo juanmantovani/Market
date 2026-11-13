@@ -11,6 +11,8 @@ type CustomerListProps = {
   onDelete: (customer: Customer) => void
 }
 
+const SYSTEM_NOTE = 'Se usa en las ventas sin cliente y no se edita ni se elimina'
+
 export function CustomerList({ customers, isLoading, onEdit, onDelete }: CustomerListProps) {
   const columns: Column<Customer>[] = [
     {
@@ -41,31 +43,7 @@ export function CustomerList({ customers, isLoading, onEdit, onDelete }: Custome
     {
       header: 'Acciones',
       className: 'text-right',
-      cell: (customer) => (
-        <div className="flex justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={`Editar ${customer.name}`}
-            title="Editar"
-            onClick={() => onEdit(customer)}
-          >
-            <Pencil aria-hidden />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            aria-label={`Eliminar ${customer.name}`}
-            title="Eliminar"
-            onClick={() => onDelete(customer)}
-          >
-            <Trash2 aria-hidden />
-          </Button>
-        </div>
-      ),
+      cell: (customer) => (customer.system ? <SystemBadge /> : <RowActions customer={customer} onEdit={onEdit} onDelete={onDelete} />),
     },
   ]
 
@@ -87,30 +65,67 @@ export function CustomerList({ customers, isLoading, onEdit, onDelete }: Custome
               <ContactLines phone={customer.phone} email={customer.email} className="text-sm text-muted-foreground" />
             )}
           </div>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-1"
-              aria-label={`Editar ${customer.name}`}
-              onClick={() => onEdit(customer)}
-            >
-              <Pencil aria-hidden />
-              Editar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              aria-label={`Eliminar ${customer.name}`}
-              onClick={() => onDelete(customer)}
-            >
-              <Trash2 aria-hidden />
-              Eliminar
-            </Button>
-          </div>
+          {customer.system ? (
+            <p className="text-sm text-muted-foreground">Cliente del sistema: {SYSTEM_NOTE.toLowerCase()}.</p>
+          ) : (
+            <CardActions customer={customer} onEdit={onEdit} onDelete={onDelete} />
+          )}
         </div>
       )}
     />
+  )
+}
+
+type ActionsProps = Pick<CustomerListProps, 'onEdit' | 'onDelete'> & { customer: Customer }
+
+function RowActions({ customer, onEdit, onDelete }: ActionsProps) {
+  return (
+    <div className="flex justify-end gap-1">
+      <Button type="button" variant="ghost" size="icon" aria-label={`Editar ${customer.name}`} title="Editar" onClick={() => onEdit(customer)}>
+        <Pencil aria-hidden />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        aria-label={`Eliminar ${customer.name}`}
+        title="Eliminar"
+        onClick={() => onDelete(customer)}
+      >
+        <Trash2 aria-hidden />
+      </Button>
+    </div>
+  )
+}
+
+function CardActions({ customer, onEdit, onDelete }: ActionsProps) {
+  return (
+    <div className="flex gap-2">
+      <Button type="button" variant="outline" className="h-11 flex-1" aria-label={`Editar ${customer.name}`} onClick={() => onEdit(customer)}>
+        <Pencil aria-hidden />
+        Editar
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-11 flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        aria-label={`Eliminar ${customer.name}`}
+        onClick={() => onDelete(customer)}
+      >
+        <Trash2 aria-hidden />
+        Eliminar
+      </Button>
+    </div>
+  )
+}
+
+// Consumidor Final is listed so the counter's default customer is visible,
+// but it is never edited or deleted (the backend refuses it too).
+function SystemBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground" title={SYSTEM_NOTE}>
+      Del sistema
+    </span>
   )
 }

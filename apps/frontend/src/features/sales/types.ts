@@ -25,6 +25,35 @@ export type SearchCatalog = (params: CatalogParams, signal?: AbortSignal) => Pro
 
 export type CategoryOption = { id: string; name: string }
 
+export type PartyParams = { search: string; page: number; limit: number }
+
+const documentTypeSchema = z.enum(['dni', 'cuit', 'cuil', 'none'])
+
+// Who the sale is made to. `system` marks Consumidor Final, the customer of
+// every sale without one. Composed from the customers API in app/PosRoute.
+export const customerOptionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  documentType: documentTypeSchema,
+  documentNumber: z.string(),
+  system: z.boolean(),
+})
+
+export type CustomerOption = z.infer<typeof customerOptionSchema>
+
+export type SearchCustomers = (params: PartyParams, signal?: AbortSignal) => Promise<Page<CustomerOption>>
+
+// Who attends the sale. Composed from the sellers API in app/PosRoute.
+export const sellerOptionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  code: z.string(),
+})
+
+export type SellerOption = z.infer<typeof sellerOptionSchema>
+
+export type SearchSellers = (params: PartyParams, signal?: AbortSignal) => Promise<Page<SellerOption>>
+
 const unitSchema = z.enum(['unit', 'kg', 'l', 'm'])
 
 // A cart line keeps a copy of the item as it was when it was added: the
@@ -43,6 +72,8 @@ export type CartLine = z.infer<typeof cartLineSchema>
 export const storedCartSchema = z.object({
   version: z.literal(1),
   lines: z.array(cartLineSchema),
+  // Absent or null: Consumidor Final.
+  customer: customerOptionSchema.nullable().optional(),
 })
 
 export const paymentMethodSchema = z.enum(['cash', 'debit_card', 'credit_card', 'transfer', 'qr'])
