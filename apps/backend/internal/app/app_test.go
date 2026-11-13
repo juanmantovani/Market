@@ -317,7 +317,7 @@ func TestSaleFlow(t *testing.T) {
 	categoryID := flow.create("/api/v1/categories", `{"name":"Bebidas"}`)
 	itemID := flow.create("/api/v1/items", `{"code":"BEB-1","name":"Gaseosa cola","categoryId":"`+categoryID+`","unit":"unit","salePrice":150000,"taxRate":2100,"minStock":0}`)
 	flow.expect(flow.call(http.MethodPost, "/api/v1/stock/entries", "", `{"lines":[{"itemId":"`+itemID+`","quantity":5000}]}`), http.StatusCreated)
-	threeColas := `{"lines":[{"itemId":"` + itemID + `","quantity":3000,"discountPercent":0}],"payments":[{"method":"cash","amount":500000}],"expectedTotal":450000}`
+	threeColas := `{"lines":[{"itemId":"` + itemID + `","quantity":3000,"discount":null}],"payments":[{"method":"cash","amount":500000}],"expectedTotal":450000}`
 
 	flow.expect(flow.call(http.MethodPost, "/api/v1/sales", "", threeColas), http.StatusBadRequest, "idempotency_key_required")
 
@@ -343,12 +343,17 @@ func TestSaleFlow(t *testing.T) {
 		t.Fatalf("stock after rejected sales = %d, want 2000", stock)
 	}
 
+	flow.expect(flow.call(http.MethodPost, "/api/v1/sales", "sale-5", strings.Replace(threeColas, `"discount":null`, `"discount":{"type":"amount","value":450001}`, 1)),
+		http.StatusBadRequest, "sale_discount_exceeds_line")
+	flow.expect(flow.call(http.MethodPost, "/api/v1/sales", "sale-6", strings.Replace(threeColas, `"payments"`, `"cartDiscount":{"type":"amount","value":450001},"payments"`, 1)),
+		http.StatusBadRequest, "sale_discount_exceeds_total")
+
 	customerID := flow.create("/api/v1/customers", `{"name":"Ana Pérez","documentType":"dni","documentNumber":"28456789","taxCondition":"final_consumer"}`)
 	sellerID := flow.create("/api/v1/sellers", `{"name":"Juan Pérez","code":"JP"}`)
-	twoWithDiscount := `{"customerId":"` + customerID + `","sellerId":"` + sellerID + `","lines":[{"itemId":"` + itemID + `","quantity":2000,"discountPercent":1000}],` +
-		`"payments":[{"method":"debit_card","amount":270000,"reference":"Cupón 1"}],"expectedTotal":270000}`
+	twoWithDiscount := `{"customerId":"` + customerID + `","sellerId":"` + sellerID + `","lines":[{"itemId":"` + itemID + `","quantity":2000,"discount":{"type":"percent","value":1000}}],` +
+		`"cartDiscount":{"type":"amount","value":20000},"payments":[{"method":"debit_card","amount":250000,"reference":"Cupón 1"}],"expectedTotal":250000}`
 	flow.expect(flow.call(http.MethodPost, "/api/v1/sales", "sale-4", twoWithDiscount), http.StatusCreated,
-		`"number":2`, `"discountTotal":30000`, `"name":"Ana Pérez"`, `"code":"JP"`, `"change":0`)
+		`"number":2`, `"discountTotal":50000`, `"cartDiscountAmount":20000`, `"lineTotal":250000`, `"name":"Ana Pérez"`, `"code":"JP"`, `"change":0`)
 	if stock := flow.stockOf(itemID); stock != 0 {
 		t.Fatalf("stock after selling everything = %d, want 0", stock)
 	}

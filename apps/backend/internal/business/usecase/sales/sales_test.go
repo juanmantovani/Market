@@ -72,7 +72,7 @@ func request() domain.SaleRequest {
 		SellerID:       ptr("s1"),
 		Lines: []domain.SaleRequestLine{
 			{ItemID: "coca", Quantity: domain.WholeQuantity(2)},
-			{ItemID: "queso", Quantity: 250, DiscountPercent: 1_000},
+			{ItemID: "queso", Quantity: 250, Discount: &domain.Discount{Type: domain.DiscountPercent, Value: 1_000}},
 		},
 		Payments:      []domain.Payment{{Method: domain.PaymentDebitCard, Amount: 500_000}, {Method: domain.PaymentCash, Amount: 400_000}},
 		ExpectedTotal: 860_500,

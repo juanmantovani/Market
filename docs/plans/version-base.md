@@ -283,8 +283,8 @@ apps/frontend/src/
 - **`Quantity`**: `int64` en milésimas, para vender por peso o volumen
   (0,250 kg = 250). Un artículo de unidad `unit` solo acepta cantidades
   enteras.
-- **Redondeo**: importe de línea = precio × cantidad ÷ 1000, con descuento,
-  redondeado *half-up* al centavo. El total es la suma de las líneas, así que
+- **Redondeo**: importe de línea = precio × cantidad ÷ 1000, con descuentos,
+  redondeado *half away from zero* al centavo. El total es la suma de las líneas, así que
   el ticket siempre suma exacto.
 
 ### Entidades
@@ -313,11 +313,12 @@ apps/frontend/src/
   la venta), `supplierId?` y `unitCost?` (en ingresos), `actorId`,
   `createdAt`.
 - **Sale**: `number` correlativo, `createdAt`, cliente y vendedor (id +
-  copia de nombre y documento), `lines[]`, `subtotal`, `discountTotal`,
-  `total`, `payments[]`, `change` (vuelto), `status` (`completed | voided`),
+  copia de nombre y documento), `lines[]`, `subtotal`, `cartDiscount?`,
+  `cartDiscountAmount`, `discountTotal`, `total`, `payments[]`, `change` (vuelto), `status` (`completed | voided`),
   `voidedAt?`, `voidReason?`, `actorId`, `idempotencyKey`.
 - **SaleLine**: `itemId` + copia de código, nombre, unidad y alícuota;
-  `quantity`, `unitPrice`, `discountPercent`, `lineTotal`.
+  `quantity`, `unitPrice`, `discount?` (de la línea), `discountAmount`,
+  `cartDiscountAmount` (su parte del descuento general), `lineTotal`.
 - **Payment**: `method` (`cash | debit_card | credit_card | transfer | qr`),
   `amount`, `reference?`.
 
@@ -342,9 +343,16 @@ apps/frontend/src/
    llevan cantidad entera.
 2. **Copia de datos**: precio, código, nombre y alícuota se copian a la línea.
    Editar un artículo después no altera ventas pasadas.
-3. Descuento por línea de 0 a 100 %. El “descuento general” de la UI aplica el
-   mismo porcentaje a todas las líneas, así el dominio maneja un solo
-   mecanismo.
+3. **Descuentos por porcentaje o por monto**, por línea y para toda la venta
+   (el “descuento general” del carrito): `{ type: percent | amount, value }`,
+   el porcentaje en centésimas de punto (0 a 100 %) y el monto en centavos.
+   El de línea no puede superar el importe de la línea; el general se aplica
+   sobre lo que queda después de los de línea, no puede superarlo y se
+   reparte entre las líneas en proporción a lo que valen (resto mayor: los
+   centavos que sobran van a las fracciones más grandes), así cada línea
+   guarda su descuento en centavos, ningún total queda negativo y el backend
+   recalcula siempre el total. *(Cambió: al principio solo había
+   porcentajes y el general era el mismo porcentaje en cada línea.)*
 4. **El backend recalcula todo**. El cliente envía `expectedTotal`; si no
    coincide → `sale_total_mismatch` (409). El cajero nunca cobra un importe
    distinto del que vio (por ejemplo, si cambió un precio mientras armaba el

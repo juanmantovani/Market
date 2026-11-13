@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func validSaleRequest() SaleRequest {
 		SellerID:       textPtr("s1"),
 		Lines: []SaleRequestLine{
 			{ItemID: "coca", Quantity: 2_000},
-			{ItemID: "pan", Quantity: 750, DiscountPercent: 1_000},
+			{ItemID: "pan", Quantity: 750, Discount: percentOff(1_000)},
 		},
 		Payments:      []Payment{{Method: PaymentCash, Amount: 1_000_000}},
 		ExpectedTotal: 829_000,
@@ -69,7 +70,8 @@ func TestNewSaleRequestNormalizes(t *testing.T) {
 		IdempotencyKey: "  key-1 ",
 		CustomerID:     textPtr("  "),
 		SellerID:       textPtr(" s1 "),
-		Lines:          []SaleRequestLine{{ItemID: " coca ", Quantity: 1_000, DiscountPercent: 10_000}},
+		Lines:          []SaleRequestLine{{ItemID: " coca ", Quantity: 1_000, Discount: percentOff(10_000)}},
+		CartDiscount:   fixedOff(500),
 		Payments:       []Payment{{Method: PaymentDebitCard, Amount: 320_000, Reference: textPtr(" Cupón 123 ")}, {Method: PaymentCash, Amount: 1, Reference: textPtr(" ")}},
 	}
 
@@ -83,7 +85,8 @@ func TestNewSaleRequestNormalizes(t *testing.T) {
 	}
 	request.Lines[0].Quantity = 9
 	*request.SellerID = "changed"
-	if valid.Lines[0].Quantity != 1_000 || *valid.SellerID != "s1" {
+	request.Lines[0].Discount.Value, request.CartDiscount.Value = 1, 1
+	if valid.Lines[0].Quantity != 1_000 || *valid.SellerID != "s1" || valid.Lines[0].Discount.Value != 10_000 || valid.CartDiscount.Value != 500 {
 		t.Fatal("the validated request aliases the caller's data")
 	}
 }
@@ -112,8 +115,12 @@ func TestNewSaleRequestValidates(t *testing.T) {
 		{"zero quantity", func(r *SaleRequest) { r.Lines[0].Quantity = 0 }, ErrSaleQuantityInvalid},
 		{"negative quantity", func(r *SaleRequest) { r.Lines[0].Quantity = -1_000 }, ErrSaleQuantityInvalid},
 		{"quantity over the maximum", func(r *SaleRequest) { r.Lines[0].Quantity = MaxStockQuantity + 1 }, ErrSaleQuantityInvalid},
-		{"negative discount", func(r *SaleRequest) { r.Lines[0].DiscountPercent = -1 }, ErrSaleDiscountInvalid},
-		{"discount over 100 %", func(r *SaleRequest) { r.Lines[0].DiscountPercent = PercentScale + 1 }, ErrSaleDiscountInvalid},
+		{"negative percent discount", func(r *SaleRequest) { r.Lines[0].Discount = percentOff(-1) }, ErrSaleDiscountInvalid},
+		{"negative amount discount", func(r *SaleRequest) { r.Lines[0].Discount = fixedOff(-1) }, ErrSaleDiscountInvalid},
+		{"amount discount over the maximum", func(r *SaleRequest) { r.Lines[0].Discount = fixedOff(int64(MaxSaleAmount) + 1) }, ErrSaleDiscountInvalid},
+		{"unknown discount type", func(r *SaleRequest) { r.Lines[0].Discount = &Discount{Type: "gift", Value: 1} }, ErrSaleDiscountInvalid},
+		{"invalid cart discount", func(r *SaleRequest) { r.CartDiscount = percentOff(PercentScale + 1) }, ErrSaleDiscountInvalid},
+		{"percent discount over 100 %", func(r *SaleRequest) { r.Lines[0].Discount = percentOff(PercentScale + 1) }, ErrSaleDiscountInvalid},
 		{"too many payments", func(r *SaleRequest) { r.Payments = manyPayments }, ErrSaleTooManyPayments},
 		{"unknown payment method", func(r *SaleRequest) { r.Payments[0].Method = "cheque" }, ErrPaymentMethodInvalid},
 		{"zero payment", func(r *SaleRequest) { r.Payments[0].Amount = 0 }, ErrPaymentAmountInvalid},
@@ -147,17 +154,19 @@ func TestSaleRequestFingerprint(t *testing.T) {
 	}
 
 	changes := map[string]func(*SaleRequest){
-		"customer":          func(r *SaleRequest) { r.CustomerID = nil },
-		"seller":            func(r *SaleRequest) { r.SellerID = textPtr("s2") },
-		"expected total":    func(r *SaleRequest) { r.ExpectedTotal++ },
-		"line item":         func(r *SaleRequest) { r.Lines[0].ItemID = "agua" },
-		"line quantity":     func(r *SaleRequest) { r.Lines[0].Quantity = 3_000 },
-		"line discount":     func(r *SaleRequest) { r.Lines[1].DiscountPercent = 0 },
-		"line order":        func(r *SaleRequest) { r.Lines[0], r.Lines[1] = r.Lines[1], r.Lines[0] },
-		"payment method":    func(r *SaleRequest) { r.Payments[0].Method = PaymentQR },
-		"payment amount":    func(r *SaleRequest) { r.Payments[0].Amount = 900_000 },
-		"payment reference": func(r *SaleRequest) { r.Payments[0].Reference = textPtr("Caja 2") },
-		"another payment":   func(r *SaleRequest) { r.Payments = append(r.Payments, Payment{Method: PaymentCash, Amount: 1}) },
+		"customer":           func(r *SaleRequest) { r.CustomerID = nil },
+		"seller":             func(r *SaleRequest) { r.SellerID = textPtr("s2") },
+		"expected total":     func(r *SaleRequest) { r.ExpectedTotal++ },
+		"line item":          func(r *SaleRequest) { r.Lines[0].ItemID = "agua" },
+		"line quantity":      func(r *SaleRequest) { r.Lines[0].Quantity = 3_000 },
+		"line discount":      func(r *SaleRequest) { r.Lines[1].Discount = nil },
+		"line discount type": func(r *SaleRequest) { r.Lines[1].Discount = fixedOff(1_000) },
+		"cart discount":      func(r *SaleRequest) { r.CartDiscount = percentOff(500) },
+		"line order":         func(r *SaleRequest) { r.Lines[0], r.Lines[1] = r.Lines[1], r.Lines[0] },
+		"payment method":     func(r *SaleRequest) { r.Payments[0].Method = PaymentQR },
+		"payment amount":     func(r *SaleRequest) { r.Payments[0].Amount = 900_000 },
+		"payment reference":  func(r *SaleRequest) { r.Payments[0].Reference = textPtr("Caja 2") },
+		"another payment":    func(r *SaleRequest) { r.Payments = append(r.Payments, Payment{Method: PaymentCash, Amount: 1}) },
 	}
 	for name, change := range changes {
 		request := validSaleRequest()
@@ -180,7 +189,11 @@ func TestNewSaleComputesLinesAndTotals(t *testing.T) {
 	if coca != (SaleLine{ItemID: "coca", Code: "BEB-1", Name: "Gaseosa cola", Unit: UnitPiece, TaxRate: 2100, Quantity: 2_000, UnitPrice: 320_000, LineTotal: 640_000}) {
 		t.Errorf("coca line = %+v", coca)
 	}
-	if pan != (SaleLine{ItemID: "pan", Code: "PAN-1", Name: "Pan francés", Unit: UnitKilogram, TaxRate: 1050, Quantity: 750, UnitPrice: 280_000, DiscountPercent: 1_000, DiscountAmount: 21_000, LineTotal: 189_000}) {
+	if pan.Discount == nil || *pan.Discount != (Discount{Type: DiscountPercent, Value: 1_000}) {
+		t.Errorf("bread discount = %+v", pan.Discount)
+	}
+	pan.Discount = nil
+	if pan != (SaleLine{ItemID: "pan", Code: "PAN-1", Name: "Pan francés", Unit: UnitKilogram, TaxRate: 1050, Quantity: 750, UnitPrice: 280_000, DiscountAmount: 21_000, LineTotal: 189_000}) {
 		t.Errorf("bread line = %+v", pan)
 	}
 	if sale.Subtotal != 850_000 || sale.DiscountTotal != 21_000 || sale.Total != 829_000 || sale.Change != 171_000 {
@@ -216,7 +229,7 @@ func TestNewSaleRoundsEachLineToTheCent(t *testing.T) {
 		name                        string
 		price                       Money
 		quantity                    Quantity
-		discount                    Percent
+		discount                    int64
 		wantDiscount, wantLineTotal Money
 	}{
 		{name: "whole units", price: 120_000, quantity: 6_000, wantLineTotal: 720_000},
@@ -231,7 +244,7 @@ func TestNewSaleRoundsEachLineToTheCent(t *testing.T) {
 			items := map[string]Item{"x": {ID: "x", ItemFields: ItemFields{Unit: UnitKilogram, SalePrice: test.price}}}
 			request := SaleRequest{
 				IdempotencyKey: "k",
-				Lines:          []SaleRequestLine{{ItemID: "x", Quantity: test.quantity, DiscountPercent: test.discount}},
+				Lines:          []SaleRequestLine{{ItemID: "x", Quantity: test.quantity, Discount: percentOff(test.discount)}},
 				ExpectedTotal:  test.wantLineTotal,
 			}
 			if test.wantLineTotal > 0 {
@@ -297,7 +310,7 @@ func TestNewSalePayments(t *testing.T) {
 
 func TestNewSaleWithAZeroTotalNeedsNoPayment(t *testing.T) {
 	request := validSaleRequest()
-	request.Lines = []SaleRequestLine{{ItemID: "coca", Quantity: 1_000, DiscountPercent: PercentScale}}
+	request.Lines = []SaleRequestLine{{ItemID: "coca", Quantity: 1_000, Discount: percentOff(PercentScale)}}
 	request.Payments = nil
 	request.ExpectedTotal = 0
 
@@ -405,7 +418,7 @@ func TestSaleReference(t *testing.T) {
 func TestNewSaleLineGuardsTheDiscountAgainstOverflow(t *testing.T) {
 	item := Item{ID: "x", ItemFields: ItemFields{Unit: UnitPiece, SalePrice: MaxItemAmount}}
 
-	_, err := newSaleLine(item, SaleRequestLine{ItemID: "x", Quantity: 1_000, DiscountPercent: Percent(1 << 62)})
+	_, err := newSaleLine(item, SaleRequestLine{ItemID: "x", Quantity: 1_000, Discount: percentOff(1 << 62)})
 
 	assertDomainError(t, err, ErrAmountOutOfRange)
 }
@@ -506,5 +519,133 @@ func TestSaleFilterMatches(t *testing.T) {
 		if got := test.filter.Matches(test.sale); got != test.want {
 			t.Errorf("%s: Matches() = %v, want %v", test.name, got, test.want)
 		}
+	}
+}
+
+func percentOff(hundredths int64) *Discount {
+	return &Discount{Type: DiscountPercent, Value: hundredths}
+}
+
+func fixedOff(cents int64) *Discount {
+	return &Discount{Type: DiscountAmount, Value: cents}
+}
+
+func TestNewSaleWithAFixedLineDiscount(t *testing.T) {
+	request := validSaleRequest()
+	request.Lines[0].Discount = fixedOff(40_000)
+	request.ExpectedTotal = 789_000
+
+	sale, err := NewSale(mustSaleRequest(t, request), saleCustomer(), nil, saleItems(), saleActor, saleTime)
+	if err != nil {
+		t.Fatalf("NewSale() error = %v", err)
+	}
+	coca := sale.Lines[0]
+	if coca.DiscountAmount != 40_000 || coca.LineTotal != 600_000 || coca.Amount() != 640_000 || *coca.Discount != *fixedOff(40_000) {
+		t.Fatalf("coca line = %+v", coca)
+	}
+	if sale.Subtotal != 850_000 || sale.DiscountTotal != 61_000 || sale.Total != 789_000 {
+		t.Fatalf("totals = %d − %d = %d", sale.Subtotal, sale.DiscountTotal, sale.Total)
+	}
+
+	request.Lines[0].Discount = fixedOff(640_000)
+	request.ExpectedTotal = 189_000
+	if whole, err := NewSale(mustSaleRequest(t, request), saleCustomer(), nil, saleItems(), saleActor, saleTime); err != nil || whole.Lines[0].LineTotal != 0 {
+		t.Fatalf("a discount of the whole line = %+v, %v", whole.Lines, err)
+	}
+	request.Lines[0].Discount = fixedOff(640_001)
+	_, err = NewSale(mustSaleRequest(t, request), saleCustomer(), nil, saleItems(), saleActor, saleTime)
+	assertDomainError(t, err, ErrSaleDiscountExceedsLine)
+}
+
+func TestNewSaleWithACartDiscount(t *testing.T) {
+	tests := []struct {
+		name       string
+		discount   *Discount
+		wantShares []Money
+		wantOff    Money
+	}{
+		// 640.000 + 189.000 after the bread's 10 %: 829.000.
+		{name: "a percent, on what is left after the line discounts", discount: percentOff(1_000), wantShares: []Money{64_000, 18_900}, wantOff: 82_900},
+		{name: "a fixed amount, spread by weight", discount: fixedOff(100_000), wantShares: []Money{77_201, 22_799}, wantOff: 100_000},
+		{name: "everything", discount: fixedOff(829_000), wantShares: []Money{640_000, 189_000}, wantOff: 829_000},
+		{name: "nothing", discount: fixedOff(0), wantShares: []Money{0, 0}, wantOff: 0},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := validSaleRequest()
+			request.CartDiscount = test.discount
+			request.ExpectedTotal = 829_000 - test.wantOff
+			request.Payments = nil
+			if request.ExpectedTotal > 0 {
+				request.Payments = []Payment{{Method: PaymentCash, Amount: request.ExpectedTotal}}
+			}
+
+			sale, err := NewSale(mustSaleRequest(t, request), saleCustomer(), nil, saleItems(), saleActor, saleTime)
+			if err != nil {
+				t.Fatalf("NewSale() error = %v", err)
+			}
+
+			var lineTotals Money
+			for i, line := range sale.Lines {
+				if line.CartDiscountAmount != test.wantShares[i] {
+					t.Errorf("line %d share = %d, want %d", i, line.CartDiscountAmount, test.wantShares[i])
+				}
+				lineTotals += line.LineTotal
+			}
+			if sale.CartDiscountAmount != test.wantOff || *sale.CartDiscount != *test.discount ||
+				sale.DiscountTotal != 21_000+test.wantOff || sale.Subtotal != 850_000 || sale.Total != lineTotals {
+				t.Fatalf("sale = cart %d (%+v), discounts %d, subtotal %d, total %d, lines %d",
+					sale.CartDiscountAmount, sale.CartDiscount, sale.DiscountTotal, sale.Subtotal, sale.Total, lineTotals)
+			}
+		})
+	}
+}
+
+func TestNewSaleRefusesACartDiscountOverTheTotal(t *testing.T) {
+	request := validSaleRequest()
+	request.CartDiscount = fixedOff(829_001)
+
+	_, err := NewSale(mustSaleRequest(t, request), saleCustomer(), nil, saleItems(), saleActor, saleTime)
+
+	assertDomainError(t, err, ErrSaleDiscountExceedsTotal)
+}
+
+func TestProrate(t *testing.T) {
+	tests := []struct {
+		name    string
+		total   Money
+		weights []Money
+		want    []Money
+	}{
+		{name: "nothing to spread", total: 0, weights: []Money{5, 7}, want: []Money{0, 0}},
+		{name: "no weight", total: 0, weights: []Money{0, 0}, want: []Money{0, 0}},
+		{name: "exact shares", total: 30, weights: []Money{200, 100}, want: []Money{20, 10}},
+		{name: "cents go to the largest fractions", total: 6, weights: []Money{3, 3, 1}, want: []Money{3, 2, 1}},
+		{name: "the first line wins a tie", total: 1, weights: []Money{1, 1}, want: []Money{1, 0}},
+		{name: "a line without amount gets nothing", total: 5, weights: []Money{5, 0}, want: []Money{5, 0}},
+		{name: "beyond int64 before dividing", total: MaxSaleAmount, weights: []Money{MaxSaleAmount / 2, MaxSaleAmount / 2}, want: []Money{MaxSaleAmount / 2, MaxSaleAmount / 2}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := prorate(test.total, test.weights)
+
+			var sum Money
+			for i, share := range got {
+				sum += share
+				if share > test.weights[i] {
+					t.Errorf("share %d = %d, over its weight %d", i, share, test.weights[i])
+				}
+			}
+			if fmt.Sprint(got) != fmt.Sprint(test.want) || sum != test.total {
+				t.Fatalf("prorate(%d, %v) = %v, want %v", test.total, test.weights, got, test.want)
+			}
+		})
+	}
+}
+
+func TestDiscountString(t *testing.T) {
+	var none *Discount
+	if none.String() != "none" || percentOff(1_000).String() != "percent:1000" || fixedOff(500).String() != "amount:500" {
+		t.Fatal("String() doesn't tell discounts apart")
 	}
 }

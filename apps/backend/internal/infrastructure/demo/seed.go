@@ -266,50 +266,61 @@ func Seed(ctx context.Context, useCases UseCases) error {
 type demoSaleLine struct {
 	code     string
 	quantity domain.Quantity
-	discount domain.Percent
+	discount *domain.Discount
 }
 
 type demoSale struct {
-	customer string
-	seller   string
-	lines    []demoSaleLine
-	payments []domain.Payment
-	total    domain.Money
+	customer     string
+	seller       string
+	lines        []demoSaleLine
+	cartDiscount *domain.Discount
+	payments     []domain.Payment
+	total        domain.Money
 	// voidReason, when set, voids the sale right after making it.
 	voidReason string
 }
 
+func percentOff(hundredths int64) *domain.Discount {
+	return &domain.Discount{Type: domain.DiscountPercent, Value: hundredths}
+}
+
+func amountOff(cents domain.Money) *domain.Discount {
+	return &domain.Discount{Type: domain.DiscountAmount, Value: int64(cents)}
+}
+
 // demoSales leave every item above its minimum but the ones the stock seed
-// already left below it.
+// already left below it, and show every kind of discount: a fixed amount
+// off a line, a percent off lines and a fixed general discount.
 var demoSales = []demoSale{
 	{
 		seller:   "JP",
-		lines:    []demoSaleLine{{"BEB-001", domain.WholeQuantity(2), 0}, {"KIO-001", domain.WholeQuantity(1), 0}},
+		lines:    []demoSaleLine{{"BEB-001", domain.WholeQuantity(2), nil}, {"KIO-001", domain.WholeQuantity(1), amountOff(10_000)}},
 		payments: []domain.Payment{{Method: domain.PaymentCash, Amount: 1_000_000}},
-		total:    750_000,
+		total:    740_000,
 	},
 	{
-		customer: "Ana Pérez",
-		seller:   "LF",
-		lines:    []demoSaleLine{{"PAN-001", 750, 0}, {"FIA-001", 250, 0}, {"LAC-001", domain.WholeQuantity(2), 0}},
-		payments: []domain.Payment{{Method: domain.PaymentDebitCard, Amount: 755_000}},
-		total:    755_000,
+		customer:     "Ana Pérez",
+		seller:       "LF",
+		lines:        []demoSaleLine{{"PAN-001", 750, nil}, {"FIA-001", 250, nil}, {"LAC-001", domain.WholeQuantity(2), nil}},
+		cartDiscount: amountOff(5_000),
+		payments:     []domain.Payment{{Method: domain.PaymentDebitCard, Amount: 750_000}},
+		total:        750_000,
 	},
 	{
 		customer: "Kiosco La Esquina SRL",
 		seller:   "MG",
-		lines:    []demoSaleLine{{"ALM-003", domain.WholeQuantity(6), 1_000}, {"BEB-002", domain.WholeQuantity(6), 1_000}},
+		lines:    []demoSaleLine{{"ALM-003", domain.WholeQuantity(6), percentOff(1_000)}, {"BEB-002", domain.WholeQuantity(6), percentOff(1_000)}},
 		payments: []domain.Payment{{Method: domain.PaymentTransfer, Amount: 1_000_000}, {Method: domain.PaymentCash, Amount: 242_000}},
 		total:    1_242_000,
 	},
 	{
-		lines:    []demoSaleLine{{"PAN-002", domain.WholeQuantity(6), 0}},
+		lines:    []demoSaleLine{{"PAN-002", domain.WholeQuantity(6), nil}},
 		payments: []domain.Payment{{Method: domain.PaymentQR, Amount: 360_000}},
 		total:    360_000,
 	},
 	{
 		seller:     "JP",
-		lines:      []demoSaleLine{{"LIM-001", domain.WholeQuantity(2), 0}},
+		lines:      []demoSaleLine{{"LIM-001", domain.WholeQuantity(2), nil}},
 		payments:   []domain.Payment{{Method: domain.PaymentCreditCard, Amount: 190_000}},
 		total:      190_000,
 		voidReason: "El cliente pagó con otra tarjeta",
@@ -320,6 +331,7 @@ func seedSales(ctx context.Context, useCases UseCases, itemIDs, customerIDs, sel
 	for i, sale := range demoSales {
 		request := domain.SaleRequest{
 			IdempotencyKey: fmt.Sprintf("demo-sale-%d", i+1),
+			CartDiscount:   sale.cartDiscount,
 			Payments:       sale.payments,
 			ExpectedTotal:  sale.total,
 		}
@@ -332,7 +344,7 @@ func seedSales(ctx context.Context, useCases UseCases, itemIDs, customerIDs, sel
 			request.SellerID = &sellerID
 		}
 		for _, line := range sale.lines {
-			request.Lines = append(request.Lines, domain.SaleRequestLine{ItemID: itemIDs[line.code], Quantity: line.quantity, DiscountPercent: line.discount})
+			request.Lines = append(request.Lines, domain.SaleRequestLine{ItemID: itemIDs[line.code], Quantity: line.quantity, Discount: line.discount})
 		}
 
 		created, err := useCases.CreateSale.Execute(ctx, sales.CreateSaleInput{Actor: seeder, Request: request})

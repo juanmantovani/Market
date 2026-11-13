@@ -152,7 +152,13 @@ func cloneSale(sale domain.Sale) domain.Sale {
 		seller := *sale.Seller
 		sale.Seller = &seller
 	}
-	sale.Lines = append([]domain.SaleLine(nil), sale.Lines...)
+	lines := make([]domain.SaleLine, len(sale.Lines))
+	for i, line := range sale.Lines {
+		line.Discount = cloneDiscount(line.Discount)
+		lines[i] = line
+	}
+	sale.Lines = lines
+	sale.CartDiscount = cloneDiscount(sale.CartDiscount)
 	payments := make([]domain.Payment, len(sale.Payments))
 	for i, payment := range sale.Payments {
 		payment.Reference = cloneString(payment.Reference)
@@ -164,6 +170,15 @@ func cloneSale(sale domain.Sale) domain.Sale {
 	sale.VoidedBy = cloneString(sale.VoidedBy)
 
 	return sale
+}
+
+func cloneDiscount(discount *domain.Discount) *domain.Discount {
+	if discount == nil {
+		return nil
+	}
+	copied := *discount
+
+	return &copied
 }
 
 func cloneTime(value *time.Time) *time.Time {

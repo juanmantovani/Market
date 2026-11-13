@@ -17,11 +17,13 @@ var handlerSale = domain.Sale{
 	Seller:   &domain.SaleSeller{ID: "s1", Name: "Juan Pérez", Code: "JP"},
 	Lines: []domain.SaleLine{{
 		ItemID: "i1", Code: "PAN-1", Name: "Pan francés", Unit: domain.UnitKilogram, TaxRate: 1050,
-		Quantity: 750, UnitPrice: 280_000, DiscountPercent: 1_000, DiscountAmount: 21_000, LineTotal: 189_000,
+		Quantity: 750, UnitPrice: 280_000, Discount: &domain.Discount{Type: domain.DiscountPercent, Value: 1_000},
+		DiscountAmount: 21_000, CartDiscountAmount: 9_450, LineTotal: 179_550,
 	}},
-	Subtotal: 210_000, DiscountTotal: 21_000, Total: 189_000,
+	Subtotal: 210_000, CartDiscount: &domain.Discount{Type: domain.DiscountAmount, Value: 9_450}, CartDiscountAmount: 9_450,
+	DiscountTotal: 30_450, Total: 179_550,
 	Payments: []domain.Payment{{Method: domain.PaymentDebitCard, Amount: 100_000, Reference: ptr("Cupón 1")}, {Method: domain.PaymentCash, Amount: 100_000}},
-	Change:   11_000, ActorID: "u1", IdempotencyKey: "key-1", CreatedAt: handlerTime,
+	Change:   20_450, ActorID: "u1", IdempotencyKey: "key-1", CreatedAt: handlerTime,
 }
 
 func saleRequest(body, key string) *http.Request {
@@ -39,24 +41,36 @@ func TestCreateSaleHandler(t *testing.T) {
 			received = input
 			return handlerSale, nil
 		})
-	body := `{"customerId":"cu1","sellerId":"s1","lines":[{"itemId":"i1","quantity":750,"discountPercent":1000}],` +
-		`"payments":[{"method":"debit_card","amount":100000,"reference":"Cupón 1"},{"method":"cash","amount":100000,"reference":null}],"expectedTotal":189000}`
+	body := `{"customerId":"cu1","sellerId":"s1","lines":[{"itemId":"i1","quantity":750,"discount":{"type":"percent","value":1000}}],` +
+		`"cartDiscount":{"type":"amount","value":9450},` +
+		`"payments":[{"method":"debit_card","amount":100000,"reference":"Cupón 1"},{"method":"cash","amount":100000,"reference":null}],"expectedTotal":179550}`
 
 	recorder := serve(NewCreateSaleHandler(createSale), saleRequest(body, "key-1"))
 
 	assertStatus(t, recorder, http.StatusCreated)
 	got := decodeBody[dto.SaleResponse](t, recorder)
-	if got.ID != "sale-1" || got.Number != 12 || got.Status != "completed" || got.Subtotal != 210_000 || got.DiscountTotal != 21_000 ||
-		got.Total != 189_000 || got.Change != 11_000 || got.ActorID != "u1" || !got.CreatedAt.Equal(handlerTime) {
+	if got.ID != "sale-1" || got.Number != 12 || got.Status != "completed" || got.Subtotal != 210_000 || got.DiscountTotal != 30_450 ||
+		got.Total != 179_550 || got.Change != 20_450 || got.ActorID != "u1" || !got.CreatedAt.Equal(handlerTime) {
 		t.Fatalf("body = %+v", got)
+	}
+	if got.CartDiscountAmount != 9_450 || got.CartDiscount == nil || *got.CartDiscount != (dto.Discount{Type: "amount", Value: 9_450}) {
+		t.Fatalf("cart discount = %d, %+v", got.CartDiscountAmount, got.CartDiscount)
 	}
 	if got.Customer != (dto.SaleCustomerResponse{ID: "cu1", Name: "Ana Pérez", DocumentType: "dni", DocumentNumber: "28456789", TaxCondition: "final_consumer"}) ||
 		got.Seller == nil || *got.Seller != (dto.SaleSellerResponse{ID: "s1", Name: "Juan Pérez", Code: "JP"}) {
 		t.Fatalf("parties = %+v, %+v", got.Customer, got.Seller)
 	}
-	wantLine := dto.SaleLineResponse{ItemID: "i1", Code: "PAN-1", Name: "Pan francés", Unit: "kg", TaxRate: 1050, Quantity: 750, UnitPrice: 280_000, DiscountPercent: 1_000, DiscountAmount: 21_000, LineTotal: 189_000}
-	if len(got.Lines) != 1 || got.Lines[0] != wantLine {
+	if len(got.Lines) != 1 || got.Lines[0].Discount == nil || *got.Lines[0].Discount != (dto.Discount{Type: "percent", Value: 1_000}) {
 		t.Fatalf("lines = %+v", got.Lines)
+	}
+	line := got.Lines[0]
+	line.Discount = nil
+	wantLine := dto.SaleLineResponse{
+		ItemID: "i1", Code: "PAN-1", Name: "Pan francés", Unit: "kg", TaxRate: 1050, Quantity: 750, UnitPrice: 280_000,
+		DiscountAmount: 21_000, CartDiscountAmount: 9_450, LineTotal: 179_550,
+	}
+	if line != wantLine {
+		t.Fatalf("line = %+v", line)
 	}
 	if len(got.Payments) != 2 || got.Payments[0].Method != "debit_card" || got.Payments[0].Amount != 100_000 || *got.Payments[0].Reference != "Cupón 1" ||
 		got.Payments[1].Method != "cash" || got.Payments[1].Reference != nil {
@@ -64,10 +78,12 @@ func TestCreateSaleHandler(t *testing.T) {
 	}
 
 	request := received.Request
-	if received.Actor != handlerActor || request.IdempotencyKey != "key-1" || *request.CustomerID != "cu1" || *request.SellerID != "s1" || request.ExpectedTotal != 189_000 {
+	if received.Actor != handlerActor || request.IdempotencyKey != "key-1" || *request.CustomerID != "cu1" || *request.SellerID != "s1" ||
+		request.ExpectedTotal != 179_550 || request.CartDiscount == nil || *request.CartDiscount != (domain.Discount{Type: domain.DiscountAmount, Value: 9_450}) {
 		t.Fatalf("input = %+v", received)
 	}
-	if len(request.Lines) != 1 || request.Lines[0] != (domain.SaleRequestLine{ItemID: "i1", Quantity: 750, DiscountPercent: 1_000}) {
+	if len(request.Lines) != 1 || request.Lines[0].ItemID != "i1" || request.Lines[0].Quantity != 750 ||
+		request.Lines[0].Discount == nil || *request.Lines[0].Discount != (domain.Discount{Type: domain.DiscountPercent, Value: 1_000}) {
 		t.Fatalf("lines = %+v", request.Lines)
 	}
 	if len(request.Payments) != 2 || request.Payments[0].Method != domain.PaymentDebitCard || request.Payments[0].Amount != 100_000 ||
