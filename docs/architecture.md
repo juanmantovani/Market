@@ -150,23 +150,24 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # Inicio, /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
+│   ├── router.tsx            # / (punto de venta), /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
 │   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías y los proveedores (ver abajo)
 │   ├── StockRoute.tsx        # compone stock con las categorías (filtro) y los proveedores (ingreso e historial)
+│   ├── PosRoute.tsx          # compone el punto de venta con las categorías y el catálogo de artículos
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── PageSkeleton.tsx      # skeleton del Suspense del layout mientras llega una página
 │   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
 ├── features/
-│   ├── dashboard/pages/DashboardPage.tsx
 │   ├── categories/           # api/, hooks/, components/, pages/, types.ts
 │   ├── items/                # ídem; recibe las categorías por props
 │   ├── customers/            # ídem
 │   ├── suppliers/            # ídem
 │   ├── sellers/              # ídem
-│   └── stock/                # existencias, ajuste, ingreso de mercadería (con buscador de artículos) e historial
+│   ├── stock/                # existencias, ajuste, ingreso de mercadería (con buscador de artículos) e historial
+│   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
@@ -187,6 +188,23 @@ apps/frontend/src/
   (`GET /api/v1/stock?q=`), que ya trae código, nombre, unidad y
   existencia: stock no depende de la feature de artículos. Enter elige el
   primer resultado, así un lector de código de barras completa la línea.
+- El inicio (`/`) es el **punto de venta** (`features/sales`).
+  `app/PosRoute` le pasa las categorías y `listItems` de la feature de
+  artículos como `searchCatalog`: el catálogo comparte la caché
+  `queryKeys.items`, así que editar un artículo también refresca la
+  pantalla de venta. Enter en el buscador busca enseguida (sin esperar el
+  debounce) y agrega el artículo con ese código o código de barras exacto,
+  o el único que coincide: así funciona un lector de código de barras. Los
+  artículos por peso piden la cantidad en un modal.
+- El carrito vive en el navegador (`localStorage`, clave `market.pos.cart`,
+  validado con Zod al leerlo): recargar la página no lo pierde. Su total es
+  una vista previa con las mismas reglas de redondeo que el backend
+  (`features/sales/lib/cart.ts`, con `BigInt`); el backend recalcula todo al
+  cobrar. Quitar una línea o vaciar el carrito se deshace desde el aviso
+  (`useToast().undoable`), sin pedir confirmación.
+- Atajos del punto de venta (`useShortcuts`, solo en esa pantalla): `F2`
+  vuelve al buscador; las flechas recorren el catálogo y `Escape` vuelve al
+  buscador o lo limpia.
 - `formatMoney`/`parseMoney` y `formatQuantity`/`parseQuantity` son los
   únicos que convierten montos y cantidades entre enteros y texto. Leen lo
   que se tipea en Argentina (`1.234,50`).

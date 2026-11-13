@@ -1,4 +1,4 @@
-import { Boxes, House, Package, Tags, Truck, UserCheck, Users, type LucideIcon } from 'lucide-react'
+import { Boxes, Package, ShoppingCart, Tags, Truck, UserCheck, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -12,7 +12,7 @@ export type NavItem = {
 
 // Each phase adds its section here once its route exists.
 export const NAVIGATION: readonly NavItem[] = [
-  { to: '/', label: 'Inicio', icon: House, end: true, inMobileBar: true },
+  { to: '/', label: 'Vender', icon: ShoppingCart, end: true, inMobileBar: true },
   { to: '/articulos', label: 'Artículos', icon: Package, inMobileBar: true },
   { to: '/categorias', label: 'Categorías', icon: Tags },
   { to: '/stock', label: 'Stock', icon: Boxes },
