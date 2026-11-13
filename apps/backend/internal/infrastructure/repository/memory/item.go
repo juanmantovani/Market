@@ -85,7 +85,7 @@ func (repository *ItemRepository) List(ctx context.Context, filter gateway.ItemF
 		search := domain.NormalizeText(filter.Search)
 		var matches []domain.Item
 		for _, item := range repository.store.items {
-			if (filter.CategoryID == "" || item.CategoryID == filter.CategoryID) && itemMatches(item, search) && (!filter.LowStock || domain.IsLowStock(repository.store.stockLevels[item.ID].Quantity, item.MinStock)) {
+			if (filter.CategoryID == "" || item.CategoryID == filter.CategoryID) && itemMatches(item, search) && (filter.IncludeDiscontinued || !item.Discontinued) && (!filter.LowStock || domain.IsLowStock(repository.store.stockLevels[item.ID].Quantity, item.MinStock)) {
 				matches = append(matches, item)
 			}
 		}

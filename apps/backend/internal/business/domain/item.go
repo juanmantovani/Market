@@ -62,6 +62,10 @@ type ItemFields struct {
 	Cost        *Money
 	TaxRate     Percent
 	MinStock    Quantity
+	// Discontinued items are not sold and are left out of the listings by
+	// default, but keep their history: an item with stock movements can't be
+	// deleted, so this is how it is retired.
+	Discontinued bool
 }
 
 // Item is a product that can be sold. SalePrice includes IVA.

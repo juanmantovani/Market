@@ -344,6 +344,15 @@ func TestNewSaleErrors(t *testing.T) {
 			wantErr: ErrSaleTotalMismatch,
 		},
 		{
+			name: "an item is discontinued",
+			change: func(_ *SaleRequest, items map[string]Item) {
+				pan := items["pan"]
+				pan.Discontinued = true
+				items["pan"] = pan
+			},
+			wantErr: ErrSaleItemDiscontinued,
+		},
+		{
 			name:    "an item is missing",
 			change:  func(_ *SaleRequest, items map[string]Item) { delete(items, "pan") },
 			wantErr: ErrSaleItemNotFound,
