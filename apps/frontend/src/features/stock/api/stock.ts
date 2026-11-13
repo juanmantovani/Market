@@ -1,0 +1,47 @@
+import { apiFetch } from '../../../shared/api/client'
+import { listQuery, type ListParams } from '../../../shared/api/pagination'
+import {
+  stockEntryResponseSchema,
+  stockLevelPageSchema,
+  stockMovementPageSchema,
+  stockMovementSchema,
+  type StockAdjustmentRequest,
+  type StockEntryRequest,
+  type StockInitialRequest,
+} from '../types'
+
+const STOCK_PATH = '/api/v1/stock'
+
+export type StockListParams = ListParams
+
+export type MovementListParams = { itemId: string; page: number; limit: number }
+
+export function listStockLevels(params: StockListParams, signal?: AbortSignal) {
+  const query = new URLSearchParams(listQuery(params))
+  return apiFetch(`${STOCK_PATH}?${query}`, stockLevelPageSchema, { signal })
+}
+
+// The levels of some items, all in one page: the backend caps a page at 100
+// items, so `itemIds` can't have more.
+export function listStockLevelsOf(itemIds: readonly string[], signal?: AbortSignal) {
+  const query = new URLSearchParams({ page: '1', limit: String(itemIds.length) })
+  for (const itemId of itemIds) query.append('itemId', itemId)
+  return apiFetch(`${STOCK_PATH}?${query}`, stockLevelPageSchema, { signal })
+}
+
+export function listStockMovements({ itemId, page, limit }: MovementListParams, signal?: AbortSignal) {
+  const query = new URLSearchParams({ itemId, page: String(page), limit: String(limit) })
+  return apiFetch(`${STOCK_PATH}/movements?${query}`, stockMovementPageSchema, { signal })
+}
+
+export function createStockEntry(request: StockEntryRequest) {
+  return apiFetch(`${STOCK_PATH}/entries`, stockEntryResponseSchema, { method: 'POST', body: request })
+}
+
+export function createStockAdjustment(request: StockAdjustmentRequest) {
+  return apiFetch(`${STOCK_PATH}/adjustments`, stockMovementSchema, { method: 'POST', body: request })
+}
+
+export function createStockInitial(request: StockInitialRequest) {
+  return apiFetch(`${STOCK_PATH}/initial`, stockMovementSchema, { method: 'POST', body: request })
+}

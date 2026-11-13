@@ -1,6 +1,6 @@
 # Plan: Punto de Venta — versión base (v0.1)
 
-Fecha: 2026-11-10 · Estado: propuesta · Referencia: [LoteoApp/LoteosAPP](https://github.com/LoteoApp/LoteosAPP)
+Fecha: 2026-11-10 · Estado: v0.1 completa (la paleta `Ctrl+K` pasó al roadmap) · Referencia: [LoteoApp/LoteosAPP](https://github.com/LoteoApp/LoteosAPP)
 
 ## 1. Objetivo y alcance
 
@@ -17,8 +17,8 @@ reglas de trabajo que LoteosAPP. La versión base tiene que:
 - tener una **interfaz amigable, simple y moderna**, usable desde el celular y
   pensada para cobrar rápido en el mostrador.
 
-Nombre del proyecto: **PDV** (punto de venta). Módulo Go `pdv/backend`,
-paquete `@pdv/frontend`.
+Nombre del proyecto: **Market** (punto de venta). Módulo Go `market/backend`,
+paquete `@market/frontend`.
 
 ### Incluye (v0.1)
 
@@ -136,7 +136,6 @@ apps/backend/
 │   │   │   └── sale.go               # Sale, SaleLine, Payment, cálculo y anulación
 │   │   ├── gateway/
 │   │   │   ├── tx_manager.go         # WithinTx(ctx, fn)
-│   │   │   ├── clock.go
 │   │   │   ├── <entidad>_repository.go
 │   │   │   └── gatewayfake/          # un fake por contrato
 │   │   └── usecase/
@@ -169,12 +168,14 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 ### Persistencia en memoria, lista para PostgreSQL
 
 - **Contratos** en `business/gateway`: un repositorio por agregado, más
-  `TxManager` y `Clock`. Toda operación de I/O recibe `context.Context`.
+  `TxManager`. Toda operación de I/O recibe `context.Context`.
 - **`repository/memory`**: un único `Store` con todas las “tablas” (maps) y un
-  `sync.Mutex`. `WithinTx` toma el lock, guarda una copia del estado y ejecuta
-  `fn`; si `fn` devuelve error, restaura la copia. Da las mismas garantías que
-  una transacción serializable. Los repositorios toman el lock por su cuenta
-  salvo que el `ctx` ya esté dentro de una transacción.
+  `sync.Mutex`. `WithinTx` toma el lock y ejecuta `fn`; cada escritura
+  registra cómo deshacerse y, si `fn` devuelve error, se deshacen en orden
+  inverso. Da las mismas garantías que una transacción serializable. Los
+  repositorios toman el lock por su cuenta salvo que el `ctx` ya esté dentro
+  de una transacción. *(Implementado en la Fase 0 con registro de deshacer en
+  lugar de copiar todo el estado: ver `docs/architecture.md`.)*
 - **PostgreSQL (Fase 6)**: `WithinTx` abre un `pgx.Tx` y lo guarda en el
   `ctx`; los repositorios usan esa transacción o el pool. Las lecturas de
   stock dentro de una venta usan `SELECT … FOR UPDATE`.
@@ -182,8 +183,8 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
   `DEFAULT uuidv7()`). El número de venta es correlativo (contador en memoria,
   secuencia en PostgreSQL).
 - **Suite de contrato (`repositorytest`)**: recibe un constructor de
-  repositorios y verifica alta, búsqueda, baja lógica, unicidad de código y
-  barras, rollback de transacción y concurrencia de stock. Corre hoy contra
+  repositorios y verifica alta, búsqueda, eliminación, unicidad de código
+  y barras, rollback de transacción y concurrencia de stock. Corre hoy contra
   memoria y mañana contra PostgreSQL sin cambios: así el reemplazo se puede
   verificar en vez de suponer.
 - **Selección**: `STORAGE_DRIVER=memory` (default). `postgres` llega en Fase 6.
@@ -197,21 +198,24 @@ Ningún caso de uso conoce `http.Request`, JSON, `sync.Mutex` ni tipos de `pgx`.
 - Listados paginados: `?q=&page=&limit=` →
   `{ "items": [...], "total": 120, "page": 1, "limit": 25 }`; `limit` máximo 100.
 - `PATCH` parcial: un campo ausente no cambia.
-- Bajas lógicas: `DELETE` desactiva; `POST /{id}/reactivate` reactiva. Los
-  listados muestran activos salvo `?status=inactive|all`.
+- ABM = alta, edición y eliminación (sin activar/desactivar; el artículo se
+  puede marcar `discontinued`, ver `docs/domain.md`). `DELETE`
+  borra y responde `204`; si otro registro lo referencia, `409`
+  `<entidad>_in_use`.
 - `POST /api/v1/sales` exige `Idempotency-Key`.
-- Salud: `GET /health/live` y `GET /health/ready`.
+- Salud: `GET /health/live` (Fase 0) y `GET /health/ready`, que chequea la
+  base y llega con PostgreSQL.
 
 ### Endpoints de la versión base
 
 | Recurso | Endpoints |
 | --- | --- |
-| Categorías | `GET` `POST /api/v1/categories` · `GET` `PATCH` `DELETE /api/v1/categories/{id}` · `POST /api/v1/categories/{id}/reactivate` |
+| Categorías | `GET` `POST /api/v1/categories` · `GET` `PATCH` `DELETE /api/v1/categories/{id}` |
 | Artículos | Mismo patrón en `/api/v1/items` (`?q=&categoryId=&lowStock=`) · `GET /api/v1/items/lookup?code=` (código o barras exacto, para el lector) |
 | Clientes | Mismo patrón en `/api/v1/customers` |
 | Proveedores | Mismo patrón en `/api/v1/suppliers` |
 | Vendedores | Mismo patrón en `/api/v1/sellers` |
-| Stock | `GET /api/v1/stock` (`?q=&lowStock=true`) · `GET /api/v1/stock/movements` (`?itemId=&type=&from=&to=`) · `POST /api/v1/stock/entries` · `POST /api/v1/stock/adjustments` |
+| Stock | `GET /api/v1/stock` (`?q=&categoryId=&lowStock=true`) · `GET /api/v1/stock/movements` (`?itemId=&type=`; `from`/`to` cuando haga falta un historial por fechas) · `POST /api/v1/stock/entries` · `POST /api/v1/stock/adjustments` |
 | Ventas | `POST /api/v1/sales` · `GET /api/v1/sales` (`?from=&to=&sellerId=&customerId=&status=`) · `GET /api/v1/sales/{id}` · `POST /api/v1/sales/{id}/void` |
 | Inicio | `GET /api/v1/dashboard/summary` |
 
@@ -234,7 +238,7 @@ apps/frontend/src/
 │   ├── api/                   # client.ts (apiFetch, ApiError), pagination.ts, query-keys.ts
 │   ├── config/env.ts
 │   ├── ui/                    # shadcn + PageHeader, EmptyState, ResponsiveList, ConfirmDialog,
-│   │                          #   FormSheet, SearchField, MoneyInput, QuantityInput
+│   │                          #   FormDialog, SearchField, MoneyInput, QuantityInput
 │   ├── lib/                   # cn, formatMoney, formatQuantity, formatDate, normalizeText, idempotencyKey
 │   └── hooks/                 # useDebouncedValue, useHotkeys
 ├── index.css                  # tokens de tema claro/oscuro
@@ -260,7 +264,7 @@ apps/frontend/src/
 | Español (UI) | Código / API | Qué es |
 | --- | --- | --- |
 | Categoría | `Category` | Agrupa artículos para buscar y filtrar. |
-| Artículo | `Item` | Producto o servicio que se vende. |
+| Artículo | `Item` | Producto que se vende; todos controlan stock. |
 | Cliente | `Customer` | A quién se le vende. |
 | Proveedor | `Supplier` | A quién se le compra mercadería. |
 | Vendedor | `Seller` | Quién atiende la venta (comisiones a futuro). |
@@ -280,29 +284,28 @@ apps/frontend/src/
 - **`Quantity`**: `int64` en milésimas, para vender por peso o volumen
   (0,250 kg = 250). Un artículo de unidad `unit` solo acepta cantidades
   enteras.
-- **Redondeo**: importe de línea = precio × cantidad ÷ 1000, con descuento,
-  redondeado *half-up* al centavo. El total es la suma de las líneas, así que
+- **Redondeo**: importe de línea = precio × cantidad ÷ 1000, con descuentos,
+  redondeado *half away from zero* al centavo. El total es la suma de las líneas, así que
   el ticket siempre suma exacto.
 
 ### Entidades
 
-- **Category**: `name` (único entre activas, sin distinguir mayúsculas ni
-  acentos), `description?`, `active`. No se desactiva si tiene artículos
-  activos (`category_in_use`).
+- **Category**: `name` (único, sin distinguir mayúsculas ni acentos),
+  `description?`. No se elimina si tiene artículos (`category_in_use`).
 - **Item**: `code` (SKU interno, único), `barcode?` (único si existe), `name`,
   `description?`, `categoryId`, `unit` (`unit | kg | l | m`), `salePrice`
   (> 0, IVA incluido), `cost?`, `taxRate` (0 / 10,5 / 21 / 27 %, informativo
-  hasta facturar), `tracksStock` (falso para servicios), `minStock`,
-  `preferredSupplierId?`, `active`.
+  hasta facturar), `minStock`, `supplierIds` (ninguno, uno o varios
+  proveedores). Solo productos: todo artículo controla stock.
 - **Customer**: `name`, `documentType` (`dni | cuit | cuil | none`),
   `documentNumber` (solo dígitos, único por tipo), `taxCondition`
   (`final_consumer | monotax | registered | exempt`), `email?`, `phone?`,
-  `address?`, `notes?`, `active`. Existe un cliente de sistema **Consumidor
-  Final** que no se edita ni se desactiva; una venta sin cliente lo usa.
+  `address?`, `notes?`. Existe un cliente de sistema **Consumidor Final**
+  que no se edita ni se elimina; una venta sin cliente lo usa.
 - **Supplier**: `businessName`, `cuit?` (11 dígitos normalizados, único),
-  `contactName?`, `phone?`, `email?`, `address?`, `notes?`, `active`.
+  `contactName?`, `phone?`, `email?`, `address?`, `notes?`.
 - **Seller**: `name`, `code` (corto y único, para elegirlo rápido en el POS),
-  `commissionRate?` (informativo), `active`. No es un usuario; a futuro un
+  `commissionRate?` (informativo). No es un usuario; a futuro un
   usuario podrá vincularse a un vendedor.
 - **StockLevel**: `itemId`, `quantity`, `updatedAt`.
 - **StockMovement** (inmutable): `itemId`, `type`
@@ -311,11 +314,12 @@ apps/frontend/src/
   la venta), `supplierId?` y `unitCost?` (en ingresos), `actorId`,
   `createdAt`.
 - **Sale**: `number` correlativo, `createdAt`, cliente y vendedor (id +
-  copia de nombre y documento), `lines[]`, `subtotal`, `discountTotal`,
-  `total`, `payments[]`, `change` (vuelto), `status` (`completed | voided`),
+  copia de nombre y documento), `lines[]`, `subtotal`, `cartDiscount?`,
+  `cartDiscountAmount`, `discountTotal`, `total`, `payments[]`, `change` (vuelto), `status` (`completed | voided`),
   `voidedAt?`, `voidReason?`, `actorId`, `idempotencyKey`.
 - **SaleLine**: `itemId` + copia de código, nombre, unidad y alícuota;
-  `quantity`, `unitPrice`, `discountPercent`, `lineTotal`.
+  `quantity`, `unitPrice`, `discount?` (de la línea), `discountAmount`,
+  `cartDiscountAmount` (su parte del descuento general), `lineTotal`.
 - **Payment**: `method` (`cash | debit_card | credit_card | transfer | qr`),
   `amount`, `reference?`.
 
@@ -326,7 +330,7 @@ apps/frontend/src/
 2. El ajuste exige motivo y puede ser positivo o negativo.
 3. El ingreso de mercadería exige cantidad > 0; proveedor y costo unitario son
    opcionales. Si se informa costo, actualiza `Item.cost`.
-4. La venta descuenta solo artículos con `tracksStock`.
+4. La venta descuenta el stock de cada artículo vendido: todos lo controlan.
 5. **Stock negativo**: `STOCK_ALLOW_NEGATIVE=false` por defecto → la venta
    falla con `insufficient_stock` (409) indicando el artículo. Es configurable
    porque muchos comercios prefieren no frenar la caja.
@@ -340,9 +344,16 @@ apps/frontend/src/
    llevan cantidad entera.
 2. **Copia de datos**: precio, código, nombre y alícuota se copian a la línea.
    Editar un artículo después no altera ventas pasadas.
-3. Descuento por línea de 0 a 100 %. El “descuento general” de la UI aplica el
-   mismo porcentaje a todas las líneas, así el dominio maneja un solo
-   mecanismo.
+3. **Descuentos por porcentaje o por monto**, por línea y para toda la venta
+   (el “descuento general” del carrito): `{ type: percent | amount, value }`,
+   el porcentaje en centésimas de punto (0 a 100 %) y el monto en centavos.
+   El de línea no puede superar el importe de la línea; el general se aplica
+   sobre lo que queda después de los de línea, no puede superarlo y se
+   reparte entre las líneas en proporción a lo que valen (resto mayor: los
+   centavos que sobran van a las fracciones más grandes), así cada línea
+   guarda su descuento en centavos, ningún total queda negativo y el backend
+   recalcula siempre el total. *(Cambió: al principio solo había
+   porcentajes y el general era el mismo porcentaje en cada línea.)*
 4. **El backend recalcula todo**. El cliente envía `expectedTotal`; si no
    coincide → `sale_total_mismatch` (409). El cajero nunca cobra un importe
    distinto del que vio (por ejemplo, si cambió un precio mientras armaba el
@@ -379,13 +390,14 @@ y prueban en los casos de uso desde ahora.
 ### Principios
 
 - **Simple**: una acción principal por pantalla; textos claros en español
-  rioplatense (“Revisá tu conexión”), sin jerga técnica en los errores.
+  neutro, con las indicaciones en infinitivo (“Revisar la conexión”), sin
+  jerga técnica en los errores.
 - **Rápida**: el POS se opera completo con teclado y lector de código de
   barras; lo frecuente queda a uno o dos clics.
 - **Moderna**: shadcn/ui (Base UI) + Tailwind v4 con tokens, tipografía Inter,
   íconos lucide, bordes redondeados, sombras sutiles, modo claro y oscuro,
   animaciones breves que respetan `prefers-reduced-motion`.
-- **Amigable**: estados vacíos con una acción (“Todavía no cargaste
+- **Amigable**: estados vacíos con una acción (“Todavía no hay
   artículos — Crear el primero”), skeletons en lugar de spinners, toasts de
   confirmación, confirmación solo en acciones destructivas y “Deshacer” donde
   se pueda (por ejemplo, al quitar una línea del carrito).
@@ -396,9 +408,11 @@ y prueban en los casos de uso desde ahora.
 
 ### Navegación
 
-- **Escritorio**: sidebar colapsable (Inicio, Vender, Ventas, Artículos,
-  Categorías, Stock, Clientes, Proveedores, Vendedores) y header con buscador
-  global (`Ctrl+K`) y selector de tema.
+- **El inicio (`/`) es la pantalla de venta**: abrir la app es empezar a
+  vender. El resumen del día (Fase 5) va en su propia ruta.
+- **Escritorio**: sidebar colapsable (Vender, Ventas, Artículos, Categorías,
+  Clientes, Proveedores, Vendedores y Resumen) y header con la ayuda de
+  atajos (`?`) y el selector de tema.
 - **Celular**: barra inferior con Vender, Ventas, Artículos y Más.
 
 ### Pantalla de venta
@@ -440,10 +454,12 @@ igual y cada ABM nuevo sale rápido:
 - `SearchField` con debounce y filtros (activos/inactivos, categoría).
 - `ResponsiveList`: tabla desde `md:` y tarjetas en el celular, con
   paginación.
-- Alta y edición en `FormSheet` (panel lateral en escritorio, pantalla
-  completa en el celular), validación inline con Zod y errores del backend
-  asociados al campo según su `code`.
-- Baja con `ConfirmDialog`; como es lógica, se puede reactivar.
+- Alta y edición en un modal (`FormDialog`), igual para todas las entidades,
+  con validación inline con Zod y errores del backend asociados al campo
+  según su `code`. Si hay cambios sin guardar, cerrar el modal pide
+  confirmación («¿Descartar los cambios?»).
+- Eliminación con `ConfirmDialog`: es definitiva, así que siempre se
+  confirma.
 
 ## 6. Testing
 
@@ -460,15 +476,15 @@ Mismas herramientas y umbrales que LoteosAPP, más dos agregados:
   contenedor real con memoria y ejecuta por HTTP alta de artículo → ingreso de
   stock → venta → anulación, verificando existencias en cada paso.
 - **Frontend**: Vitest + RTL + user-event con `fetch` simulado. Flujos
-  mínimos: venta completa con teclado, ABM (alta, edición, baja, reactivar),
+  mínimos: venta completa con teclado, ABM (alta, edición, eliminación),
   estados de carga, vacío y error.
 
 ## 7. Tooling, CI y convenciones
 
-- **Versiones**: Go 1.26.x (instalado 1.26.4; LoteosAPP usa 1.26.6, conviene
-  el último parche), Node ≥ 20.19 (instalado 22; CI con 24), pnpm ≥ 10
-  (instalado 11), React 19, Vite 8, TypeScript, Tailwind 4, Vitest 4: las
-  mismas líneas que LoteosAPP.
+- **Versiones**: Go 1.27.3 (último estable; `GOTOOLCHAIN=auto` lo descarga
+  si falta), Node ≥ 20.19 (CI con 24), pnpm 11, React 19, Vite 8,
+  TypeScript 7, Tailwind 4, Vitest 4. Salvo Go, las mismas líneas que
+  LoteosAPP.
 - **Scripts raíz**: `pnpm dev` (frontend), `pnpm dev:backend`, `pnpm build`,
   `pnpm test`, `pnpm test:coverage`, `pnpm typecheck`, `pnpm lint`.
 - **Docker Compose**: `backend` + `frontend`. `db` y `migrate` se agregan en
@@ -498,15 +514,20 @@ en escritorio.
   `domain.md` (glosario y reglas), `development.md`, `testing.md`, `ci.md`.
 - **Backend**: `main`, `app`, `environments`, `server`, `response`,
   `handler.Adapt` + `decodeJSON`, middlewares (actor de desarrollo, log,
-  recover), rutas de salud, tipos base de dominio (`Error`, `Money`,
-  `Quantity`, `Actor`, `Page`, normalización de texto) y `memory.Store` +
-  `TxManager`, todo con tests.
+  recover), `/health/live`, tipos base de dominio (`Error`, `Money`,
+  `Quantity`, `Percent`, `Actor`, `Page`, normalización de texto) y
+  `memory.Store` + `TxManager`, todo con tests.
 - **Frontend**: Vite + React + TS + Tailwind 4 + shadcn, tokens claro/oscuro,
   ESLint con `no-raw-tailwind-colors`, plugin CSP, router, `AppLayout`
-  (sidebar, barra inferior, tema), QueryClient, `apiFetch`, kit base de UI
-  (`PageHeader`, `EmptyState`, `ResponsiveList`, `ConfirmDialog`,
-  `FormSheet`, `SearchField`) y setup de Vitest.
+  (sidebar, barra inferior, tema), QueryClient,
+  `apiFetch` con Zod, `PageHeader`, `EmptyState`, página 404 y setup de
+  Vitest.
 - `git init` con `main` y `develop`.
+
+Ajustes respecto de la propuesta original, para no crear abstracciones sin
+uso (regla de `AGENTS.md`): el contenedor `dependencies`, los datos demo y el
+kit de ABM (`ResponsiveList`, `ConfirmDialog`, `FormDialog`, `SearchField`)
+pasan a la Fase 1, donde tienen su primer uso real.
 
 ### Fase 1 — Catálogo
 
@@ -515,7 +536,7 @@ en escritorio.
    feature del frontend. Es la entidad más simple y **define el patrón**: al
    terminarla se documenta la “receta de ABM” en `docs/architecture.md`.
 2. **Artículos**: el mismo patrón, más unidad, precio, alícuota,
-   `tracksStock`, stock mínimo y búsqueda por código o barras (`lookup`).
+   stock mínimo y búsqueda por código o barras (`lookup`).
 
 ### Fase 2 — Clientes, proveedores y vendedores
 
@@ -528,8 +549,9 @@ independientes entre sí y se pueden hacer en paralelo.
 Dominio de existencias, movimientos y política; uso de `TxManager`; ingreso de
 mercadería (varias líneas, proveedor y costo opcionales), ajustes con motivo,
 existencias con filtro de stock bajo e historial de movimientos. En la UI:
-pantalla de stock con ajuste rápido, formulario de ingreso e historial. La
-existencia también se muestra en el detalle del artículo.
+el stock se maneja desde Artículos (sin pantalla propia): columna de stock con
+alerta, filtro de stock bajo, ajuste o carga de stock inicial por artículo,
+historial de movimientos e ingreso de mercadería.
 
 ### Fase 4 — Ventas
 
@@ -541,9 +563,14 @@ cobro con atajos y lector de barras; ticket imprimible (`window.print` con
 
 ### Fase 5 — Inicio y pulido → `v0.1.0`
 
-Resumen del día (ventas, total por medio de pago, stock bajo); command palette
-(`Ctrl+K`); ayuda de atajos; revisión de accesibilidad y de celular; estados
-vacíos; datos demo prolijos; README con instrucciones de demo. Tag `v0.1.0`.
+Resumen del día (ventas, total por medio de pago, stock bajo) en su propia
+ruta, ya que el inicio es la pantalla de venta; ayuda de atajos (`?`);
+revisión de accesibilidad y de celular; estados vacíos; datos demo prolijos;
+README con instrucciones de demo. Tag `v0.1.0`.
+
+La paleta de comandos (`Ctrl+K`) se sacó de la versión base: con ocho
+pantallas y la barra lateral, saltar entre ellas con el teclado aporta poco;
+queda en el roadmap.
 
 ## 9. Dependencias entre fases
 
@@ -572,14 +599,15 @@ flowchart LR
 | Multi-sucursal | Existencia por (artículo, depósito) y transferencias. |
 | Reportes | Ventas por período, vendedor, medio de pago y categoría; rentabilidad (usa `cost`); comisiones. |
 | Hardware y offline | Impresora térmica (ESC/POS), cajón de dinero, PWA u offline si la instalación es local. |
+| Paleta de comandos | `Ctrl+K` para saltar entre pantallas y buscar artículos, clientes y ventas desde cualquier lugar. |
 | Deploy | Local: binario Go con el frontend embebido (`embed`) + PostgreSQL. Nube: contenedores + PostgreSQL administrado. |
 
 ## 11. Decisiones a confirmar
 
 Cada una tiene un valor por defecto para no frenar el trabajo:
 
-1. ~~Nombre y ubicación del repo~~ — resuelto: **PDV**, repo público
-   [juanmantovani/PDV](https://github.com/juanmantovani/PDV) con `main` y
+1. ~~Nombre y ubicación del repo~~ — resuelto: **Market**, repo público
+   [juanmantovani/Market](https://github.com/juanmantovani/Market) con `main` y
    `develop`.
 2. **Vender sin stock**. Por defecto: no, configurable con
    `STOCK_ALLOW_NEGATIVE`.
@@ -596,8 +624,6 @@ Cada una tiene un valor por defecto para no frenar el trabajo:
 
 - **La memoria se pierde al reiniciar** → datos demo al iniciar; adelantar la
   Fase 6 si se quiere probar con datos reales.
-- **Copiar todo el estado en cada transacción en memoria escala mal** →
-  aceptable para desarrollo y demo; desaparece con PostgreSQL.
 - **Comportamiento distinto entre memoria y PostgreSQL** → suite de contrato
   compartida.
 - **El alcance del POS crece rápido** → cada fase cierra con su criterio de
