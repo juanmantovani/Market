@@ -42,6 +42,9 @@ function ToastList() {
             </Toast.Description>
           )}
         </div>
+        {toast.actionProps && (
+          <Toast.Action className="-my-1.5 flex h-11 shrink-0 items-center rounded-md px-3 text-sm font-medium text-primary hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:h-8" />
+        )}
         <Toast.Close
           aria-label="Cerrar aviso"
           className="-m-1 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"

@@ -29,16 +29,16 @@ apps/backend/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager y un contrato de repositorio por agregado
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial
+    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta, listado, detalle y anulación
     └── infrastructure/
-        ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA
+        ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
         ├── repository/
         │   ├── memory/                    # Store + TxManager + un repositorio por agregado
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
-            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers, stock
+            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers, stock, sales
             ├── handler/                   # un handler por ruta + Adapt, decodeJSON, pageQuery
             ├── middleware/                # DevActor, Recover, RequestLog
             ├── response/                  # WriteJSON, WriteError (único mapeo Kind → status)
@@ -101,6 +101,11 @@ flowchart LR
   registro completo y así un opcional en `null` se borra.
 - Montos y cantidades viajan como enteros: centavos, centésimas de punto
   porcentual y milésimas de unidad.
+- `POST /api/v1/sales` exige el header `Idempotency-Key`: el frontend genera
+  la clave, la reutiliza mientras el alta falle y la rota al confirmar. Un
+  reintento con la misma clave y el mismo cuerpo responde la venta original
+  (`201`, sin registrarla de nuevo); con otro cuerpo, `409
+  idempotency_key_conflict`.
 - `Adapt(h, timeout)` acota el contexto al timeout de la ruta y el cuerpo a
   1 MiB (`handler.MaxBodyBytes`). Los deadlines del `http.Server` derivan del
   mayor timeout registrado (`route.MaxHandlerTimeout`).
@@ -115,9 +120,16 @@ flowchart LR
 - `WithinTx(ctx, fn)` toma el lock durante toda la unidad de trabajo, así que
   las transacciones son serializables. Un `ctx` que ya está dentro de una
   transacción del mismo store se une a ella en vez de bloquearse.
-- Cada escritura (`put`, `remove`, `appendRow`) registra cómo deshacerse. Si
-  `fn` devuelve error o entra en pánico, los pasos se deshacen en orden
-  inverso y las tablas quedan exactamente como estaban.
+- Cada escritura (`put`, `remove`, `appendRow`, `set`) registra cómo
+  deshacerse. Si `fn` devuelve error o entra en pánico, los pasos se deshacen
+  en orden inverso y las tablas quedan exactamente como estaban.
+- `NewStore` arranca vacío salvo por el cliente de sistema **Consumidor
+  Final** (`domain.FinalConsumer`, con ID fijo `domain.FinalConsumerID`); en
+  PostgreSQL lo insertará una migración.
+- El número de venta sale de un contador (`lastSaleNumber`, escrito con
+  `set`), que hace de secuencia. A diferencia de una secuencia, una unidad de
+  trabajo que falla devuelve su número; la suite de contrato no depende de
+  eso.
 - Los movimientos de stock viven en una tabla que solo crece
   (`appendRow`): su orden es el de registro y ningún repositorio los edita
   ni los borra.
@@ -126,6 +138,12 @@ flowchart LR
   store, dos ingresos simultáneos del mismo artículo nunca pisan su saldo
   (la suite de contrato lo prueba con 20 unidades de trabajo concurrentes).
   En PostgreSQL, `GetLevel` tendrá que bloquear la fila (`FOR UPDATE`).
+- Una venta corre entera en un `WithinTx`: busca la clave de idempotencia,
+  lee cliente, vendedor y artículos, deja que el dominio calcule la venta,
+  la guarda (el repositorio le asigna ID y número) y registra un movimiento
+  `sale` por línea. Si una línea no tiene stock, no queda ni la venta ni
+  ningún movimiento. La anulación también: guarda el estado `voided` y un
+  movimiento `sale_void` por línea en la misma unidad de trabajo.
 - Las tablas guardan valores, y los repositorios copian los punteros y
   slices que guardan o devuelven (por ejemplo `cloneCategory`), para que
   nadie mute una tabla fuera del lock.
@@ -135,7 +153,10 @@ flowchart LR
   tenga artículos, los proveedores de un artículo tienen que existir y no
   se pueden borrar mientras un artículo los tenga, un documento por cliente,
   un CUIT por proveedor, un código por vendedor, el artículo y el proveedor
-  de un movimiento de stock tienen que existir y no se pueden borrar después)
+  de un movimiento de stock tienen que existir y no se pueden borrar después,
+  una venta por clave de idempotencia, y el cliente, el vendedor y los
+  artículos de una venta tienen que existir y el cliente y el vendedor no se
+  pueden borrar después)
   las verifica el repositorio dentro del lock, y la suite de contrato prueba
   que se cumplan también bajo concurrencia.
 - Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
@@ -150,23 +171,24 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # Inicio, /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
+│   ├── router.tsx            # / (punto de venta), /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
 │   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías y los proveedores (ver abajo)
 │   ├── StockRoute.tsx        # compone stock con las categorías (filtro) y los proveedores (ingreso e historial)
+│   ├── PosRoute.tsx          # compone el punto de venta con las categorías y el catálogo de artículos
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── PageSkeleton.tsx      # skeleton del Suspense del layout mientras llega una página
 │   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
 ├── features/
-│   ├── dashboard/pages/DashboardPage.tsx
 │   ├── categories/           # api/, hooks/, components/, pages/, types.ts
 │   ├── items/                # ídem; recibe las categorías por props
 │   ├── customers/            # ídem
 │   ├── suppliers/            # ídem
 │   ├── sellers/              # ídem
-│   └── stock/                # existencias, ajuste, ingreso de mercadería (con buscador de artículos) e historial
+│   ├── stock/                # existencias, ajuste, ingreso de mercadería (con buscador de artículos) e historial
+│   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
@@ -187,6 +209,23 @@ apps/frontend/src/
   (`GET /api/v1/stock?q=`), que ya trae código, nombre, unidad y
   existencia: stock no depende de la feature de artículos. Enter elige el
   primer resultado, así un lector de código de barras completa la línea.
+- El inicio (`/`) es el **punto de venta** (`features/sales`).
+  `app/PosRoute` le pasa las categorías y `listItems` de la feature de
+  artículos como `searchCatalog`: el catálogo comparte la caché
+  `queryKeys.items`, así que editar un artículo también refresca la
+  pantalla de venta. Enter en el buscador busca enseguida (sin esperar el
+  debounce) y agrega el artículo con ese código o código de barras exacto,
+  o el único que coincide: así funciona un lector de código de barras. Los
+  artículos por peso piden la cantidad en un modal.
+- El carrito vive en el navegador (`localStorage`, clave `market.pos.cart`,
+  validado con Zod al leerlo): recargar la página no lo pierde. Su total es
+  una vista previa con las mismas reglas de redondeo que el backend
+  (`features/sales/lib/cart.ts`, con `BigInt`); el backend recalcula todo al
+  cobrar. Quitar una línea o vaciar el carrito se deshace desde el aviso
+  (`useToast().undoable`), sin pedir confirmación.
+- Atajos del punto de venta (`useShortcuts`, solo en esa pantalla): `F2`
+  vuelve al buscador; las flechas recorren el catálogo y `Escape` vuelve al
+  buscador o lo limpia.
 - `formatMoney`/`parseMoney` y `formatQuantity`/`parseQuantity` son los
   únicos que convierten montos y cantidades entre enteros y texto. Leen lo
   que se tipea en Argentina (`1.234,50`).
@@ -201,13 +240,13 @@ apps/frontend/src/
 
 | Componente | Para qué |
 | --- | --- |
-| `PageHeader` | Título, descripción y acción principal de la pantalla. |
+| `PageHeader` | Título y acción principal de la pantalla. |
 | `SearchField` | Búsqueda con ícono y botón para limpiar; el placeholder es el propio label (corto, para que entre en el celular) y debajo muestra por qué campos busca (`hint`). Se combina con `useDebouncedValue`. |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
-| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. |
+| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. Al cerrar, devuelve el foco al botón que lo abrió (`useReturnFocus`). Si el formulario tiene cambios sin guardar (`useUnsavedChanges(values)`), cerrarlo con Escape, la X, tocando afuera o «Cancelar» (`useFormDialog().requestClose`) pregunta «¿Descartar los cambios?»; cerrarlo desde la página después de guardar no pregunta. |
 | `NativeSelect` | `<select>` nativo con estilo: teclado, lector de pantalla y selector del celular funcionan sin más. |
-| `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`). |
+| `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`); también devuelve el foco al botón que la abrió. |
 | `EmptyState` | Vacío, sin resultados o error, siempre con una salida. |
 | `ToastProvider` / `useToast` | Avisos de éxito o error (Toast de Base UI, sin dependencias extra). |
 | `Field`, `Input`, `Textarea` | Campos con label, ayuda y error; 44 px de alto en el celular. |
@@ -249,7 +288,8 @@ clientes, proveedores, vendedores).
 3. `hooks/`: `use<Entidades>` (listado) y las mutaciones que invalidan la
    clave de la entidad.
 4. `components/`: formulario (validación con Zod + errores del backend en el
-   campo correspondiente), listado sobre `ResponsiveList`.
+   campo correspondiente; llama a `useUnsavedChanges(values)` y su botón
+   «Cancelar» a `useFormDialog().requestClose`), listado sobre `ResponsiveList`.
 5. `pages/<Entidades>Page.tsx`: compone el kit (búsqueda, listado,
    paginación, `FormDialog` para crear y editar, `ConfirmDialog` para
    eliminar, toasts).

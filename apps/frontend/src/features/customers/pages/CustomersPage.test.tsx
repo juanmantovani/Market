@@ -327,6 +327,60 @@ describe('CustomersPage', () => {
     })
   })
 
+  it('returns the focus to the button that opened the form when it is closed with Escape', async () => {
+    fakeCustomerApi([customer({ name: 'Ana' })])
+    const user = userEvent.setup()
+    renderWithProviders(<CustomersPage />)
+    await table()
+
+    const newButton = screen.getByRole('button', { name: 'Nuevo cliente' })
+    newButton.focus()
+    await user.keyboard('{Enter}')
+    await screen.findByRole('dialog', { name: 'Nuevo cliente' })
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /cliente/ })).not.toBeInTheDocument())
+    await waitFor(() => expect(newButton).toHaveFocus())
+  })
+
+  it('asks before discarding a customer that was started and not saved', async () => {
+    const api = fakeCustomerApi([customer({ name: 'Ana' })])
+    const user = userEvent.setup()
+    renderWithProviders(<CustomersPage />)
+    await table()
+
+    await openNewCustomer(user)
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo cliente' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    const form = await openNewCustomer(user)
+    await user.type(form.getByLabelText('Nombre o razón social'), 'Kiosco')
+    await user.click(form.getByRole('button', { name: 'Cancelar' }))
+    const prompt = within(await screen.findByRole('alertdialog', { name: '¿Descartar los cambios?' }))
+    await user.click(prompt.getByRole('button', { name: 'Seguir editando' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(form.getByLabelText('Nombre o razón social')).toHaveValue('Kiosco')
+
+    await user.click(form.getByRole('button', { name: 'Cancelar' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Descartar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo cliente' })).not.toBeInTheDocument())
+    expect(api.writes()).toEqual([])
+  })
+
+  it('also asks when only a select of a customer being edited changed', async () => {
+    fakeCustomerApi([customer({ name: 'Ana' })])
+    const user = userEvent.setup()
+    renderWithProviders(<CustomersPage />)
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Ana' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar cliente' }))
+    await user.selectOptions(form.getByLabelText('Condición frente al IVA'), 'Responsable inscripto')
+    await user.keyboard('{Escape}')
+
+    expect(await screen.findByRole('alertdialog', { name: '¿Descartar los cambios?' })).toBeInTheDocument()
+  })
+
   it('deletes a customer only after confirming', async () => {
     const api = fakeCustomerApi([customer({ name: 'Ana' }), customer({ name: 'Beto' })])
     const user = userEvent.setup()

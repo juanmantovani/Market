@@ -1,8 +1,9 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { formatMoney } from '../../../shared/lib/money'
+import { unitShort } from '../../../shared/lib/quantity'
 import { Button } from '../../../shared/ui/button'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
-import { unitShort, type Item, type StockQuantities } from '../types'
+import type { Item, StockQuantities } from '../types'
 import { ItemStock } from './ItemStock'
 
 type ItemListProps = {

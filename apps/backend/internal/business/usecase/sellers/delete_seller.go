@@ -12,7 +12,7 @@ type DeleteSellerInput struct {
 	ID    string
 }
 
-// DeleteSeller removes a seller for good.
+// DeleteSeller removes a seller for good. A seller with sales stays.
 type DeleteSeller interface {
 	Execute(ctx context.Context, input DeleteSellerInput) error
 }

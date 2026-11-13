@@ -23,6 +23,9 @@ type Server struct {
 	// SeedDemoData loads sample records on startup. It defaults to true
 	// because in-memory storage starts empty on every restart.
 	SeedDemoData bool
+	// StockAllowNegative lets a sale take more stock than there is. It
+	// defaults to false: the sale fails with insufficient_stock.
+	StockAllowNegative bool
 }
 
 // LoadServer reads the server configuration from the environment and
@@ -46,15 +49,21 @@ func LoadServer() (Server, error) {
 		problems = append(problems, "SEED_DEMO_DATA must be true or false")
 	}
 
+	allowNegative, err := strconv.ParseBool(envOrDefault("STOCK_ALLOW_NEGATIVE", "false"))
+	if err != nil {
+		problems = append(problems, "STOCK_ALLOW_NEGATIVE must be true or false")
+	}
+
 	if len(problems) > 0 {
 		return Server{}, errors.New(strings.Join(problems, "; "))
 	}
 
 	return Server{
-		Port:          port,
-		AllowedOrigin: strings.TrimRight(strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGIN")), "/"),
-		StorageDriver: driver,
-		SeedDemoData:  seed,
+		Port:               port,
+		AllowedOrigin:      strings.TrimRight(strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGIN")), "/"),
+		StorageDriver:      driver,
+		SeedDemoData:       seed,
+		StockAllowNegative: allowNegative,
 	}, nil
 }
 

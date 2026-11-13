@@ -1,16 +1,14 @@
 import { z } from 'zod'
 import { pageSchema } from '../../shared/api/pagination'
 import { centsToInput, parseMoney } from '../../shared/lib/money'
-import { formatQuantity, parseQuantity } from '../../shared/lib/quantity'
+import { formatQuantity, parseQuantity, type Unit } from '../../shared/lib/quantity'
 
-export const UNITS = [
-  { value: 'unit', label: 'Unidad', short: 'u.' },
-  { value: 'kg', label: 'Kilogramo', short: 'kg' },
-  { value: 'l', label: 'Litro', short: 'l' },
-  { value: 'm', label: 'Metro', short: 'm' },
-] as const
-
-export type Unit = (typeof UNITS)[number]['value']
+export const UNITS: readonly { value: Unit; label: string }[] = [
+  { value: 'unit', label: 'Unidad' },
+  { value: 'kg', label: 'Kilogramo' },
+  { value: 'l', label: 'Litro' },
+  { value: 'm', label: 'Metro' },
+]
 
 // Hundredths of a percent, like the backend's domain.Percent.
 export const TAX_RATES = [
@@ -146,8 +144,4 @@ export function toFormValues(item: Item | null): ItemFormValues {
     taxRate: String(item?.taxRate ?? 2100),
     minStock: item ? formatQuantity(item.minStock) : '0',
   }
-}
-
-export function unitShort(unit: Unit): string {
-  return UNITS.find((option) => option.value === unit)?.short ?? unit
 }

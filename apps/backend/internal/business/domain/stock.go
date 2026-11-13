@@ -230,13 +230,13 @@ func (level StockLevel) Initial(item Item, quantity Quantity, actor Actor, now t
 		return StockMovement{}, ErrStockQuantityInvalid
 	}
 
-	return level.move(item, MovementInitial, quantity, actor, now)
+	return level.move(item.ID, item.Unit, MovementInitial, quantity, actor, now)
 }
 
 // Receive is the movement that adds one line of a validated entry to the
 // stock of its item.
 func (level StockLevel) Receive(item Item, entry StockEntry, line StockEntryLine, actor Actor, now time.Time) (StockMovement, error) {
-	movement, err := level.move(item, MovementEntry, line.Quantity, actor, now)
+	movement, err := level.move(item.ID, item.Unit, MovementEntry, line.Quantity, actor, now)
 	if err != nil {
 		return StockMovement{}, err
 	}
@@ -252,7 +252,7 @@ func (level StockLevel) Receive(item Item, entry StockEntry, line StockEntryLine
 // a negative quantity on the shelf; adding always works, even to a stock
 // that sales left negative.
 func (level StockLevel) Adjust(item Item, adjustment StockAdjustment, actor Actor, now time.Time) (StockMovement, error) {
-	movement, err := level.move(item, MovementAdjustment, adjustment.Quantity, actor, now)
+	movement, err := level.move(item.ID, item.Unit, MovementAdjustment, adjustment.Quantity, actor, now)
 	if err != nil {
 		return StockMovement{}, err
 	}
@@ -265,9 +265,51 @@ func (level StockLevel) Adjust(item Item, adjustment StockAdjustment, actor Acto
 	return movement, nil
 }
 
-// move is the movement that changes the level of item by quantity.
-func (level StockLevel) move(item Item, movementType MovementType, quantity Quantity, actor Actor, now time.Time) (StockMovement, error) {
-	if !item.Unit.AllowsFraction() && !quantity.IsWhole() {
+// StockPolicy is how sales treat the stock.
+type StockPolicy struct {
+	// AllowNegative lets a sale take more than there is, for stores that
+	// prefer not to stop the till: the stock goes below zero until an entry
+	// or an adjustment fixes it.
+	AllowNegative bool
+}
+
+// Sell is the movement that takes one line of sale out of the stock of its
+// item. Unless policy allows a negative stock, a line the stock doesn't
+// cover fails with insufficient_stock naming the item.
+func (level StockLevel) Sell(sale Sale, line SaleLine, policy StockPolicy) (StockMovement, error) {
+	movement, err := level.move(line.ItemID, line.Unit, MovementSale, -line.Quantity, Actor{ID: sale.ActorID}, sale.CreatedAt)
+	if err != nil {
+		return StockMovement{}, err
+	}
+	if !policy.AllowNegative && movement.BalanceAfter < 0 {
+		return StockMovement{}, InsufficientStock(line.Name)
+	}
+	reference := sale.Reference()
+	movement.Reference = &reference
+
+	return movement, nil
+}
+
+// VoidSale is the movement that puts one line of a voided sale back in the
+// stock of its item, by whoever voided it and when. Movements are never
+// deleted: this one compensates the sale movement of the line.
+func (level StockLevel) VoidSale(voided Sale, line SaleLine) (StockMovement, error) {
+	if voided.Status != SaleVoided || voided.VoidedAt == nil || voided.VoidedBy == nil {
+		return StockMovement{}, ErrSaleNotVoided
+	}
+	movement, err := level.move(line.ItemID, line.Unit, MovementSaleVoid, line.Quantity, Actor{ID: *voided.VoidedBy}, *voided.VoidedAt)
+	if err != nil {
+		return StockMovement{}, err
+	}
+	reference := voided.Reference()
+	movement.Reference = &reference
+
+	return movement, nil
+}
+
+// move is the movement that changes the level of an item by quantity.
+func (level StockLevel) move(itemID string, unit Unit, movementType MovementType, quantity Quantity, actor Actor, now time.Time) (StockMovement, error) {
+	if !unit.AllowsFraction() && !quantity.IsWhole() {
 		return StockMovement{}, ErrStockQuantityNotWhole
 	}
 	balance := level.Quantity + quantity
@@ -276,7 +318,7 @@ func (level StockLevel) move(item Item, movementType MovementType, quantity Quan
 	}
 
 	return StockMovement{
-		ItemID:       item.ID,
+		ItemID:       itemID,
 		Type:         movementType,
 		Quantity:     quantity,
 		BalanceAfter: balance,

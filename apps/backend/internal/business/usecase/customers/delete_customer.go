@@ -12,7 +12,8 @@ type DeleteCustomerInput struct {
 	ID    string
 }
 
-// DeleteCustomer removes a customer for good.
+// DeleteCustomer removes a customer for good. Consumidor Final and
+// customers with sales stay.
 type DeleteCustomer interface {
 	Execute(ctx context.Context, input DeleteCustomerInput) error
 }
@@ -27,6 +28,14 @@ func NewDeleteCustomer(repository gateway.CustomerRepository) DeleteCustomer {
 
 func (useCase *deleteCustomer) Execute(ctx context.Context, input DeleteCustomerInput) error {
 	if err := input.Actor.Authorize(domain.PermissionManageCustomers); err != nil {
+		return err
+	}
+
+	customer, err := useCase.repository.Get(ctx, input.ID)
+	if err != nil {
+		return domain.FromStorage(err)
+	}
+	if err := customer.EnsureChangeable(); err != nil {
 		return err
 	}
 

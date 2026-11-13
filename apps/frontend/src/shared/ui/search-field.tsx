@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type KeyboardEventHandler, type Ref } from 'react'
 import { Search, X } from 'lucide-react'
 
 import { cn } from '@/shared/lib/utils'
@@ -13,9 +13,13 @@ type SearchFieldProps = {
   // placeholder, which gets cut on a phone and disappears while typing.
   hint: string
   className?: string
+  // For screens driven from the keyboard, such as the counter: a shortcut
+  // focuses the field and Enter acts on what was typed.
+  inputRef?: Ref<HTMLInputElement>
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>
 }
 
-export function SearchField({ label, value, onChange, hint, className }: SearchFieldProps) {
+export function SearchField({ label, value, onChange, hint, className, inputRef, onKeyDown }: SearchFieldProps) {
   const hintId = useId()
 
   return (
@@ -26,6 +30,8 @@ export function SearchField({ label, value, onChange, hint, className }: SearchF
           aria-hidden
         />
         <Input
+          ref={inputRef}
+          onKeyDown={onKeyDown}
           type="search"
           aria-label={label}
           aria-describedby={hintId}

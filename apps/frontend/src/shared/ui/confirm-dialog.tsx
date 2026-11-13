@@ -1,3 +1,4 @@
+import { useReturnFocus } from '@/shared/hooks/use-return-focus'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
 
@@ -7,6 +8,7 @@ type ConfirmDialogProps = {
   title: string
   description: string
   confirmLabel: string
+  cancelLabel?: string
   onConfirm: () => void
   isPending?: boolean
 }
@@ -19,12 +21,15 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = 'Cancelar',
   onConfirm,
   isPending = false,
 }: ConfirmDialogProps) {
+  const finalFocus = useReturnFocus(open)
+
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next)}>
-      <DialogContent role="alertdialog" className="flex max-w-md flex-col gap-4 p-6">
+      <DialogContent role="alertdialog" finalFocus={finalFocus} className="flex max-w-md flex-col gap-4 p-6">
         <div className="flex flex-col gap-2">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -33,7 +38,7 @@ export function ConfirmDialog({
           <DialogClose
             render={<Button type="button" variant="outline" size="lg" className="h-11 md:h-9" />}
           >
-            Cancelar
+            {cancelLabel}
           </DialogClose>
           <Button
             type="button"
