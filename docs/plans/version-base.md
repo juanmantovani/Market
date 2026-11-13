@@ -590,7 +590,7 @@ flowchart LR
 | Fase | Contenido |
 | --- | --- |
 | 6 · PostgreSQL | Migraciones Goose en `migrations/`, `repository/postgres` con `pgxpool`, `TxManager` con `pgx.Tx`, `FOR UPDATE` en stock, suite de contrato contra PostgreSQL en CI, `STORAGE_DRIVER=postgres`, `db` + `migrate` en Compose. |
-| Configuración | Sección «Configuración» (`/configuracion`) con los ajustes del comercio, guardados en la base y editables desde la app sin reiniciar. Arranca con cliente en la venta, vendedor en la venta y vender sin stock; después se suman otros. Va después de la Fase 6, porque necesita persistencia. Trae un refactor: ver §10.1. |
+| Configuración | Sección «Configuración» (`/configuracion`) con los ajustes del comercio, guardados en la base y editables desde la app sin reiniciar, y las preferencias de cada dispositivo (como el tema). Arranca con cliente en la venta, vendedor en la venta, vender sin stock y el tema; después se suman otros. Va después de la Fase 6, porque necesita persistencia. Trae un refactor: ver §10.1. |
 | 7 · Autenticación y usuarios | Proveedor según el hosting (local: sesiones o JWT propios; nube: Supabase como LoteosAPP u otro). Reemplaza el middleware de actor; los casos de uso no cambian. |
 | Caja | Apertura, movimientos, cierre y arqueo por medio de pago; la venta pasa a exigir caja abierta. |
 | Compras y cuentas corrientes | Órdenes de compra, recepción → ingreso de stock; cuenta corriente de clientes (medio de pago) y de proveedores. |
@@ -623,6 +623,22 @@ versión base; este es el alcance previsto.
 «No usar» oculta el selector: la venta va a Consumidor Final o sin vendedor.
 «Obligatorio» frena el cobro hasta elegirlo.
 
+**Dos clases de ajustes.** La pantalla los muestra juntos, pero no se guardan
+igual:
+
+- **Del comercio** (los de arriba): los comparten todos los dispositivos y
+  usuarios, así que viven en la base y los valida el backend.
+- **De este dispositivo** (el tema claro, oscuro o automático, y más adelante
+  cosas como el menú contraído): cada pantalla puede tener el suyo (la tablet
+  del mostrador en modo claro, el celular del dueño en oscuro). Siguen
+  guardándose en el navegador, como hoy con `ThemeProvider`; la pantalla de
+  configuración solo suma otra forma de cambiarlos, y el botón del header se
+  mantiene como atajo. No pasan por la API ni por el refactor del backend.
+
+Cuando haya usuarios (Fase 7), las preferencias personales podrían pasar al
+perfil de cada usuario. Cada ajuste nuevo se clasifica en una de las dos clases
+antes de agregarlo.
+
 **Refactor**
 
 - **Dominio**: entidad `Settings` con un campo tipado por ajuste y su valor por
@@ -642,8 +658,9 @@ versión base; este es el alcance previsto.
   hechas no cambian, porque guardan copia de sus datos.
 - **`STOCK_ALLOW_NEGATIVE`**: pasa a ser solo el valor inicial de «Vender sin
   stock» cuando todavía no hay ajustes guardados.
-- **Frontend**: feature `settings` con la pantalla (interruptores y opciones,
-  validada con Zod) y entrada en la navegación. La lectura de los ajustes la
+- **Frontend**: feature `settings` con la pantalla (dos secciones, «Comercio» y
+  «Este dispositivo»; interruptores y opciones, validada con Zod) y entrada en
+  la navegación. El tema lo cambia con el `ThemeProvider` que ya existe. La lectura de los ajustes la
   usan la pantalla de venta y la de configuración, así que su cliente vive en
   `shared/api` y su clave en `query-keys.ts`; la composición ocurre en `app`.
   El punto de venta oculta o exige los selectores (y `F4`/`F6`, y la ayuda de
