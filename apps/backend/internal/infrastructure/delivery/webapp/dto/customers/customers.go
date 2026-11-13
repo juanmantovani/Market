@@ -41,6 +41,7 @@ type CustomerResponse struct {
 	Phone          *string   `json:"phone"`
 	Address        *string   `json:"address"`
 	Notes          *string   `json:"notes"`
+	System         bool      `json:"system"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
@@ -56,6 +57,7 @@ func NewCustomerResponse(customer domain.Customer) CustomerResponse {
 		Phone:          customer.Phone,
 		Address:        customer.Address,
 		Notes:          customer.Notes,
+		System:         customer.System,
 		CreatedAt:      customer.CreatedAt,
 		UpdatedAt:      customer.UpdatedAt,
 	}

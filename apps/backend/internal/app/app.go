@@ -46,6 +46,9 @@ func New(ctx context.Context) (*App, error) {
 			RegisterInitialStock:    container.RegisterInitialStock,
 			RegisterStockEntry:      container.RegisterStockEntry,
 			RegisterStockAdjustment: container.RegisterStockAdjustment,
+
+			CreateSale: container.CreateSale,
+			VoidSale:   container.VoidSale,
 		}); err != nil {
 			return nil, err
 		}

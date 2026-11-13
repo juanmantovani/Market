@@ -72,6 +72,9 @@ func (repository *CustomerRepository) Delete(ctx context.Context, id string) err
 		if _, ok := repository.store.customers[id]; !ok {
 			return domain.ErrCustomerNotFound
 		}
+		if repository.store.hasSaleWhere(func(sale domain.Sale) bool { return sale.Customer.ID == id }) {
+			return domain.ErrCustomerInUse
+		}
 		remove(current, repository.store.customers, id)
 		return nil
 	})

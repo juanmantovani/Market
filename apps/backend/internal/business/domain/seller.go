@@ -19,6 +19,7 @@ var (
 	ErrSellerCodeInvalid       = &Error{Kind: KindInvalid, Code: "seller_code_invalid", Message: "El código lleva de 1 a 6 letras o números, sin espacios"}
 	ErrSellerCodeInUse         = &Error{Kind: KindConflict, Code: "seller_code_in_use", Message: "Ya hay un vendedor con ese código"}
 	ErrSellerCommissionInvalid = &Error{Kind: KindInvalid, Code: "seller_commission_invalid", Message: "La comisión va de 0 a 100 %"}
+	ErrSellerInUse             = &Error{Kind: KindConflict, Code: "seller_in_use", Message: "El vendedor tiene ventas registradas y no se puede eliminar"}
 	sellerCodeShape            = regexp.MustCompile(`^[A-Z0-9]{1,6}$`)
 )
 
