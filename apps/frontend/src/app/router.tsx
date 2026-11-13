@@ -3,9 +3,9 @@ import AppLayout from './AppLayout'
 import {
   CategoriesPage,
   CustomersPage,
-  DashboardPage,
   ItemsRoute,
   NotFoundPage,
+  PosRoute,
   SellersPage,
   StockRoute,
   SuppliersPage,
@@ -18,7 +18,7 @@ export const routes: RouteObject[] = [
   {
     element: <AppLayout />,
     children: [
-      { index: true, element: <DashboardPage />, handle: title('Inicio') },
+      { index: true, element: <PosRoute />, handle: title('Punto de venta') },
       { path: 'articulos', element: <ItemsRoute />, handle: title('Artículos') },
       { path: 'categorias', element: <CategoriesPage />, handle: title('Categorías') },
       { path: 'stock', element: <StockRoute />, handle: title('Stock') },
