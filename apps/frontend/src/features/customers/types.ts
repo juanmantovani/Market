@@ -32,6 +32,8 @@ export const customerSchema = z.object({
   phone: z.string().nullable(),
   address: z.string().nullable(),
   notes: z.string().nullable(),
+  // Consumidor Final: the system customer, which can't be edited or deleted.
+  system: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

@@ -23,6 +23,7 @@ function customer(overrides: Partial<Customer> & { name: string }): CustomerSeed
     phone: null,
     address: null,
     notes: null,
+    system: false,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -74,7 +75,7 @@ function fakeCustomerApi(initial: CustomerSeed[] = []) {
         if (taken) {
           return json({ code: 'customer_document_in_use', message: 'Ya hay un cliente con ese documento' }, 409)
         }
-        const created: Customer = { ...body, id: `cu${++sequence}`, createdAt: NOW, updatedAt: NOW }
+        const created: Customer = { ...body, id: `cu${++sequence}`, system: false, createdAt: NOW, updatedAt: NOW }
         customers.push(created)
         return json(created, 201)
       }
@@ -412,6 +413,21 @@ describe('CustomersPage', () => {
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }))
 
     await waitFor(() => expect(api.writes()).toEqual([{ method: 'DELETE', path: '/api/v1/customers/cu1', body: undefined }]))
+  })
+
+  it('shows Consumidor Final as a system customer that is neither edited nor deleted', async () => {
+    fakeCustomerApi([customer({ name: 'Ana' }), customer({ name: 'Consumidor Final', system: true })])
+    renderWithProviders(<CustomersPage />)
+
+    const rows = (await table()).getAllByRole('row')
+    const finalConsumer = within(rows.find((row) => row.textContent?.includes('Consumidor Final'))!)
+    expect(finalConsumer.getByText('Del sistema')).toBeInTheDocument()
+    expect(finalConsumer.queryByRole('button')).not.toBeInTheDocument()
+    expect(within(rows.find((row) => row.textContent?.includes('Ana'))!).getByRole('button', { name: 'Editar Ana' })).toBeInTheDocument()
+
+    const cards = within(screen.getByRole('list', { name: 'Clientes' }))
+    expect(cards.getByText(/Cliente del sistema: se usa en las ventas sin cliente/)).toBeInTheDocument()
+    expect(cards.queryByRole('button', { name: 'Editar Consumidor Final' })).not.toBeInTheDocument()
   })
 
   it('reports a failed deletion as a toast', async () => {

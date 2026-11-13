@@ -25,6 +25,16 @@ function stubApi() {
     if (url.pathname === '/api/v1/categories') {
       return json({ items: [{ id: 'c1', name: 'Bebidas', description: null, createdAt: NOW, updatedAt: NOW }], total: 1, page: 1, limit: 100 })
     }
+    if (url.pathname === '/api/v1/customers') {
+      const customer = {
+        id: 'cu1', name: 'Ana Pérez', documentType: 'dni', documentNumber: '28456789', taxCondition: 'final_consumer',
+        email: null, phone: null, address: null, notes: null, system: false, createdAt: NOW, updatedAt: NOW,
+      }
+      return json({ items: [customer], total: 1, page: 1, limit: 20 })
+    }
+    if (url.pathname === '/api/v1/sellers') {
+      return json({ items: [{ id: 's1', name: 'Juan Pérez', code: 'JP', commissionRate: null, createdAt: NOW, updatedAt: NOW }], total: 1, page: 1, limit: 20 })
+    }
     const items = [item('i1', 'BEB-001', 'Gaseosa cola', 'c1', 320_000), item('i2', 'ALM-001', 'Yerba mate', 'c2', 450_000)].filter(
       (current) => !url.searchParams.get('categoryId') || current.categoryId === url.searchParams.get('categoryId'),
     )
@@ -61,6 +71,14 @@ describe('PosRoute', () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/v1/items?page=1&limit=24&categoryId=c1'), expect.anything())
 
     await user.click(catalog.getByRole('button', { name: /Gaseosa cola/ }))
-    expect(within(screen.getByRole('region', { name: 'Venta actual' })).getByText('Gaseosa cola')).toBeInTheDocument()
+    const sale = within(screen.getByRole('region', { name: 'Venta actual' }))
+    expect(sale.getByText('Gaseosa cola')).toBeInTheDocument()
+
+    await user.click(sale.getByRole('button', { name: /^Cliente:/ }))
+    await user.click(await within(await screen.findByRole('dialog', { name: 'Elegir cliente' })).findByRole('button', { name: /Ana Pérez/ }))
+    await user.click(sale.getByRole('button', { name: /^Vendedor:/ }))
+    await user.click(await within(await screen.findByRole('dialog', { name: 'Elegir vendedor' })).findByRole('button', { name: /Juan Pérez/ }))
+    expect(sale.getByRole('button', { name: /^Cliente: Ana Pérez/ })).toBeInTheDocument()
+    expect(sale.getByRole('button', { name: /^Vendedor: Juan Pérez/ })).toBeInTheDocument()
   })
 })

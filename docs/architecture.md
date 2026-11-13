@@ -175,7 +175,7 @@ apps/frontend/src/
 │   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías y los proveedores (ver abajo)
 │   ├── StockRoute.tsx        # compone stock con las categorías (filtro) y los proveedores (ingreso e historial)
-│   ├── PosRoute.tsx          # compone el punto de venta con las categorías y el catálogo de artículos
+│   ├── PosRoute.tsx          # compone el punto de venta con las categorías, el catálogo, los clientes y los vendedores
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── PageSkeleton.tsx      # skeleton del Suspense del layout mientras llega una página
 │   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
@@ -223,6 +223,14 @@ apps/frontend/src/
   (`features/sales/lib/cart.ts`, con `BigInt`); el backend recalcula todo al
   cobrar. Quitar una línea o vaciar el carrito se deshace desde el aviso
   (`useToast().undoable`), sin pedir confirmación.
+- **Cliente y vendedor**: `app/PosRoute` también le pasa `listCustomers` y
+  `listSellers`. El cliente va con el carrito (sin elegir es Consumidor
+  Final, el que usa el backend por defecto, y vuelve a serlo al vaciar la
+  venta o al registrarla); el vendedor se recuerda entre ventas
+  (`market.pos.seller`) y puede no haber. Los dos se eligen en el mismo
+  modal con búsqueda (`PartyPicker`): Enter elige el primero, o el vendedor
+  del código tipeado. La pantalla de clientes muestra a Consumidor Final
+  como “Del sistema”, sin editar ni eliminar.
 - Cobrar (`F9` o el botón del carrito) abre `CheckoutDialog`: uno o varios
   medios de pago con su importe (el efectivo viene con el total y tiene
   atajos «Exacto», $10.000 y $20.000), cuánto falta o el vuelto, y una
@@ -234,11 +242,13 @@ apps/frontend/src/
   si el cuerpo cambia o la venta se registra. Con la venta registrada, el
   carrito se vacía, se muestran el número y el vuelto, y se vuelven a leer
   artículos y stock. El diálogo no se cierra mientras la solicitud está en
-  curso. Todavía sin cliente, vendedor ni descuentos en la pantalla: se
-  envían `customerId` y `sellerId` en `null`.
+  curso. Envía el cliente y el vendedor elegidos (`customerId` en `null` es
+  Consumidor Final; `sellerId` en `null`, sin vendedor). Todavía sin
+  descuentos en la pantalla.
 - Atajos del punto de venta (`useShortcuts`, solo en esa pantalla): `F2`
-  vuelve al buscador, `F9` cobra; las flechas recorren el catálogo y `Escape`
-  vuelve al buscador o lo limpia.
+  vuelve al buscador, `F4` elige el vendedor, `F6` el cliente y `F9` cobra;
+  las flechas recorren el catálogo y los resultados, y `Escape` cierra el
+  modal abierto o vuelve al buscador y lo limpia.
 - `formatMoney`/`parseMoney` y `formatQuantity`/`parseQuantity` son los
   únicos que convierten montos y cantidades entre enteros y texto. Leen lo
   que se tipea en Argentina (`1.234,50`).
