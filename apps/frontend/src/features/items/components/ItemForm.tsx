@@ -8,12 +8,12 @@ import { Field, FieldError, FieldLabel } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
 import { NativeSelect } from '../../../shared/ui/native-select'
 import { Textarea } from '../../../shared/ui/textarea'
+import { unitShort } from '../../../shared/lib/quantity'
 import {
   ITEM_FIELD_ERRORS,
   itemFormSchema,
   TAX_RATES,
   UNITS,
-  unitShort,
   type CategoryOption,
   type SupplierOption,
   type ItemField,
