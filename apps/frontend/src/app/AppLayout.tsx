@@ -1,16 +1,35 @@
-import { Suspense, useState } from 'react'
+import { Keyboard } from 'lucide-react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router'
+import { Button } from '../shared/ui/button'
 import BrandMark from './BrandMark'
 import MobileNav from './MobileNav'
 import PageSkeleton from './PageSkeleton'
+import ShortcutsDialog from './ShortcutsDialog'
+import { isHelpKey } from './shortcuts'
 import Sidebar from './Sidebar'
 import { readSidebarCollapsed, storeSidebarCollapsed } from './sidebar-preference'
 import ThemeToggle from './ThemeToggle'
+import { useFocusHeadingOnNavigation } from './use-focus-heading-on-navigation'
 import { usePageTitle } from './use-page-title'
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
   usePageTitle()
+  useFocusHeadingOnNavigation(mainRef)
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!isHelpKey(event)) return
+      event.preventDefault()
+      setHelpOpen(true)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   function toggleSidebar() {
     const next = !collapsed
@@ -36,11 +55,22 @@ export default function AppLayout() {
             Market
           </span>
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              className="hidden size-9 text-muted-foreground md:inline-flex"
+              aria-label="Atajos de teclado"
+              title="Atajos de teclado (?)"
+              onClick={() => setHelpOpen(true)}
+            >
+              <Keyboard className="size-5" aria-hidden />
+            </Button>
             <ThemeToggle />
           </div>
         </header>
 
-        <main id="main" className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-10">
+        <main ref={mainRef} id="main" className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-10">
           <div className="mx-auto w-full max-w-6xl">
             <Suspense fallback={<PageSkeleton />}>
               <Outlet />
@@ -50,6 +80,7 @@ export default function AppLayout() {
       </div>
 
       <MobileNav />
+      <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   )
 }

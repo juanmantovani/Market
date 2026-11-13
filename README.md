@@ -21,6 +21,31 @@ docker compose up --build
 
 Los datos viven en memoria: se pierden al reiniciar el backend.
 
+## Probar la demo
+
+Al iniciar, el backend carga datos de ejemplo (`SEED_DEMO_DATA=true`): 8
+categorías, 15 artículos con stock, 5 clientes, 4 proveedores, 3 vendedores y
+5 ventas del día, una con descuentos, una con pagos mezclados y una anulada.
+Con `SEED_DEMO_DATA=false` arranca vacío.
+
+Un recorrido de dos minutos, en <http://localhost:5173>:
+
+1. **Vender**: en el buscador escribir `7790000000059` y Enter (así actúa un
+   lector de códigos de barras) para agregar una gaseosa. Con `Pan francés`
+   pide el peso en kilos.
+2. **Cobrar** con `F9`: dividir el pago entre efectivo y tarjeta, ver el
+   vuelto y, al confirmar, **Imprimir ticket**.
+3. **Ventas**: abrir una venta para ver el detalle y anularla; el stock se
+   repone.
+4. **Artículos**: la yerba, la leche y el queso cremoso aparecen con stock
+   bajo; desde cada artículo se ajusta el stock, se ve su historial y se
+   ingresa mercadería.
+5. **Resumen**: ventas del día, total por medio de pago y artículos con stock
+   bajo.
+
+Con el teclado: `F2` busca, `F4` elige el vendedor, `F6` el cliente, `F9`
+cobra y `?` muestra todos los atajos.
+
 ## Comandos frecuentes
 
 ```powershell

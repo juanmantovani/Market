@@ -179,6 +179,8 @@ apps/frontend/src/
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
 │   ├── PageSkeleton.tsx      # skeleton del Suspense del layout mientras llega una página
 │   ├── navigation.ts         # secciones; las que no entran en la barra del celular van a "Más"
+│   ├── ShortcutsDialog.tsx   # ayuda de atajos (tecla ?); la lista vive en shortcuts.ts
+│   ├── use-focus-heading-on-navigation.ts  # al cambiar de pantalla, el foco va al h1
 │   ├── ThemeProvider.tsx     # claro / oscuro / automático, guardado en localStorage
 │   └── Providers.tsx         # QueryClient + tema + toasts
 ├── features/
@@ -325,7 +327,7 @@ apps/frontend/src/
 | `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. Al cerrar, devuelve el foco al botón que lo abrió (`useReturnFocus`). Si el formulario tiene cambios sin guardar (`useUnsavedChanges(values)`), cerrarlo con Escape, la X, tocando afuera o «Cancelar» (`useFormDialog().requestClose`) pregunta «¿Descartar los cambios?»; cerrarlo desde la página después de guardar no pregunta. |
 | `NativeSelect` | `<select>` nativo con estilo: teclado, lector de pantalla y selector del celular funcionan sin más. |
 | `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`); también devuelve el foco al botón que la abrió. |
-| `EmptyState` | Vacío, sin resultados o error, siempre con una salida. |
+| `EmptyState` | Vacío, sin resultados o error, siempre con una salida. Es un `h2`; con `headingLevel={1}` pasa a ser el título de una pantalla que no tiene otro (la 404). |
 | `ToastProvider` / `useToast` | Avisos de éxito o error (Toast de Base UI, sin dependencias extra). |
 | `Field`, `Input`, `Textarea` | Campos con label, ayuda y error; 44 px de alto en el celular. |
 

@@ -119,11 +119,57 @@ describe('AppLayout', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Más secciones' })).not.toBeInTheDocument())
   })
 
+  it('moves the focus to the new screen heading after navigating', async () => {
+    vi.mocked(fetch).mockImplementation(async () =>
+      new Response(JSON.stringify({ items: [], total: 0, page: 1, limit: 25 }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Clientes' }))
+
+    const heading = await screen.findByRole('heading', { name: 'Clientes', level: 1 })
+    await waitFor(() => expect(heading).toHaveFocus())
+  })
+
+  it('opens the shortcuts help with ? and from the header button', async () => {
+    const user = userEvent.setup()
+    renderApp('/no-existe')
+    await screen.findByRole('heading', { name: 'No se encontró esta página' })
+
+    await user.keyboard('?')
+    const help = within(await screen.findByRole('dialog', { name: 'Atajos de teclado' }))
+    expect(help.getByText('Cobrar')).toBeInTheDocument()
+    expect(help.getByText('F9')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Atajos de teclado' })).not.toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Atajos de teclado' }))
+    expect(await screen.findByRole('dialog', { name: 'Atajos de teclado' })).toBeInTheDocument()
+  })
+
+  it('does not open the shortcuts help while typing a question mark in a field', async () => {
+    vi.mocked(fetch).mockImplementation(async () =>
+      new Response(JSON.stringify({ items: [], total: 0, page: 1, limit: 25 }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.type(await screen.findByRole('searchbox', { name: /Buscar o escanear/ }), '?')
+
+    expect(screen.queryByRole('dialog', { name: 'Atajos de teclado' })).not.toBeInTheDocument()
+  })
+
   it('shows a friendly page for unknown addresses', async () => {
     const user = userEvent.setup()
     const router = renderApp('/no-existe')
 
-    expect(await screen.findByRole('heading', { name: 'No se encontró esta página' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontró esta página', level: 1 })).toBeInTheDocument()
     expect(document.title).toBe('Página no encontrada · Market')
 
     await user.click(screen.getByRole('link', { name: 'Volver al inicio' }))

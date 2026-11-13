@@ -1,6 +1,6 @@
 # Plan: Punto de Venta — versión base (v0.1)
 
-Fecha: 2026-11-10 · Estado: propuesta · Referencia: [LoteoApp/LoteosAPP](https://github.com/LoteoApp/LoteosAPP)
+Fecha: 2026-11-10 · Estado: v0.1 completa (la paleta `Ctrl+K` pasó al roadmap) · Referencia: [LoteoApp/LoteosAPP](https://github.com/LoteoApp/LoteosAPP)
 
 ## 1. Objetivo y alcance
 
@@ -411,8 +411,8 @@ y prueban en los casos de uso desde ahora.
 - **El inicio (`/`) es la pantalla de venta**: abrir la app es empezar a
   vender. El resumen del día (Fase 5) va en su propia ruta.
 - **Escritorio**: sidebar colapsable (Vender, Ventas, Artículos, Categorías,
-  Stock, Clientes, Proveedores, Vendedores y, con la Fase 5, Resumen) y header
-  con buscador global (`Ctrl+K`) y selector de tema.
+  Clientes, Proveedores, Vendedores y Resumen) y header con la ayuda de
+  atajos (`?`) y el selector de tema.
 - **Celular**: barra inferior con Vender, Ventas, Artículos y Más.
 
 ### Pantalla de venta
@@ -564,9 +564,13 @@ cobro con atajos y lector de barras; ticket imprimible (`window.print` con
 ### Fase 5 — Inicio y pulido → `v0.1.0`
 
 Resumen del día (ventas, total por medio de pago, stock bajo) en su propia
-ruta, ya que el inicio es la pantalla de venta; command palette
-(`Ctrl+K`); ayuda de atajos; revisión de accesibilidad y de celular; estados
-vacíos; datos demo prolijos; README con instrucciones de demo. Tag `v0.1.0`.
+ruta, ya que el inicio es la pantalla de venta; ayuda de atajos (`?`);
+revisión de accesibilidad y de celular; estados vacíos; datos demo prolijos;
+README con instrucciones de demo. Tag `v0.1.0`.
+
+La paleta de comandos (`Ctrl+K`) se sacó de la versión base: con ocho
+pantallas y la barra lateral, saltar entre ellas con el teclado aporta poco;
+queda en el roadmap.
 
 ## 9. Dependencias entre fases
 
@@ -595,6 +599,7 @@ flowchart LR
 | Multi-sucursal | Existencia por (artículo, depósito) y transferencias. |
 | Reportes | Ventas por período, vendedor, medio de pago y categoría; rentabilidad (usa `cost`); comisiones. |
 | Hardware y offline | Impresora térmica (ESC/POS), cajón de dinero, PWA u offline si la instalación es local. |
+| Paleta de comandos | `Ctrl+K` para saltar entre pantallas y buscar artículos, clientes y ventas desde cualquier lugar. |
 | Deploy | Local: binario Go con el frontend embebido (`embed`) + PostgreSQL. Nube: contenedores + PostgreSQL administrado. |
 
 ## 11. Decisiones a confirmar
