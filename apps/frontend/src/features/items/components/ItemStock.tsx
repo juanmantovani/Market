@@ -10,7 +10,8 @@ type ItemStockProps = {
 
 // The stock of an item, right aligned: its quantity in the item's unit,
 // preceded by a "Stock bajo" mark (text, not only color) when it reached the
-// minimum.
+// minimum. In the table, below xl, the mark sits above the quantity so the
+// column stays narrow.
 export function ItemStock({ item, stock }: ItemStockProps) {
   const quantity = stock.quantities.get(item.id)
 
@@ -35,7 +36,7 @@ export function ItemStock({ item, stock }: ItemStockProps) {
   }
 
   return (
-    <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+    <div className="flex items-center justify-end gap-2 whitespace-nowrap md:flex-col md:items-end md:gap-1 xl:flex-row xl:items-center xl:gap-2">
       {isLowStock(quantity, item.minStock) && <LowStockBadge />}
       <span className="font-medium tabular-nums">{formatUnitQuantity(quantity, item.unit)}</span>
     </div>

@@ -27,7 +27,11 @@ export function ItemList({ items, stock, categoryName, isLoading, onEdit, onDele
       className: 'w-full max-w-0',
       cell: (item) => <span className="block truncate font-medium">{item.name}</span>,
     },
-    { header: 'Categoría', cell: (item) => <span className="text-muted-foreground">{categoryName(item.categoryId)}</span> },
+    {
+      header: 'Categoría',
+      className: 'hidden xl:table-cell',
+      cell: (item) => <span className="text-muted-foreground">{categoryName(item.categoryId)}</span>,
+    },
     { header: 'Precio', className: 'text-right tabular-nums', cell: (item) => price(item) },
     {
       header: 'Stock',
