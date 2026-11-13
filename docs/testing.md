@@ -51,7 +51,12 @@ de carga, vacío y error. Nada de estado interno ni clases de Tailwind.
   `test:backend:coverage:profile` de `package.json`: al agregar una feature,
   sumar sus paquetes de `usecase` y `dto` ahí.
 - Quedan afuera de la medición `cmd/server`, `internal/app` (composition
-  root, con un test de humo) y los paquetes sin lógica (`gateway`, `dto`).
+  root) y los paquetes sin lógica (`gateway`, `dto`). `internal/app` igual
+  tiene tests de flujo completo que levantan el contenedor real con memoria y
+  van por HTTP: stock sobre los datos demo, y venta (alta de artículo →
+  ingreso → venta → reintento idempotente → stock insuficiente → clientes y
+  vendedores con ventas → detalle, listado y anulación con reposición de
+  stock).
 
 ## Comandos
 

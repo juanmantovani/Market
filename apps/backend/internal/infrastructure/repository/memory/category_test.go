@@ -18,6 +18,7 @@ func newRepositories(*testing.T) repositorytest.Repositories {
 		Suppliers:  NewSupplierRepository(store),
 		Sellers:    NewSellerRepository(store),
 		Stock:      NewStockRepository(store),
+		Sales:      NewSaleRepository(store),
 		Tx:         store,
 	}
 }
@@ -40,6 +41,10 @@ func TestSupplierRepositoryContract(t *testing.T) {
 
 func TestSellerRepositoryContract(t *testing.T) {
 	repositorytest.SellerRepository(t, newRepositories)
+}
+
+func TestSaleRepositoryContract(t *testing.T) {
+	repositorytest.SaleRepository(t, newRepositories)
 }
 
 func TestStockRepositoryContract(t *testing.T) {

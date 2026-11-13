@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"sync"
+	"time"
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
@@ -30,16 +31,26 @@ type Store struct {
 	// stockMovements only grows: movements are never edited or deleted, and
 	// their order is the order they were recorded in.
 	stockMovements []domain.StockMovement
+
+	sales map[string]domain.Sale
+	// lastSaleNumber is what a sequence is in PostgreSQL. Unlike a
+	// sequence, a failed unit of work gives its number back.
+	lastSaleNumber int64
 }
 
+// NewStore returns an empty store but for the system customer, which every
+// storage starts with (in PostgreSQL, a migration inserts it).
 func NewStore() *Store {
+	finalConsumer := domain.FinalConsumer(time.Now().UTC())
+
 	return &Store{
 		categories:  map[string]domain.Category{},
 		items:       map[string]domain.Item{},
-		customers:   map[string]domain.Customer{},
+		customers:   map[string]domain.Customer{finalConsumer.ID: finalConsumer},
 		suppliers:   map[string]domain.Supplier{},
 		sellers:     map[string]domain.Seller{},
 		stockLevels: map[string]domain.StockLevel{},
+		sales:       map[string]domain.Sale{},
 	}
 }
 
@@ -115,6 +126,16 @@ func put[K comparable, V any](current *tx, table map[K]V, key K, value V) {
 		} else {
 			delete(table, key)
 		}
+	})
+}
+
+// set writes value to a single-value cell, such as a counter, and records
+// how to undo it.
+func set[V any](current *tx, cell *V, value V) {
+	previous := *cell
+	*cell = value
+	current.undo = append(current.undo, func() {
+		*cell = previous
 	})
 }
 

@@ -11,6 +11,7 @@ import (
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
 	"market/backend/internal/business/usecase/items"
+	"market/backend/internal/business/usecase/sales"
 	"market/backend/internal/business/usecase/sellers"
 	"market/backend/internal/business/usecase/stock"
 	"market/backend/internal/business/usecase/suppliers"
@@ -29,6 +30,9 @@ type UseCases struct {
 	RegisterInitialStock    stock.RegisterInitialStock
 	RegisterStockEntry      stock.RegisterStockEntry
 	RegisterStockAdjustment stock.RegisterStockAdjustment
+
+	CreateSale sales.CreateSale
+	VoidSale   sales.VoidSale
 }
 
 type demoCategory struct {
@@ -224,9 +228,10 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		return err
 	}
 
+	customerIDs := map[string]string{}
 	for _, customer := range demoCustomers {
 		email, phone := customer.email, customer.phone
-		_, err := useCases.CreateCustomer.Execute(ctx, customers.CreateCustomerInput{
+		created, err := useCases.CreateCustomer.Execute(ctx, customers.CreateCustomerInput{
 			Actor: seeder,
 			Fields: domain.CustomerFields{
 				Name:           customer.name,
@@ -240,15 +245,105 @@ func Seed(ctx context.Context, useCases UseCases) error {
 		if err != nil {
 			return fmt.Errorf("seeding customer %q: %w", customer.name, err)
 		}
+		customerIDs[customer.name] = created.ID
 	}
 
+	sellerIDs := map[string]string{}
 	for _, seller := range demoSellers {
-		_, err := useCases.CreateSeller.Execute(ctx, sellers.CreateSellerInput{
+		created, err := useCases.CreateSeller.Execute(ctx, sellers.CreateSellerInput{
 			Actor:  seeder,
 			Fields: domain.SellerFields{Name: seller.name, Code: seller.code, CommissionRate: seller.commission},
 		})
 		if err != nil {
 			return fmt.Errorf("seeding seller %q: %w", seller.code, err)
+		}
+		sellerIDs[seller.code] = created.ID
+	}
+
+	return seedSales(ctx, useCases, itemIDs, customerIDs, sellerIDs)
+}
+
+type demoSaleLine struct {
+	code     string
+	quantity domain.Quantity
+	discount domain.Percent
+}
+
+type demoSale struct {
+	customer string
+	seller   string
+	lines    []demoSaleLine
+	payments []domain.Payment
+	total    domain.Money
+	// voidReason, when set, voids the sale right after making it.
+	voidReason string
+}
+
+// demoSales leave every item above its minimum but the ones the stock seed
+// already left below it.
+var demoSales = []demoSale{
+	{
+		seller:   "JP",
+		lines:    []demoSaleLine{{"BEB-001", domain.WholeQuantity(2), 0}, {"KIO-001", domain.WholeQuantity(1), 0}},
+		payments: []domain.Payment{{Method: domain.PaymentCash, Amount: 1_000_000}},
+		total:    750_000,
+	},
+	{
+		customer: "Ana Pérez",
+		seller:   "LF",
+		lines:    []demoSaleLine{{"PAN-001", 750, 0}, {"FIA-001", 250, 0}, {"LAC-001", domain.WholeQuantity(2), 0}},
+		payments: []domain.Payment{{Method: domain.PaymentDebitCard, Amount: 755_000}},
+		total:    755_000,
+	},
+	{
+		customer: "Kiosco La Esquina SRL",
+		seller:   "MG",
+		lines:    []demoSaleLine{{"ALM-003", domain.WholeQuantity(6), 1_000}, {"BEB-002", domain.WholeQuantity(6), 1_000}},
+		payments: []domain.Payment{{Method: domain.PaymentTransfer, Amount: 1_000_000}, {Method: domain.PaymentCash, Amount: 242_000}},
+		total:    1_242_000,
+	},
+	{
+		lines:    []demoSaleLine{{"PAN-002", domain.WholeQuantity(6), 0}},
+		payments: []domain.Payment{{Method: domain.PaymentQR, Amount: 360_000}},
+		total:    360_000,
+	},
+	{
+		seller:     "JP",
+		lines:      []demoSaleLine{{"LIM-001", domain.WholeQuantity(2), 0}},
+		payments:   []domain.Payment{{Method: domain.PaymentCreditCard, Amount: 190_000}},
+		total:      190_000,
+		voidReason: "El cliente pagó con otra tarjeta",
+	},
+}
+
+func seedSales(ctx context.Context, useCases UseCases, itemIDs, customerIDs, sellerIDs map[string]string) error {
+	for i, sale := range demoSales {
+		request := domain.SaleRequest{
+			IdempotencyKey: fmt.Sprintf("demo-sale-%d", i+1),
+			Payments:       sale.payments,
+			ExpectedTotal:  sale.total,
+		}
+		if sale.customer != "" {
+			customerID := customerIDs[sale.customer]
+			request.CustomerID = &customerID
+		}
+		if sale.seller != "" {
+			sellerID := sellerIDs[sale.seller]
+			request.SellerID = &sellerID
+		}
+		for _, line := range sale.lines {
+			request.Lines = append(request.Lines, domain.SaleRequestLine{ItemID: itemIDs[line.code], Quantity: line.quantity, DiscountPercent: line.discount})
+		}
+
+		created, err := useCases.CreateSale.Execute(ctx, sales.CreateSaleInput{Actor: seeder, Request: request})
+		if err != nil {
+			return fmt.Errorf("seeding sale %d: %w", i+1, err)
+		}
+		if sale.voidReason == "" {
+			continue
+		}
+		if _, err := useCases.VoidSale.Execute(ctx, sales.VoidSaleInput{Actor: seeder, ID: created.ID, Reason: sale.voidReason}); err != nil {
+			return fmt.Errorf("voiding sale %d: %w", i+1, err)
 		}
 	}
 
