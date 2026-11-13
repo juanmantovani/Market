@@ -25,6 +25,12 @@ export function unitShort(unit: Unit): string {
   return UNIT_SHORT[unit]
 }
 
+// Mirrors the backend's domain.IsLowStock: an item without a minimum never
+// counts as low.
+export function isLowStock(quantity: number, minStock: number): boolean {
+  return minStock > 0 && quantity <= minStock
+}
+
 // Reads "2", "2,5" or "2.5". Fractions (up to three decimals) are only
 // accepted when allowFraction is set, as for items sold by weight.
 export function parseQuantity(input: string, allowFraction: boolean): number | null {

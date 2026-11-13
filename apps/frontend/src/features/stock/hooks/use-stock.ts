@@ -4,6 +4,7 @@ import {
   createStockAdjustment,
   createStockEntry,
   listStockLevels,
+  listStockLevelsOf,
   listStockMovements,
   type MovementListParams,
   type StockListParams,
@@ -15,6 +16,16 @@ export function useStockLevels(params: StockListParams) {
     queryKey: queryKeys.stock.levels(params),
     queryFn: ({ signal }) => listStockLevels(params, signal),
     placeholderData: keepPreviousData,
+  })
+}
+
+// The stock levels of the given items, which are not listed again while the
+// list is empty.
+export function useStockLevelsOf(itemIds: readonly string[]) {
+  return useQuery({
+    queryKey: queryKeys.stock.levelsOf(itemIds),
+    queryFn: ({ signal }) => listStockLevelsOf(itemIds, signal),
+    enabled: itemIds.length > 0,
   })
 }
 

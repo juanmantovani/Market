@@ -3,6 +3,7 @@ package stock
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -294,14 +295,29 @@ func TestListStockLevels(t *testing.T) {
 	repository := &gatewayfake.StockRepository{ListLevelsResult: page}
 
 	got, err := NewListStockLevels(repository).Execute(context.Background(), ListStockLevelsInput{
-		Actor: cashier, Search: " yer ", CategoryID: " category-1 ", LowStock: true, Page: 2, Limit: 10,
+		Actor: cashier, Search: " yer ", CategoryID: " category-1 ", ItemIDs: []string{" item-1", "", "item-2 "}, LowStock: true, Page: 2, Limit: 10,
 	})
 	if err != nil || got.Total != 1 {
 		t.Fatalf("Execute() = %+v, %v", got, err)
 	}
-	want := gateway.StockLevelFilter{Search: "yer", CategoryID: "category-1", LowStock: true, Page: domain.PageRequest{Page: 2, Limit: 10}}
-	if repository.ListLevelsFilters[0] != want {
+	want := gateway.StockLevelFilter{
+		Search: "yer", CategoryID: "category-1", ItemIDs: []string{"item-1", "item-2"}, LowStock: true, Page: domain.PageRequest{Page: 2, Limit: 10},
+	}
+	if !reflect.DeepEqual(repository.ListLevelsFilters[0], want) {
 		t.Fatalf("filter = %+v, want %+v", repository.ListLevelsFilters[0], want)
+	}
+}
+
+func TestListStockLevelsWithoutItemIDs(t *testing.T) {
+	for _, itemIDs := range [][]string{nil, {}, {"", "  "}} {
+		repository := &gatewayfake.StockRepository{}
+
+		if _, err := NewListStockLevels(repository).Execute(context.Background(), ListStockLevelsInput{Actor: cashier, ItemIDs: itemIDs}); err != nil {
+			t.Fatalf("Execute(%q) error = %v", itemIDs, err)
+		}
+		if got := repository.ListLevelsFilters[0].ItemIDs; got != nil {
+			t.Fatalf("ItemIDs for %q = %q, want nil so that no filter applies", itemIDs, got)
+		}
 	}
 }
 

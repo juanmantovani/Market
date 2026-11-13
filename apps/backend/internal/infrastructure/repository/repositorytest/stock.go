@@ -179,8 +179,8 @@ func StockRepository(t *testing.T, newRepositories NewRepositories) {
 			}
 			return created
 		}
-		create(almacen.ID, "YER-1", "Yerba mate", 6_000, 4_000)
-		create(almacen.ID, "ARR-1", "Arroz", 10_000, 25_000)
+		yerba := create(almacen.ID, "YER-1", "Yerba mate", 6_000, 4_000)
+		arroz := create(almacen.ID, "ARR-1", "Arroz", 10_000, 25_000)
 		create(almacen.ID, "FID-1", "fideos", 5_000, 5_000)
 		coca := create(bebidas.ID, "COC-1", "Coca-Cola", 0, 0)
 		page := domain.PageRequest{Page: 1, Limit: 10}
@@ -196,6 +196,11 @@ func StockRepository(t *testing.T, newRepositories NewRepositories) {
 			{name: "by name without accents", filter: gateway.StockLevelFilter{Search: "YERBA", Page: page}, want: []string{"Yerba mate=4000"}},
 			{name: "by code", filter: gateway.StockLevelFilter{Search: "arr-1", Page: page}, want: []string{"Arroz=25000"}},
 			{name: "low stock within a category", filter: gateway.StockLevelFilter{CategoryID: bebidas.ID, LowStock: true, Page: page}, want: []string{}},
+			{name: "by item IDs", filter: gateway.StockLevelFilter{ItemIDs: []string{yerba.ID, coca.ID}, Page: page}, want: []string{"Coca-Cola=0", "Yerba mate=4000"}},
+			{name: "by item IDs, ignoring unknown ones", filter: gateway.StockLevelFilter{ItemIDs: []string{arroz.ID, "unknown"}, Page: page}, want: []string{"Arroz=25000"}},
+			{name: "only unknown item IDs", filter: gateway.StockLevelFilter{ItemIDs: []string{"unknown"}, Page: page}, want: []string{}},
+			{name: "by item IDs and low stock", filter: gateway.StockLevelFilter{ItemIDs: []string{yerba.ID, arroz.ID}, LowStock: true, Page: page}, want: []string{"Yerba mate=4000"}},
+			{name: "by item IDs and category", filter: gateway.StockLevelFilter{ItemIDs: []string{yerba.ID, coca.ID}, CategoryID: bebidas.ID, Page: page}, want: []string{"Coca-Cola=0"}},
 		}
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {

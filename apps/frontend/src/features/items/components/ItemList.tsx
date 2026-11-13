@@ -1,12 +1,14 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { formatMoney } from '../../../shared/lib/money'
+import { unitShort } from '../../../shared/lib/quantity'
 import { Button } from '../../../shared/ui/button'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
-import { unitShort } from '../../../shared/lib/quantity'
-import type { Item } from '../types'
+import type { Item, StockQuantities } from '../types'
+import { ItemStock } from './ItemStock'
 
 type ItemListProps = {
   items: readonly Item[]
+  stock: StockQuantities
   categoryName: (categoryId: string) => string
   isLoading: boolean
   onEdit: (item: Item) => void
@@ -17,7 +19,7 @@ function price(item: Item) {
   return item.unit === 'unit' ? formatMoney(item.salePrice) : `${formatMoney(item.salePrice)} / ${unitShort(item.unit)}`
 }
 
-export function ItemList({ items, categoryName, isLoading, onEdit, onDelete }: ItemListProps) {
+export function ItemList({ items, stock, categoryName, isLoading, onEdit, onDelete }: ItemListProps) {
   const columns: Column<Item>[] = [
     { header: 'Código', cell: (item) => <span className="font-mono text-xs text-muted-foreground">{item.code}</span> },
     {
@@ -25,8 +27,17 @@ export function ItemList({ items, categoryName, isLoading, onEdit, onDelete }: I
       className: 'w-full max-w-0',
       cell: (item) => <span className="block truncate font-medium">{item.name}</span>,
     },
-    { header: 'Categoría', cell: (item) => <span className="text-muted-foreground">{categoryName(item.categoryId)}</span> },
+    {
+      header: 'Categoría',
+      className: 'hidden xl:table-cell',
+      cell: (item) => <span className="text-muted-foreground">{categoryName(item.categoryId)}</span>,
+    },
     { header: 'Precio', className: 'text-right tabular-nums', cell: (item) => price(item) },
+    {
+      header: 'Stock',
+      className: 'text-right',
+      cell: (item) => <ItemStock item={item} stock={stock} />,
+    },
     {
       header: 'Acciones',
       className: 'text-right',
@@ -68,6 +79,10 @@ export function ItemList({ items, categoryName, isLoading, onEdit, onDelete }: I
               </span>
             </div>
             <span className="shrink-0 text-base font-semibold tabular-nums">{price(item)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">Stock</span>
+            <ItemStock item={item} stock={stock} />
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="h-11 flex-1" aria-label={`Editar ${item.name}`} onClick={() => onEdit(item)}>

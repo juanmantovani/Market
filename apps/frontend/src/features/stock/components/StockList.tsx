@@ -1,6 +1,7 @@
-import { History, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { History, SlidersHorizontal } from 'lucide-react'
 import { formatUnitQuantity } from '../../../shared/lib/quantity'
 import { Button } from '../../../shared/ui/button'
+import { LowStockBadge } from '../../../shared/ui/low-stock-badge'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
 import type { StockLevel } from '../types'
 
@@ -10,15 +11,6 @@ type StockListProps = {
   isLoading: boolean
   onAdjust: (level: StockLevel) => void
   onShowMovements: (level: StockLevel) => void
-}
-
-export function LowStockBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-foreground">
-      <TriangleAlert className="size-3.5 text-warning" aria-hidden />
-      Stock bajo
-    </span>
-  )
 }
 
 function minimum(level: StockLevel) {

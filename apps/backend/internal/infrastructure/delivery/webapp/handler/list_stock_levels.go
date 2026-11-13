@@ -17,8 +17,9 @@ func NewListStockLevelsHandler(listStockLevels stock.ListStockLevels) *ListStock
 	return &ListStockLevelsHandler{listStockLevels: listStockLevels}
 }
 
-// Handle serves GET /api/v1/stock?q=&categoryId=&lowStock=true&page=&limit=.
-// Any lowStock other than "true" lists every item.
+// Handle serves GET /api/v1/stock?q=&categoryId=&itemId=&lowStock=true&page=&limit=.
+// itemId can be repeated to list only those items. Any lowStock other than
+// "true" lists every item.
 func (handler *ListStockLevelsHandler) Handle(w http.ResponseWriter, request *http.Request) error {
 	page, limit, err := pageQuery(request)
 	if err != nil {
@@ -30,6 +31,7 @@ func (handler *ListStockLevelsHandler) Handle(w http.ResponseWriter, request *ht
 		Actor:      actorFrom(request),
 		Search:     query.Get("q"),
 		CategoryID: query.Get("categoryId"),
+		ItemIDs:    query["itemId"],
 		LowStock:   query.Get("lowStock") == "true",
 		Page:       page,
 		Limit:      limit,

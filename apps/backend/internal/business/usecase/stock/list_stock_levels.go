@@ -12,13 +12,14 @@ type ListStockLevelsInput struct {
 	Actor      domain.Actor
 	Search     string
 	CategoryID string
+	ItemIDs    []string
 	LowStock   bool
 	Page       int
 	Limit      int
 }
 
-// ListStockLevels lists every item with its stock, optionally only those
-// whose stock reached their minimum.
+// ListStockLevels lists every item with its stock, optionally only some items
+// or only those whose stock reached their minimum.
 type ListStockLevels interface {
 	Execute(ctx context.Context, input ListStockLevelsInput) (domain.Page[domain.ItemStock], error)
 }
@@ -44,6 +45,7 @@ func (useCase *listStockLevels) Execute(ctx context.Context, input ListStockLeve
 	result, err := useCase.repository.ListLevels(ctx, gateway.StockLevelFilter{
 		Search:     strings.TrimSpace(input.Search),
 		CategoryID: strings.TrimSpace(input.CategoryID),
+		ItemIDs:    cleanIDs(input.ItemIDs),
 		LowStock:   input.LowStock,
 		Page:       page,
 	})
@@ -52,4 +54,17 @@ func (useCase *listStockLevels) Execute(ctx context.Context, input ListStockLeve
 	}
 
 	return result, nil
+}
+
+// cleanIDs trims the IDs and drops the empty ones; it returns nil when none
+// is left, which means no filter.
+func cleanIDs(ids []string) []string {
+	var cleaned []string
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" {
+			cleaned = append(cleaned, id)
+		}
+	}
+
+	return cleaned
 }

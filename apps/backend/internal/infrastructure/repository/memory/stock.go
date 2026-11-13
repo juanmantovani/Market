@@ -65,6 +65,9 @@ func (repository *StockRepository) ListLevels(ctx context.Context, filter gatewa
 			if filter.CategoryID != "" && item.CategoryID != filter.CategoryID || !itemMatches(item, search) {
 				continue
 			}
+			if len(filter.ItemIDs) > 0 && !slices.Contains(filter.ItemIDs, item.ID) {
+				continue
+			}
 			itemStock := domain.ItemStock{Item: item, Level: repository.levelOf(item.ID)}
 			if !filter.LowStock || itemStock.IsLow() {
 				matches = append(matches, itemStock)
