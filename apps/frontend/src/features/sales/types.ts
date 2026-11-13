@@ -152,12 +152,12 @@ export const SALE_STATUS_LABELS: Record<SaleStatus, string> = {
 }
 
 // Percent is in hundredths of a percent (10 % is 1000), amount in cents.
-export const discountSchema = z.object({
+export const saleDiscountSchema = z.object({
   type: z.enum(['percent', 'amount']),
   value: z.number().int(),
 })
 
-export type SaleDiscount = z.infer<typeof discountSchema>
+export type SaleDiscount = z.infer<typeof saleDiscountSchema>
 
 const saleLineRecordSchema = z.object({
   itemId: z.string(),
@@ -166,7 +166,7 @@ const saleLineRecordSchema = z.object({
   unit: unitSchema,
   quantity: z.number().int(),
   unitPrice: z.number().int(),
-  discount: discountSchema.nullable(),
+  discount: saleDiscountSchema.nullable(),
   discountAmount: z.number().int(),
   cartDiscountAmount: z.number().int(),
   lineTotal: z.number().int(),
@@ -184,7 +184,7 @@ export const saleRecordSchema = z.object({
   seller: z.object({ id: z.string(), name: z.string(), code: z.string() }).nullable(),
   lines: z.array(saleLineRecordSchema),
   subtotal: z.number().int(),
-  cartDiscount: discountSchema.nullable(),
+  cartDiscount: saleDiscountSchema.nullable(),
   cartDiscountAmount: z.number().int(),
   discountTotal: z.number().int(),
   total: z.number().int(),
