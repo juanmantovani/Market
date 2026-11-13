@@ -25,6 +25,7 @@ El código, la API y la base usan los términos en inglés; la UI, en español.
 | Descuento (de línea) | `Discount` |
 | Descuento general (del carrito) | `CartDiscount` |
 | Anulación | `Void` |
+| Resumen del día | `SalesSummary` |
 
 ## Tipos de valor (`internal/business/domain`)
 
@@ -347,6 +348,31 @@ Códigos de error: `sale_not_found`, `idempotency_key_required`,
 `amount_out_of_range`, `insufficient_stock`, `sale_already_voided`,
 `sale_void_reason_required`, `sale_void_reason_too_long`,
 `sale_status_invalid`, `sale_date_invalid`, `sale_date_range_invalid`.
+Del resumen: `summary_period_invalid`.
+
+## Resumen del día
+
+`GET /api/v1/dashboard/summary?from=&to=` (permiso `dashboard:view`, todos los
+roles) suma las ventas de un período y lista el stock bajo. `from` y `to` son
+instantes RFC 3339 **obligatorios**, `from` incluido y `to` excluido: el cliente
+manda el inicio y el fin de *su* día, así el resumen sigue su zona horaria y
+el backend no tiene que configurar una. Un período faltante, al revés o de más
+de 31 días falla con `summary_period_invalid` (`400`); una fecha mal escrita,
+con `sale_date_invalid`.
+
+Respuesta (importes en centavos, cantidades en milésimas):
+
+| Campo | Qué es |
+| --- | --- |
+| `sales.count` y `sales.total` | Cantidad y total de las ventas **completadas** del período; las anuladas no cuentan. |
+| `sales.byMethod` | Lo cobrado por cada medio de pago, en orden fijo (efectivo, débito, crédito, transferencia, QR); solo aparecen los que cobraron algo. **El efectivo va neto del vuelto**, así los medios suman `sales.total`. |
+| `lowStock.total` | Cuántos artículos llegaron a su stock mínimo (`IsLowStock`: mínimo mayor a 0 y existencia menor o igual). |
+| `lowStock.items` | Los primeros 20 por nombre, con la misma forma que `GET /api/v1/stock`. |
+
+La cuenta es del dominio (`domain.NewSalesSummary`); el caso de uso
+(`usecase/dashboard`) recorre las páginas de `SaleRepository.List` con
+`status=completed` y pide a `StockRepository.ListLevels` el stock bajo, sin
+agregar métodos a los repositorios.
 
 ## Actor, roles y permisos
 
@@ -374,6 +400,7 @@ permiso se decide en un único lugar, `domain/permission.go`:
 | `sales:view` — ver ventas | ✅ | ✅ | ✅ |
 | `sales:create` — vender | ✅ | ✅ | ✅ |
 | `sales:void` — anular ventas | ✅ | ✅ | — |
+| `dashboard:view` — ver el resumen del día | ✅ | ✅ | ✅ |
 
 Cada feature nueva suma sus permisos a esa matriz (y a su test,
 `TestRolePermissions`), no a sus casos de uso.

@@ -1,4 +1,4 @@
-import { Package, ShoppingCart, Tags, Truck, UserCheck, Users, type LucideIcon } from 'lucide-react'
+import { ChartNoAxesColumn, Package, ShoppingCart, Tags, Truck, UserCheck, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -18,4 +18,5 @@ export const NAVIGATION: readonly NavItem[] = [
   { to: '/clientes', label: 'Clientes', icon: Users, inMobileBar: true },
   { to: '/proveedores', label: 'Proveedores', icon: Truck },
   { to: '/vendedores', label: 'Vendedores', icon: UserCheck },
+  { to: '/resumen', label: 'Resumen', icon: ChartNoAxesColumn },
 ]
