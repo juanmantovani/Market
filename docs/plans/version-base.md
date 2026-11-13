@@ -590,6 +590,7 @@ flowchart LR
 | Fase | Contenido |
 | --- | --- |
 | 6 · PostgreSQL | Migraciones Goose en `migrations/`, `repository/postgres` con `pgxpool`, `TxManager` con `pgx.Tx`, `FOR UPDATE` en stock, suite de contrato contra PostgreSQL en CI, `STORAGE_DRIVER=postgres`, `db` + `migrate` en Compose. |
+| Configuración | Sección «Configuración» (`/configuracion`) con los ajustes del comercio, guardados en la base y editables desde la app sin reiniciar. Arranca con cliente en la venta, vendedor en la venta y vender sin stock; después se suman otros. Va después de la Fase 6, porque necesita persistencia. Trae un refactor: ver §10.1. |
 | 7 · Autenticación y usuarios | Proveedor según el hosting (local: sesiones o JWT propios; nube: Supabase como LoteosAPP u otro). Reemplaza el middleware de actor; los casos de uso no cambian. |
 | Caja | Apertura, movimientos, cierre y arqueo por medio de pago; la venta pasa a exigir caja abierta. |
 | Compras y cuentas corrientes | Órdenes de compra, recepción → ingreso de stock; cuenta corriente de clientes (medio de pago) y de proveedores. |
@@ -602,6 +603,59 @@ flowchart LR
 | Paleta de comandos | `Ctrl+K` para saltar entre pantallas y buscar artículos, clientes y ventas desde cualquier lugar. |
 | Deploy | Local: binario Go con el frontend embebido (`embed`) + PostgreSQL. Nube: contenedores + PostgreSQL administrado. |
 
+### 10.1 Configuración: qué cambia
+
+Hoy las políticas del comercio son configuración de arranque (por ejemplo
+`STOCK_ALLOW_NEGATIVE`, que `dependencies` entrega fija a `CreateSale`) o reglas
+escritas en el código (cliente y vendedor son siempre opcionales en la venta).
+Cambiarlas exige reiniciar el backend o tocar el código. La sección de
+configuración las pasa a ser datos que la app lee y modifica. No se hace en la
+versión base; este es el alcance previsto.
+
+**Ajustes iniciales**
+
+| Ajuste | Valores | Por defecto |
+| --- | --- | --- |
+| Cliente en la venta | No usar · Opcional · Obligatorio | Opcional (como hoy) |
+| Vendedor en la venta | No usar · Opcional · Obligatorio | Opcional (como hoy) |
+| Vender sin stock | Sí · No | No (como hoy) |
+
+«No usar» oculta el selector: la venta va a Consumidor Final o sin vendedor.
+«Obligatorio» frena el cobro hasta elegirlo.
+
+**Refactor**
+
+- **Dominio**: entidad `Settings` con un campo tipado por ajuste y su valor por
+  defecto. Sin un depósito genérico de clave y valor: cada ajuste nuevo es un
+  campo, su validación y su regla en el dominio. Permisos `settings:view` (todos
+  los roles, porque la pantalla de venta los lee) y `settings:manage` (admin y
+  encargado), en `permission.go`.
+- **Contratos y persistencia**: `SettingsRepository` (leer y guardar) en
+  `gateway`, con adaptador en memoria y en PostgreSQL (una sola fila por
+  comercio) y suite de contrato. Los datos demo cargan los valores por defecto.
+- **Casos de uso**: `settings/GetSettings` y `settings/UpdateSettings` (`PATCH`
+  parcial, como el resto de la API): `GET` y `PATCH /api/v1/settings`.
+- **Venta**: `CreateSale` deja de recibir `domain.StockPolicy` fija y lee los
+  ajustes dentro de su transacción. Valida el cliente y el vendedor
+  obligatorios con errores de negocio (`customer_required`, `seller_required`);
+  el frontend solo refleja la regla, como con los importes. Las ventas ya
+  hechas no cambian, porque guardan copia de sus datos.
+- **`STOCK_ALLOW_NEGATIVE`**: pasa a ser solo el valor inicial de «Vender sin
+  stock» cuando todavía no hay ajustes guardados.
+- **Frontend**: feature `settings` con la pantalla (interruptores y opciones,
+  validada con Zod) y entrada en la navegación. La lectura de los ajustes la
+  usan la pantalla de venta y la de configuración, así que su cliente vive en
+  `shared/api` y su clave en `query-keys.ts`; la composición ocurre en `app`.
+  El punto de venta oculta o exige los selectores (y `F4`/`F6`, y la ayuda de
+  atajos) según los ajustes.
+- **Tests y docs**: dominio (valores por defecto, validación, venta con cada
+  combinación), casos de uso, handlers y repositorios con la suite de
+  contrato; flujo de venta en el frontend con cada ajuste. Actualizar
+  `docs/domain.md`, `docs/architecture.md`, `docs/development.md` y el README.
+
+**A confirmar**: si conviene el tercer valor «Obligatorio» o alcanza con
+usar / no usar; y si el cajero puede cambiar algún ajuste (por defecto no).
+
 ## 11. Decisiones a confirmar
 
 Cada una tiene un valor por defecto para no frenar el trabajo:
@@ -610,7 +664,8 @@ Cada una tiene un valor por defecto para no frenar el trabajo:
    [juanmantovani/Market](https://github.com/juanmantovani/Market) con `main` y
    `develop`.
 2. **Vender sin stock**. Por defecto: no, configurable con
-   `STOCK_ALLOW_NEGATIVE`.
+   `STOCK_ALLOW_NEGATIVE` (más adelante, desde la sección de configuración:
+   ver §10.1).
 3. **El ingreso de mercadería actualiza el costo del artículo**. Por defecto:
    sí, cuando se informa.
 4. **Precios con IVA incluido**. Por defecto: sí; el IVA es informativo hasta
