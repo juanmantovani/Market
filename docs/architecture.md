@@ -201,7 +201,7 @@ apps/frontend/src/
 
 | Componente | Para qué |
 | --- | --- |
-| `PageHeader` | Título, descripción y acción principal de la pantalla. |
+| `PageHeader` | Título y acción principal de la pantalla. |
 | `SearchField` | Búsqueda con ícono y botón para limpiar; el placeholder es el propio label (corto, para que entre en el celular) y debajo muestra por qué campos busca (`hint`). Se combina con `useDebouncedValue`. |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
