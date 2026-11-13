@@ -106,12 +106,12 @@ describe('AppLayout', () => {
     const router = renderApp()
     const mobileNav = within(screen.getByRole('navigation', { name: 'Navegación móvil' }))
 
-    expect(mobileNav.getAllByRole('link').map((link) => link.textContent)).toEqual(['Vender', 'Artículos', 'Clientes'])
+    expect(mobileNav.getAllByRole('link').map((link) => link.textContent)).toEqual(['Vender', 'Ventas', 'Artículos'])
     const more = mobileNav.getByRole('button', { name: 'Más' })
     await user.click(more)
 
     const sections = within(await screen.findByRole('dialog', { name: 'Más secciones' }))
-    expect(sections.getAllByRole('link').map((link) => link.textContent)).toEqual(['Categorías', 'Proveedores', 'Vendedores', 'Resumen'])
+    expect(sections.getAllByRole('link').map((link) => link.textContent)).toEqual(['Categorías', 'Clientes', 'Proveedores', 'Vendedores', 'Resumen'])
     await user.click(sections.getByRole('link', { name: 'Proveedores' }))
 
     expect(router.state.location.pathname).toBe('/proveedores')
