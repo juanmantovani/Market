@@ -140,6 +140,9 @@
   body {
     @apply bg-background font-sans text-foreground antialiased;
   }
+  h1[tabindex='-1'] {
+    outline: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

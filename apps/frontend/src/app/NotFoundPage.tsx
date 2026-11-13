@@ -7,6 +7,7 @@ export default function NotFoundPage() {
   return (
     <EmptyState
       icon={SearchX}
+      headingLevel={1}
       title="No se encontró esta página"
       description="Puede que la dirección esté mal escrita o que la sección todavía no exista."
       action={
