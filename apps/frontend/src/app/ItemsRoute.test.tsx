@@ -12,7 +12,7 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-function stubApi({ stockFails = false, withoutMovements = false } = {}) {
+function stubApi({ stockFails = false, withoutMovements = false, categoryCount = 2 } = {}) {
   const fetchMock = vi.fn(async (input: string) => {
     const url = new URL(input, 'http://localhost')
     if (url.pathname === '/api/v1/stock') {
@@ -43,15 +43,10 @@ function stubApi({ stockFails = false, withoutMovements = false } = {}) {
       })
     }
     if (url.pathname === '/api/v1/categories') {
-      return json({
-        items: [
-          { id: 'c1', name: 'Almacén', description: null, createdAt: NOW, updatedAt: NOW },
-          { id: 'c2', name: 'Bebidas', description: null, createdAt: NOW, updatedAt: NOW },
-        ],
-        total: 2,
-        page: 1,
-        limit: 100,
-      })
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const names = ['Almacén', 'Bebidas', ...Array.from({ length: Math.max(categoryCount - 2, 0) }, (_, i) => 'Categoría ' + (i + 3))]
+      const all = names.map((name, i) => ({ id: 'c' + (i + 1), name, description: null, createdAt: NOW, updatedAt: NOW }))
+      return json({ items: all.slice((page - 1) * 100, page * 100), total: all.length, page, limit: 100 })
     }
     return json({
       items: [
@@ -118,6 +113,15 @@ describe('ItemsRoute', () => {
     const row = within(await table.findByRole('row', { name: /Agua mineral/ }))
     expect(await row.findByRole('button', { name: 'Cargar stock inicial de Agua mineral' })).toBeEnabled()
     expect(row.queryByRole('button', { name: /Ajustar stock/ })).not.toBeInTheDocument()
+  })
+
+  it('offers every category in the filter, even when there are more than a page of them', async () => {
+    stubApi({ categoryCount: 230 })
+    renderRoute()
+
+    await screen.findByRole('table', { name: 'Artículos' })
+    expect(await screen.findByRole('option', { name: 'Categoría 230' })).toBeInTheDocument()
+    expect(screen.getAllByRole('option', { name: /^Categoría / })).toHaveLength(228)
   })
 
   it('keeps listing the items when their stock cannot be loaded', async () => {

@@ -4,6 +4,7 @@ export const queryKeys = {
   categories: {
     all: ['categories'] as const,
     list: (params: ListParams) => ['categories', 'list', params] as const,
+    options: ['categories', 'options'] as const,
   },
   items: {
     all: ['items'] as const,
@@ -16,6 +17,7 @@ export const queryKeys = {
   suppliers: {
     all: ['suppliers'] as const,
     list: (params: ListParams) => ['suppliers', 'list', params] as const,
+    options: ['suppliers', 'options'] as const,
   },
   sellers: {
     all: ['sellers'] as const,

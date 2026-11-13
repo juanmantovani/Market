@@ -204,7 +204,8 @@ apps/frontend/src/
   artículos necesita las categorías para el filtro y el formulario, y los
   proveedores para el formulario; `app/ItemsRoute` los obtiene con
   `useCategoryOptions` y `useSupplierOptions` y se los pasa a `ItemsPage`
-  por props.
+  por props. Esos hooks piden todas las páginas de la lista (`listAllPages`,
+  de a 100), así que ninguna opción queda afuera por pasar de la primera página.
 - La grilla de artículos muestra el stock de cada uno (columna **Stock** y
   tarjetas del celular, con la marca «Stock bajo» en texto, no solo color).
   La grilla está paginada y ordenada por nombre, así que no se cruza con la

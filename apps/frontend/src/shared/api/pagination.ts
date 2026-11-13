@@ -29,3 +29,17 @@ export function listQuery({ search, page, limit }: ListParams): string {
   query.set('limit', String(limit))
   return query.toString()
 }
+
+// The API serves at most this many items per page.
+export const MAX_PAGE_SIZE = 100
+
+// Every item of a list, asking page after page until the total is reached:
+// for pickers and filters that need the whole list, not a page of it.
+export async function listAllPages<T>(fetchPage: (page: number, limit: number) => Promise<Page<T>>): Promise<T[]> {
+  const items: T[] = []
+  for (let page = 1; ; page++) {
+    const result = await fetchPage(page, MAX_PAGE_SIZE)
+    items.push(...result.items)
+    if (result.items.length === 0 || items.length >= result.total) return items
+  }
+}

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import type { ListParams } from '../../../shared/api/pagination'
+import { listAllPages, type ListParams } from '../../../shared/api/pagination'
 import { queryKeys } from '../../../shared/api/query-keys'
 import { listCategories } from '../api/categories'
 
@@ -13,15 +13,16 @@ export function useCategories(params: ListParams) {
   })
 }
 
-const ALL_CATEGORIES: ListParams = { search: '', page: 1, limit: 100 }
-
-// Every category, for pickers and filters in other screens. A catalog with
-// more than 100 categories would need a searchable picker instead.
+// Every category, for pickers and filters in other screens, however many
+// pages it takes.
 export function useCategoryOptions() {
-  const query = useCategories(ALL_CATEGORIES)
+  const query = useQuery({
+    queryKey: queryKeys.categories.options,
+    queryFn: ({ signal }) => listAllPages((page, limit) => listCategories({ search: '', page, limit }, signal)),
+  })
 
   return {
-    categories: (query.data?.items ?? []).map(({ id, name }) => ({ id, name })),
+    categories: (query.data ?? []).map(({ id, name }) => ({ id, name })),
     isLoading: query.isPending,
   }
 }
