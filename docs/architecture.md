@@ -173,7 +173,7 @@ apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
 │   ├── router.tsx            # / (punto de venta), /articulos, /categorias, /stock, /clientes, /proveedores, /vendedores y página 404
 │   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
-│   ├── ItemsRoute.tsx        # compone artículos con las categorías y los proveedores (ver abajo)
+│   ├── ItemsRoute.tsx        # compone artículos con las categorías, los proveedores y el stock (ver abajo)
 │   ├── StockRoute.tsx        # compone stock con las categorías (filtro) y los proveedores (ingreso e historial)
 │   ├── PosRoute.tsx          # compone el punto de venta con las categorías y el catálogo de artículos
 │   ├── AppLayout.tsx         # sidebar (escritorio) + header + barra inferior (celular)
@@ -205,6 +205,15 @@ apps/frontend/src/
   proveedores para el formulario; `app/ItemsRoute` los obtiene con
   `useCategoryOptions` y `useSupplierOptions` y se los pasa a `ItemsPage`
   por props.
+- La grilla de artículos muestra el stock de cada uno (columna **Stock** y
+  tarjetas del celular, con la marca «Stock bajo» en texto, no solo color).
+  La grilla está paginada y ordenada por nombre, así que no se cruza con la
+  lista de existencias página por página: `ItemsPage` pide las existencias
+  de los artículos que está mostrando (`GET /api/v1/stock?itemId=…`) con el
+  hook `useStockQuantities` que le pasa `app/ItemsRoute` (envuelve
+  `useStockLevelsOf` de stock; artículos no importa la feature de stock).
+  Si esa lectura falla, la grilla sigue mostrando los artículos y el stock
+  aparece como «—».
 - El ingreso de mercadería busca los artículos en el endpoint de stock
   (`GET /api/v1/stock?q=`), que ya trae código, nombre, unidad y
   existencia: stock no depende de la feature de artículos. Enter elige el

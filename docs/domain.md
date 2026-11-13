@@ -226,10 +226,11 @@ puede eliminar (`item_in_use`, `supplier_in_use`).
   artículo); uno positivo siempre se acepta.
 - **Stock bajo**: `minStock > 0 && quantity <= minStock`
   (`domain.IsLowStock`). Un mínimo en cero apaga la alerta.
-- **Existencias** (`GET /api/v1/stock?q=&categoryId=&lowStock=true`): todos
-  los artículos con su existencia, ordenados por nombre; `q` busca por
-  nombre, código o código de barras y `lowStock=true` deja solo los de stock
-  bajo. Cada fila trae `quantity`, `minStock`, `lowStock` y `updatedAt`
+- **Existencias** (`GET /api/v1/stock?q=&categoryId=&itemId=&lowStock=true`):
+  todos los artículos con su existencia, ordenados por nombre; `q` busca por
+  nombre, código o código de barras, `itemId` (repetible) deja solo los
+  artículos con esos IDs (uno que no existe se ignora) y `lowStock=true`
+  deja solo los de stock bajo. Cada fila trae `quantity`, `minStock`, `lowStock` y `updatedAt`
   (`null` si el artículo no tiene movimientos).
 - **Movimientos** (`GET /api/v1/stock/movements?itemId=&type=`): del más
   nuevo al más viejo; los registrados en el mismo instante, en orden inverso

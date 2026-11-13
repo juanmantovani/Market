@@ -8,8 +8,8 @@ import { routes } from './router'
 
 const NOW = '2026-11-10T15:00:00Z'
 
-function json(body: unknown) {
-  return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
 function stubApi({ stockFails = false } = {}) {
