@@ -327,6 +327,22 @@ describe('CustomersPage', () => {
     })
   })
 
+  it('returns the focus to the button that opened the form when it is closed with Escape', async () => {
+    fakeCustomerApi([customer({ name: 'Ana' })])
+    const user = userEvent.setup()
+    renderWithProviders(<CustomersPage />)
+    await table()
+
+    const newButton = screen.getByRole('button', { name: 'Nuevo cliente' })
+    newButton.focus()
+    await user.keyboard('{Enter}')
+    await screen.findByRole('dialog', { name: 'Nuevo cliente' })
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /cliente/ })).not.toBeInTheDocument())
+    await waitFor(() => expect(newButton).toHaveFocus())
+  })
+
   it('deletes a customer only after confirming', async () => {
     const api = fakeCustomerApi([customer({ name: 'Ana' }), customer({ name: 'Beto' })])
     const user = userEvent.setup()

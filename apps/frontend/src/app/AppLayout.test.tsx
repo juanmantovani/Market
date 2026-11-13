@@ -30,20 +30,20 @@ afterEach(() => {
 })
 
 describe('AppLayout', () => {
-  it('shows the home page with the main navigation', async () => {
+  it('opens on the point of sale with the main navigation', async () => {
     renderApp()
 
-    expect(await screen.findByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Punto de venta' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Principal' })
-    expect(within(nav).getByRole('link', { name: 'Inicio' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Vender' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('navigation', { name: 'Navegación móvil' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Saltar al contenido' })).toHaveAttribute('href', '#main')
   })
 
   it('renders the layout without calling the server', async () => {
-    renderApp()
+    renderApp('/no-existe')
 
-    expect(await screen.findByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'No se encontró esta página' })).toBeInTheDocument()
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -57,7 +57,7 @@ describe('AppLayout', () => {
     expect(expand).toHaveAttribute('aria-expanded', 'false')
     expect(window.localStorage.getItem('market.sidebar-collapsed')).toBe('true')
     const nav = screen.getByRole('navigation', { name: 'Principal' })
-    expect(within(nav).getByRole('link', { name: 'Inicio' })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Vender' })).toBeInTheDocument()
 
     await user.click(expand)
     expect(screen.getByRole('button', { name: 'Contraer menú' })).toHaveAttribute('aria-expanded', 'true')
@@ -79,7 +79,8 @@ describe('AppLayout', () => {
   })
 
   it('opens the customers section from the navigation', async () => {
-    vi.mocked(fetch).mockResolvedValue(
+    // A new response per call: the point of sale reads the catalog first.
+    vi.mocked(fetch).mockImplementation(async () =>
       new Response(JSON.stringify({ items: [], total: 0, page: 1, limit: 25 }), {
         headers: { 'Content-Type': 'application/json' },
       }),
@@ -105,7 +106,7 @@ describe('AppLayout', () => {
     const router = renderApp()
     const mobileNav = within(screen.getByRole('navigation', { name: 'Navegación móvil' }))
 
-    expect(mobileNav.getAllByRole('link').map((link) => link.textContent)).toEqual(['Inicio', 'Artículos', 'Clientes'])
+    expect(mobileNav.getAllByRole('link').map((link) => link.textContent)).toEqual(['Vender', 'Artículos', 'Clientes'])
     const more = mobileNav.getByRole('button', { name: 'Más' })
     await user.click(more)
 
@@ -127,7 +128,7 @@ describe('AppLayout', () => {
 
     await user.click(screen.getByRole('link', { name: 'Volver al inicio' }))
     expect(router.state.location.pathname).toBe('/')
-    await waitFor(() => expect(document.title).toBe('Inicio · Market'))
-    expect(await screen.findByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    await waitFor(() => expect(document.title).toBe('Punto de venta · Market'))
+    expect(await screen.findByRole('heading', { name: 'Punto de venta' })).toBeInTheDocument()
   })
 })
