@@ -270,13 +270,15 @@ describe('CategoriesPage', () => {
 
     const prompt = within(await screen.findByRole('alertdialog', { name: '¿Descartar los cambios?' }))
     expect(prompt.getByText('Lo ingresado en el formulario se perderá.')).toBeInTheDocument()
-    expect(prompt.getByRole('button', { name: 'Seguir editando' })).toHaveFocus()
+    await waitFor(() => expect(prompt.getByRole('button', { name: 'Seguir editando' })).toHaveFocus())
     await user.click(prompt.getByRole('button', { name: 'Seguir editando' }))
 
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(screen.getByRole('dialog', { name: 'Nueva categoría' })).toBeInTheDocument()
     expect(form.getByLabelText('Nombre')).toHaveValue('Kiosco')
-    expect(screen.getByRole('dialog', { name: 'Nueva categoría' }).contains(document.activeElement)).toBe(true)
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'Nueva categoría' }).contains(document.activeElement)).toBe(true),
+    )
     expect(api.writes()).toEqual([])
   })
 
