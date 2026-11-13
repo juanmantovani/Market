@@ -95,11 +95,11 @@ func (repository *SaleRepository) List(ctx context.Context, filter gateway.SaleF
 	return page, err
 }
 
-func (repository *SaleRepository) GetByIdempotencyKey(ctx context.Context, key string) (domain.Sale, error) {
+func (repository *SaleRepository) GetByIdempotencyKey(ctx context.Context, actorID, key string) (domain.Sale, error) {
 	var found domain.Sale
 	err := repository.store.run(ctx, func(*tx) error {
 		for _, sale := range repository.store.sales {
-			if sale.IdempotencyKey == key {
+			if sale.ActorID == actorID && sale.IdempotencyKey == key {
 				found = cloneSale(sale)
 				return nil
 			}
@@ -110,11 +110,11 @@ func (repository *SaleRepository) GetByIdempotencyKey(ctx context.Context, key s
 	return found, err
 }
 
-// checkReferences enforces what a unique index on the idempotency key and
+// checkReferences enforces what a unique index on (actor, idempotency key) and
 // the foreign keys to customers, sellers and items enforce in PostgreSQL.
 func (repository *SaleRepository) checkReferences(sale domain.Sale) error {
 	for _, other := range repository.store.sales {
-		if other.IdempotencyKey == sale.IdempotencyKey {
+		if other.ActorID == sale.ActorID && other.IdempotencyKey == sale.IdempotencyKey {
 			return domain.ErrIdempotencyKeyConflict
 		}
 	}

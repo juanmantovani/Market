@@ -56,7 +56,7 @@ func (useCase *createSale) Execute(ctx context.Context, input CreateSaleInput) (
 	now := time.Now().UTC()
 	var sale domain.Sale
 	err = useCase.tx.WithinTx(ctx, func(ctx context.Context) error {
-		existing, err := useCase.sales.GetByIdempotencyKey(ctx, request.IdempotencyKey)
+		existing, err := useCase.sales.GetByIdempotencyKey(ctx, input.Actor.ID, request.IdempotencyKey)
 		if err == nil {
 			sale = existing
 			return existing.Replays(request)

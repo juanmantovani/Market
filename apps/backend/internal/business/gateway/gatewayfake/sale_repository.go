@@ -51,13 +51,13 @@ func (fake *SaleRepository) Get(_ context.Context, id string) (domain.Sale, erro
 	return fake.GetResult, nil
 }
 
-func (fake *SaleRepository) GetByIdempotencyKey(_ context.Context, key string) (domain.Sale, error) {
+func (fake *SaleRepository) GetByIdempotencyKey(_ context.Context, actorID, key string) (domain.Sale, error) {
 	fake.Keys = append(fake.Keys, key)
 	if fake.GetByKeyErr != nil {
 		return domain.Sale{}, fake.GetByKeyErr
 	}
 	for _, sale := range fake.Created {
-		if sale.IdempotencyKey == key {
+		if sale.ActorID == actorID && sale.IdempotencyKey == key {
 			return sale, nil
 		}
 	}

@@ -147,7 +147,7 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 			t.Fatalf("Create() = %s\nwant %s", describeSale(first), describeSale(want))
 		}
 
-		got, err := repositories.Sales.GetByIdempotencyKey(ctx, "key-1")
+		got, err := repositories.Sales.GetByIdempotencyKey(ctx, "u-contract", "key-1")
 		if err != nil {
 			t.Fatalf("GetByIdempotencyKey() error = %v", err)
 		}
@@ -166,7 +166,7 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 
 		mustCreateSale(t, repositories.Sales, sale)
 
-		got, err := repositories.Sales.GetByIdempotencyKey(ctx, "key-1")
+		got, err := repositories.Sales.GetByIdempotencyKey(ctx, "u-contract", "key-1")
 		if err != nil || got.Seller != nil || got.CartDiscount != nil || got.Lines[0].Discount != nil || got.Lines[1].Discount != nil {
 			t.Fatalf("GetByIdempotencyKey() = %s, %v; want no seller and no discounts", describeSale(got), err)
 		}
@@ -176,7 +176,7 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 		repositories := newRepositories(t)
 		mustCreateSale(t, repositories.Sales, newSale(newSaleParties(t, repositories), "key-1"))
 
-		if _, err := repositories.Sales.GetByIdempotencyKey(ctx, "key-2"); !errors.Is(err, domain.ErrSaleNotFound) {
+		if _, err := repositories.Sales.GetByIdempotencyKey(ctx, "u-contract", "key-2"); !errors.Is(err, domain.ErrSaleNotFound) {
 			t.Fatalf("GetByIdempotencyKey(unknown) error = %v, want ErrSaleNotFound", err)
 		}
 	})
@@ -191,6 +191,25 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 		}
 		if next := mustCreateSale(t, repositories.Sales, newSale(parties, "key-2")); next.Number != 2 {
 			t.Fatalf("number after a rejected sale = %d, want 2", next.Number)
+		}
+	})
+
+	t.Run("an idempotency key belongs to the actor that used it", func(t *testing.T) {
+		repositories := newRepositories(t)
+		parties := newSaleParties(t, repositories)
+		mine := mustCreateSale(t, repositories.Sales, newSale(parties, "key-1"))
+		theirs := newSale(parties, "key-1")
+		theirs.ActorID = "u-other"
+		theirs = mustCreateSale(t, repositories.Sales, theirs)
+
+		for actorID, want := range map[string]string{"u-contract": mine.ID, "u-other": theirs.ID} {
+			got, err := repositories.Sales.GetByIdempotencyKey(ctx, actorID, "key-1")
+			if err != nil || got.ID != want {
+				t.Fatalf("GetByIdempotencyKey(%q) = %q, %v; want %q", actorID, got.ID, err, want)
+			}
+		}
+		if _, err := repositories.Sales.GetByIdempotencyKey(ctx, "u-nobody", "key-1"); !errors.Is(err, domain.ErrSaleNotFound) {
+			t.Fatalf("GetByIdempotencyKey(other actor) error = %v, want ErrSaleNotFound", err)
 		}
 	})
 
@@ -215,7 +234,7 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 				if _, err := repositories.Sales.Create(ctx, sale); !errors.Is(err, test.want) {
 					t.Fatalf("Create(unknown %s) error = %v, want %s", test.name, err, test.want.Code)
 				}
-				if _, err := repositories.Sales.GetByIdempotencyKey(ctx, sale.IdempotencyKey); !errors.Is(err, domain.ErrSaleNotFound) {
+				if _, err := repositories.Sales.GetByIdempotencyKey(ctx, sale.ActorID, sale.IdempotencyKey); !errors.Is(err, domain.ErrSaleNotFound) {
 					t.Fatalf("a rejected sale was stored: %v", err)
 				}
 			})
@@ -269,7 +288,7 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 			t.Fatalf("WithinTx() error = %v, want %v", err, failure)
 		}
 
-		if _, err := repositories.Sales.GetByIdempotencyKey(ctx, "key-1"); !errors.Is(err, domain.ErrSaleNotFound) {
+		if _, err := repositories.Sales.GetByIdempotencyKey(ctx, "u-contract", "key-1"); !errors.Is(err, domain.ErrSaleNotFound) {
 			t.Fatalf("GetByIdempotencyKey(rolled back) error = %v, want ErrSaleNotFound", err)
 		}
 		movements, _ := repositories.Stock.ListMovements(ctx, gateway.StockMovementFilter{Page: domain.PageRequest{Page: 1, Limit: 10}})
@@ -355,7 +374,7 @@ func SaleRepository(t *testing.T, newRepositories NewRepositories) {
 		*created.Payments[0].Reference = "changed"
 		created.Lines[1].Discount.Value, created.CartDiscount.Type = 1, domain.DiscountAmount
 
-		got, _ := repositories.Sales.GetByIdempotencyKey(ctx, "key-1")
+		got, _ := repositories.Sales.GetByIdempotencyKey(ctx, "u-contract", "key-1")
 		got.ID, got.Number = "", 0
 		if describeSale(got) != want {
 			t.Fatalf("stored sale = %s\nwant %s", describeSale(got), want)

@@ -150,7 +150,7 @@ func TestSeedLoadsTheDemoSales(t *testing.T) {
 	}
 
 	for i, want := range demoSales {
-		sale, err := repos.sales.GetByIdempotencyKey(context.Background(), fmt.Sprintf("demo-sale-%d", i+1))
+		sale, err := repos.sales.GetByIdempotencyKey(context.Background(), seeder.ID, fmt.Sprintf("demo-sale-%d", i+1))
 		if err != nil {
 			t.Fatalf("demo sale %d: %v", i+1, err)
 		}
