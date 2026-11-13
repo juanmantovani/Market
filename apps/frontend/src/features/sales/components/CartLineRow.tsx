@@ -1,25 +1,28 @@
 import { useState } from 'react'
-import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Minus, Plus, Tag, Trash2 } from 'lucide-react'
 import { formatMoney } from '../../../shared/lib/money'
 import { formatQuantity, formatUnitQuantity, parseQuantity, unitShort } from '../../../shared/lib/quantity'
 import { Button } from '../../../shared/ui/button'
 import { FieldError } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
-import { isValidQuantity, lineAmount, quantityStep } from '../lib/cart'
+import { isValidQuantity, quantityStep } from '../lib/cart'
+import { formatDiscount, type PricedLine } from '../lib/discounts'
 import type { CartLine } from '../types'
 
 type CartLineRowProps = {
   line: CartLine
+  priced: PricedLine
   onQuantityChange: (itemId: string, quantity: number) => void
+  onDiscount: (itemId: string) => void
   onRemove: (itemId: string) => void
 }
 
-export function CartLineRow({ line, onQuantityChange, onRemove }: CartLineRowProps) {
+export function CartLineRow({ line, priced, onQuantityChange, onDiscount, onRemove }: CartLineRowProps) {
   const [quantityError, setQuantityError] = useState<string | null>(null)
   const step = quantityStep(line.unit)
   const stepText = formatUnitQuantity(step, line.unit)
   const errorId = `cart-quantity-error-${line.itemId}`
-  const total = lineAmount(line)
+  const total = priced.amount - priced.discountAmount
 
   function change(quantity: number) {
     setQuantityError(null)
@@ -37,6 +40,12 @@ export function CartLineRow({ line, onQuantityChange, onRemove }: CartLineRowPro
         </div>
         <span className="shrink-0 text-sm font-semibold tabular-nums">{formatMoney(total)}</span>
       </div>
+      {priced.discount && (
+        <p className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+          <span>Descuento {formatDiscount(priced.discount)}</span>
+          <span className="tabular-nums">−{formatMoney(priced.discountAmount)}</span>
+        </p>
+      )}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <Button
@@ -70,6 +79,17 @@ export function CartLineRow({ line, onQuantityChange, onRemove }: CartLineRowPro
           </Button>
           {line.unit !== 'unit' && <span className="ml-1 text-sm text-muted-foreground">{unitShort(line.unit)}</span>}
         </div>
+        <div className="flex items-center">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11 text-muted-foreground md:size-9"
+          aria-label={`${line.discount ? 'Cambiar el descuento de' : 'Descuento para'} ${line.name}`}
+          onClick={() => onDiscount(line.itemId)}
+        >
+          <Tag aria-hidden />
+        </Button>
         <Button
           type="button"
           variant="ghost"
@@ -80,6 +100,7 @@ export function CartLineRow({ line, onQuantityChange, onRemove }: CartLineRowPro
         >
           <Trash2 aria-hidden />
         </Button>
+        </div>
       </div>
       <FieldError id={errorId}>{quantityError}</FieldError>
     </li>

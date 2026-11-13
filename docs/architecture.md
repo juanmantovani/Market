@@ -188,7 +188,7 @@ apps/frontend/src/
 │   ├── suppliers/            # ídem
 │   ├── sellers/              # ídem
 │   ├── stock/                # ajuste, stock inicial, ingreso de mercadería (con buscador de artículos) e historial; se usan desde Artículos
-│   ├── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage y cobro con varios medios de pago; historial de ventas con filtros, detalle y anulación
+│   ├── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito con descuentos guardado en localStorage, cobro con varios medios de pago y ticket imprimible; historial de ventas con filtros, detalle y anulación
 │   └── dashboard/            # resumen del día (/resumen): ventas, total por medio de pago y stock bajo; pide el día local de la persona
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
@@ -237,11 +237,25 @@ apps/frontend/src/
   o el único que coincide: así funciona un lector de código de barras. Los
   artículos por peso piden la cantidad en un modal.
 - El carrito vive en el navegador (`localStorage`, clave `market.pos.cart`,
-  validado con Zod al leerlo): recargar la página no lo pierde. Su total es
-  una vista previa con las mismas reglas de redondeo que el backend
-  (`features/sales/lib/cart.ts`, con `BigInt`); el backend recalcula todo al
-  cobrar. Quitar una línea o vaciar el carrito se deshace desde el aviso
+  validado con Zod al leerlo): recargar la página no lo pierde. El
+  esquema guardado está versionado (`version: 2`; un carrito de la versión 1,
+  sin descuentos, se sigue leyendo). Su total es una vista previa con las
+  mismas reglas de redondeo y reparto que el backend
+  (`features/sales/lib/cart.ts` y `lib/discounts.ts`, con `BigInt`); el
+  backend recalcula todo al cobrar. Quitar una línea o vaciar el carrito se deshace desde el aviso
   (`useToast().undoable`), sin pedir confirmación.
+- **Descuentos**: cada línea tiene un botón de descuento y el pie del carrito
+  uno general, ambos en un mismo modal (`DiscountDialog`) por porcentaje o por
+  monto, como `{ type: 'percent' | 'amount', value }` (porcentaje en centésimas
+  de punto, monto en centavos, igual que el backend). `priceCart` replica
+  `domain.NewSale`: el descuento de línea se calcula sobre el importe de la
+  línea; el general, sobre lo que queda después de los de línea, y se reparte
+  entre las líneas en proporción a ese valor con resto mayor (`prorate`, el
+  primero gana un empate). Un descuento por monto nunca supera lo que
+  descuenta: si cambia la cantidad o se quita una línea, se acota en la vista
+  previa y en el pedido, así el backend no lo rechaza. Los descuentos viajan
+  en el carrito guardado, a `CheckoutDialog` (que recibe el `PricedCart`) y al
+  pedido (`discount` por línea y `cartDiscount`).
 - **Cliente y vendedor**: `app/PosRoute` también le pasa `listCustomers` y
   `listSellers`. El cliente va con el carrito (sin elegir es Consumidor
   Final, el que usa el backend por defecto, y vuelve a serlo al vaciar la
@@ -262,8 +276,14 @@ apps/frontend/src/
   carrito se vacía, se muestran el número y el vuelto, y se vuelven a leer
   artículos y stock. El diálogo no se cierra mientras la solicitud está en
   curso. Envía el cliente y el vendedor elegidos (`customerId` en `null` es
-  Consumidor Final; `sellerId` en `null`, sin vendedor). Todavía sin
-  descuentos en la pantalla.
+  Consumidor Final; `sellerId` en `null`, sin vendedor).
+- **Ticket**: la pantalla «Venta registrada» tiene «Imprimir ticket»
+  (`window.print`). `SaleTicket` se dibuja desde la respuesta de la venta, no
+  desde el carrito, en un `<article data-print-area>` fuera del diálogo (hijo
+  directo de `body`, oculto en pantalla con `hidden print:block`); la regla de
+  impresión de `index.css` oculta el resto de la página. Es un comprobante no
+  fiscal de 80 mm: número, fecha, cliente, vendedor, líneas con cantidad y
+  precio, descuentos, total, pagos y vuelto.
 - Ventas (`/ventas`, `features/sales/pages/SalesPage`): historial paginado
   (`GET /api/v1/sales`) con número, fecha, cliente, vendedor, total y estado
   escrito (Completada / Anulada). Filtra por estado y por días (`Desde` y

@@ -11,6 +11,7 @@ import { CartSheet } from '../components/CartSheet'
 import { CatalogGrid } from '../components/CatalogGrid'
 import { CategoryFilter } from '../components/CategoryFilter'
 import { CheckoutDialog } from '../components/CheckoutDialog'
+import { DiscountDialog } from '../components/DiscountDialog'
 import { CustomerPicker, SellerPicker } from '../components/PartyPickers'
 import { QuantityDialog } from '../components/QuantityDialog'
 import { SaleParties } from '../components/SaleParties'
@@ -18,8 +19,9 @@ import { useCart } from '../hooks/use-cart'
 import { useSeller } from '../hooks/use-seller'
 import { CATALOG_LIMIT, useCatalog, useCodeLookup } from '../hooks/use-catalog'
 import { useShortcuts } from '../hooks/use-shortcuts'
-import { addItem, cartTotal } from '../lib/cart'
-import type { CatalogItem, CategoryOption, SearchCatalog, SearchCustomers, SearchSellers } from '../types'
+import { addItem } from '../lib/cart'
+import { priceCart } from '../lib/discounts'
+import type { CatalogItem, CategoryOption, Discount, SearchCatalog, SearchCustomers, SearchSellers } from '../types'
 
 type PosPageProps = {
   categories: CategoryOption[]
@@ -47,6 +49,11 @@ export default function PosPage({ categories, searchCatalog, searchCustomers, se
   const [weighOpen, setWeighOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  // Which discount is being edited: a line's (by item) or the general one
+  // (null). It stays set while the dialog closes, so the closing animation
+  // keeps its content.
+  const [discountTarget, setDiscountTarget] = useState<{ itemId: string | null } | null>(null)
+  const [discountOpen, setDiscountOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const debouncedSearch = useDebouncedValue(search.trim(), 250)
   const catalog = useCatalog(searchCatalog, { search: debouncedSearch, categoryId, page: 1, limit: CATALOG_LIMIT })
@@ -74,7 +81,7 @@ export default function PosPage({ categories, searchCatalog, searchCustomers, se
   }, [])
 
   function add(item: CatalogItem, quantity: number) {
-    const total = cartTotal(addItem(cart.lines, item, quantity))
+    const total = priceCart(addItem(cart.lines, item, quantity), cart.cartDiscount).total
     cart.add(item, quantity)
     setAnnouncement(`Se agregó ${item.name}. Total: ${formatMoney(total)}`)
   }
@@ -140,7 +147,7 @@ export default function PosPage({ categories, searchCatalog, searchCustomers, se
 
   function clear() {
     const cleared = cart.clear()
-    if (cleared.lines.length > 0 || cleared.customer) toast.undoable('Se vació la venta', () => cart.restoreAll(cleared))
+    if (cleared.lines.length > 0 || cleared.customer || cleared.cartDiscount) toast.undoable('Se vació la venta', () => cart.restoreAll(cleared))
   }
 
   function startCheckout() {
@@ -153,6 +160,26 @@ export default function PosPage({ categories, searchCatalog, searchCustomers, se
     setCheckoutOpen(true)
   }
 
+  function editDiscount(itemId: string | null) {
+    setDiscountTarget({ itemId })
+    setDiscountOpen(true)
+  }
+
+  const discountingLine = discountTarget?.itemId != null
+  const discountLineIndex = discountingLine ? cart.lines.findIndex((line) => line.itemId === discountTarget.itemId) : -1
+  const discountLine = discountLineIndex >= 0 ? cart.lines[discountLineIndex] : null
+  // A line's discount is taken from its amount; the general one from what
+  // the lines add up to after their own discounts.
+  const discountBase = discountingLine
+    ? (cart.pricing.lines[discountLineIndex]?.amount ?? 0)
+    : cart.pricing.lines.reduce((sum, line) => sum + line.amount - line.discountAmount, 0)
+
+  function applyDiscount(discount: Discount | null) {
+    if (discountTarget?.itemId) cart.setLineDiscount(discountTarget.itemId, discount)
+    else cart.setCartDiscount(discount)
+    setDiscountOpen(false)
+  }
+
   function focusSearch() {
     searchRef.current?.focus()
   }
@@ -160,8 +187,10 @@ export default function PosPage({ categories, searchCatalog, searchCustomers, se
   const panel = (headerAction?: ReactNode, className?: string) => (
     <CartPanel
       lines={cart.lines}
-      total={cart.total}
+      pricing={cart.pricing}
       onQuantityChange={cart.setQuantity}
+      onLineDiscount={editDiscount}
+      onCartDiscount={() => editDiscount(null)}
       onRemove={remove}
       onClear={clear}
       parties={
@@ -229,8 +258,7 @@ export default function PosPage({ categories, searchCatalog, searchCustomers, se
 
       <CheckoutDialog
         open={checkoutOpen}
-        lines={cart.lines}
-        total={cart.total}
+        pricing={cart.pricing}
         customerId={cart.customer?.id ?? null}
         sellerId={seller?.id ?? null}
         onSold={() => {
@@ -253,6 +281,15 @@ export default function PosPage({ categories, searchCatalog, searchCustomers, se
         onPick={cart.setCustomer}
       />
       <SellerPicker open={picker === 'seller'} onClose={() => setPicker(null)} search={searchSellers} current={seller} onPick={setSeller} />
+
+      <DiscountDialog
+        open={discountOpen && (!discountingLine || discountLine !== null)}
+        title={discountingLine ? `Descuento: ${discountLine?.name ?? ''}` : 'Descuento general'}
+        base={discountBase}
+        current={discountingLine ? (discountLine?.discount ?? null) : cart.cartDiscount}
+        onApply={applyDiscount}
+        onClose={() => setDiscountOpen(false)}
+      />
 
       <QuantityDialog
         open={weighOpen}

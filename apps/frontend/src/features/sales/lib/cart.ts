@@ -6,7 +6,7 @@ export const MAX_LINE_QUANTITY = 1_000_000 * QUANTITY_SCALE
 
 // a × b ÷ divisor rounded half away from zero, like the backend's
 // mulDivRound. BigInt keeps the product exact beyond 2^53.
-function mulDivRound(a: number, b: number, divisor: bigint): number {
+export function mulDivRound(a: number, b: number, divisor: bigint): number {
   const product = BigInt(a) * BigInt(b)
   const negative = product < 0n
   const absolute = negative ? -product : product
@@ -20,11 +20,6 @@ function mulDivRound(a: number, b: number, divisor: bigint): number {
 // sale again.
 export function lineAmount(line: Pick<CartLine, 'unitPrice' | 'quantity'>): number {
   return mulDivRound(line.unitPrice, line.quantity, BigInt(QUANTITY_SCALE))
-}
-
-// The sum of the lines, so the total always matches what they show.
-export function cartTotal(lines: readonly CartLine[]): number {
-  return lines.reduce((total, line) => total + lineAmount(line), 0)
 }
 
 // What + and − change: a unit, or 100 g (or ml, or cm) for items sold by
