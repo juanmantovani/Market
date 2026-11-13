@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { useReturnFocus } from '@/shared/hooks/use-return-focus'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/shared/ui/dialog'
@@ -18,9 +19,14 @@ type FormDialogProps = {
 // The modal every entity uses to create and edit. Focus is trapped while
 // open, Escape or the backdrop close it, and long forms scroll inside it.
 export function FormDialog({ open, onOpenChange, title, description, size = 'default', children }: FormDialogProps) {
+  const finalFocus = useReturnFocus(open)
+
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next)}>
-      <DialogContent className={cn('flex flex-col rounded-2xl', size === 'wide' ? 'max-w-2xl' : 'max-w-lg')}>
+      <DialogContent
+        finalFocus={finalFocus}
+        className={cn('flex flex-col rounded-2xl', size === 'wide' ? 'max-w-2xl' : 'max-w-lg')}
+      >
         <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
           <div className="flex flex-col gap-1">
             <DialogTitle>{title}</DialogTitle>

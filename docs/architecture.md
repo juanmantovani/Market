@@ -226,9 +226,9 @@ apps/frontend/src/
 | `SearchField` | Búsqueda con ícono y botón para limpiar; el placeholder es el propio label (corto, para que entre en el celular) y debajo muestra por qué campos busca (`hint`). Se combina con `useDebouncedValue`. |
 | `ResponsiveList` | Tabla desde `md:` y tarjetas en el celular; skeleton mientras carga. |
 | `Pagination` | “1–25 de 40” + Anterior / Siguiente. |
-| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. |
+| `FormDialog` | Modal centrado para crear y editar cualquier entidad; el contenido largo se desplaza adentro. `size="wide"` para formularios en dos columnas. Al cerrar, devuelve el foco al botón que lo abrió (`useReturnFocus`). |
 | `NativeSelect` | `<select>` nativo con estilo: teclado, lector de pantalla y selector del celular funcionan sin más. |
-| `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`). |
+| `ConfirmDialog` | Confirmación antes de eliminar (`role="alertdialog"`); también devuelve el foco al botón que la abrió. |
 | `EmptyState` | Vacío, sin resultados o error, siempre con una salida. |
 | `ToastProvider` / `useToast` | Avisos de éxito o error (Toast de Base UI, sin dependencias extra). |
 | `Field`, `Input`, `Textarea` | Campos con label, ayuda y error; 44 px de alto en el celular. |

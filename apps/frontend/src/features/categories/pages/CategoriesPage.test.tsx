@@ -241,6 +241,61 @@ describe('CategoriesPage', () => {
     expect(api.writes()).toEqual([])
   })
 
+  it('returns the focus to the button that opened the form when it closes', async () => {
+    fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+    await table()
+
+    const newButton = screen.getByRole('button', { name: 'Nueva categoría' })
+    await user.click(newButton)
+    await screen.findByRole('dialog', { name: 'Nueva categoría' })
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
+    await waitFor(() => expect(newButton).toHaveFocus())
+
+    const editButton = (await table()).getByRole('button', { name: 'Editar Bebidas' })
+    await user.click(editButton)
+    await user.click(within(await screen.findByRole('dialog', { name: 'Editar categoría' })).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
+    await waitFor(() => expect(editButton).toHaveFocus())
+  })
+
+  it('returns the focus to the button that opened the form after saving', async () => {
+    fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+    await table()
+
+    const newButton = screen.getByRole('button', { name: 'Nueva categoría' })
+    await user.click(newButton)
+    const form = within(await screen.findByRole('dialog', { name: 'Nueva categoría' }))
+    await user.type(form.getByLabelText('Nombre'), 'Kiosco')
+    await user.click(form.getByRole('button', { name: 'Crear categoría' }))
+
+    expect(await screen.findByText('Categoría creada')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /categoría/ })).not.toBeInTheDocument())
+    await waitFor(() => expect(newButton).toHaveFocus())
+  })
+
+  it('returns the focus to the delete button when the confirmation is dismissed', async () => {
+    fakeCategoryApi([{ name: 'Bebidas' }])
+    const user = userEvent.setup()
+    renderWithProviders(<CategoriesPage />)
+
+    const deleteButton = (await table()).getByRole('button', { name: 'Eliminar Bebidas' })
+    await user.click(deleteButton)
+    await screen.findByRole('alertdialog')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(deleteButton).toHaveFocus())
+
+    await user.click(deleteButton)
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(deleteButton).toHaveFocus())
+  })
+
   it('deletes a category only after confirming', async () => {
     const api = fakeCategoryApi([{ name: 'Bebidas' }, { name: 'Kiosco' }])
     const user = userEvent.setup()
