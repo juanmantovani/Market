@@ -29,7 +29,7 @@ apps/backend/
     │   ├── domain/                        # Error, Actor, Permission, Money, Quantity, Percent, Page, Category…
     │   ├── gateway/                       # TxManager y un contrato de repositorio por agregado
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
-    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta, listado, detalle y anulación
+    │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta, listado, detalle y anulación; dashboard: resumen del día
     └── infrastructure/
         ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
@@ -38,7 +38,7 @@ apps/backend/
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
-            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers, stock, sales
+            ├── dto/                       # health, pagination (PageResponse[T]), categories, items, customers, suppliers, sellers, stock, sales, dashboard
             ├── handler/                   # un handler por ruta + Adapt, decodeJSON, pageQuery
             ├── middleware/                # DevActor, Recover, RequestLog
             ├── response/                  # WriteJSON, WriteError (único mapeo Kind → status)
@@ -172,7 +172,7 @@ hechas, no lo que mide la base completa.
 ```text
 apps/frontend/src/
 ├── app/                      # composición: router, layout, navegación, tema, providers
-│   ├── router.tsx            # / (punto de venta), /articulos, /categorias, /clientes, /proveedores, /vendedores y página 404
+│   ├── router.tsx            # / (punto de venta), /articulos, /categorias, /clientes, /proveedores, /vendedores, /resumen y página 404
 │   ├── lazy-pages.ts         # cada página con React.lazy: un chunk por ruta
 │   ├── ItemsRoute.tsx        # compone artículos con las categorías, los proveedores y el stock (ver abajo)
 │   ├── PosRoute.tsx          # compone el punto de venta con las categorías, el catálogo, los clientes y los vendedores
@@ -188,7 +188,8 @@ apps/frontend/src/
 │   ├── suppliers/            # ídem
 │   ├── sellers/              # ídem
 │   ├── stock/                # ajuste, stock inicial, ingreso de mercadería (con buscador de artículos) e historial; se usan desde Artículos
-│   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage y cobro con varios medios de pago
+│   ├── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage y cobro con varios medios de pago
+│   └── dashboard/            # resumen del día (/resumen): ventas, total por medio de pago y stock bajo; pide el día local de la persona
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
@@ -263,6 +264,12 @@ apps/frontend/src/
   curso. Envía el cliente y el vendedor elegidos (`customerId` en `null` es
   Consumidor Final; `sellerId` en `null`, sin vendedor). Todavía sin
   descuentos en la pantalla.
+- El resumen (`/resumen`, `features/dashboard`) pide
+  `GET /api/v1/dashboard/summary` con el inicio y el fin del día local
+  (`lib/today.ts`). Su clave (`queryKeys.dashboard`) se invalida al vender y
+  al mover stock (ingreso, ajuste o stock inicial); anular una venta tiene que
+  invalidarla también cuando exista esa pantalla. El stock bajo se marca con
+  texto y ícono, no solo con color.
 - Atajos del punto de venta (`useShortcuts`, solo en esa pantalla): `F2`
   vuelve al buscador, `F4` elige el vendedor, `F6` el cliente y `F9` cobra;
   las flechas recorren el catálogo y los resultados, y `Escape` cierra el

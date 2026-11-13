@@ -26,6 +26,8 @@ type SaleRepository struct {
 	VoidErr error
 	Voided  []domain.Sale
 
+	// ListPages, when set, are returned one per call instead of ListResult.
+	ListPages   []domain.Page[domain.Sale]
 	ListResult  domain.Page[domain.Sale]
 	ListErr     error
 	ListFilters []gateway.SaleFilter
@@ -78,6 +80,10 @@ func (fake *SaleRepository) List(_ context.Context, filter gateway.SaleFilter) (
 	fake.ListFilters = append(fake.ListFilters, filter)
 	if fake.ListErr != nil {
 		return domain.Page[domain.Sale]{}, fake.ListErr
+	}
+
+	if call := len(fake.ListFilters) - 1; call < len(fake.ListPages) {
+		return fake.ListPages[call], nil
 	}
 
 	return fake.ListResult, nil

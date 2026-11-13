@@ -7,6 +7,7 @@ import (
 	"market/backend/internal/business/gateway"
 	"market/backend/internal/business/usecase/categories"
 	"market/backend/internal/business/usecase/customers"
+	"market/backend/internal/business/usecase/dashboard"
 	"market/backend/internal/business/usecase/items"
 	"market/backend/internal/business/usecase/sales"
 	"market/backend/internal/business/usecase/sellers"
@@ -62,6 +63,8 @@ type Container struct {
 	ListSales  sales.ListSales
 	GetSale    sales.GetSale
 	VoidSale   sales.VoidSale
+
+	GetDashboardSummary dashboard.GetSummary
 }
 
 type repositories struct {
@@ -122,6 +125,8 @@ func New(cfg environments.Server) (*Container, error) {
 		ListSales:  sales.NewListSales(repos.sales),
 		GetSale:    sales.NewGetSale(repos.sales),
 		VoidSale:   sales.NewVoidSale(repos.tx, repos.sales, repos.stock),
+
+		GetDashboardSummary: dashboard.NewGetSummary(repos.sales, repos.stock),
 	}, nil
 }
 
@@ -187,5 +192,7 @@ func (container *Container) Handlers() route.Handlers {
 		GetSale:    handler.NewGetSaleHandler(container.GetSale),
 		CreateSale: handler.NewCreateSaleHandler(container.CreateSale),
 		VoidSale:   handler.NewVoidSaleHandler(container.VoidSale),
+
+		GetDashboardSummary: handler.NewGetDashboardSummaryHandler(container.GetDashboardSummary),
 	}
 }
