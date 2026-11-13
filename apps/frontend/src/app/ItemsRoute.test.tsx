@@ -12,9 +12,23 @@ function json(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
-function stubApi() {
+function stubApi({ stockFails = false } = {}) {
   const fetchMock = vi.fn(async (input: string) => {
     const url = new URL(input, 'http://localhost')
+    if (url.pathname === '/api/v1/stock') {
+      if (stockFails) return json({ code: 'storage_unavailable', message: 'No se pudo acceder al almacenamiento' }, 503)
+      return json({
+        items: [
+          {
+            itemId: 'i1', code: 'BEB-001', name: 'Agua mineral', categoryId: 'c2', unit: 'unit', minStock: 24_000,
+            quantity: 12_000, lowStock: true, updatedAt: NOW,
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 1,
+      })
+    }
     if (url.pathname === '/api/v1/suppliers') {
       return json({
         items: [
@@ -43,7 +57,7 @@ function stubApi() {
       items: [
         {
           id: 'i1', code: 'BEB-001', barcode: null, name: 'Agua mineral', description: null, categoryId: 'c2', supplierIds: ['s1'],
-          unit: 'unit', salePrice: 110_000, cost: null, taxRate: 2100, minStock: 0,
+          unit: 'unit', salePrice: 110_000, cost: null, taxRate: 2100, minStock: 24_000,
           createdAt: NOW, updatedAt: NOW,
         },
       ],
@@ -56,19 +70,43 @@ function stubApi() {
   return fetchMock
 }
 
+function renderRoute() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <Providers queryClient={queryClient}>
+      <RouterProvider router={createMemoryRouter(routes, { initialEntries: ['/articulos'] })} />
+    </Providers>,
+  )
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
 describe('ItemsRoute', () => {
+  it('shows the stock of the items on the page, asking for just those', async () => {
+    const fetchMock = stubApi()
+    renderRoute()
+
+    const table = within(await screen.findByRole('table', { name: 'Artículos' }))
+    const row = within(await table.findByRole('row', { name: /Agua mineral/ }))
+    expect(await row.findByText('12 u.')).toBeInTheDocument()
+    expect(row.getByText('Stock bajo')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/stock?page=1&limit=1&itemId=i1', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it('keeps listing the items when their stock cannot be loaded', async () => {
+    stubApi({ stockFails: true })
+    renderRoute()
+
+    const table = within(await screen.findByRole('table', { name: 'Artículos' }))
+    const row = within(await table.findByRole('row', { name: /Agua mineral/ }))
+    expect(await row.findByText('Stock no disponible')).toBeInTheDocument()
+  })
+
   it('shows items with the names of their categories and offers the suppliers in the form', async () => {
     const fetchMock = stubApi()
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <Providers queryClient={queryClient}>
-        <RouterProvider router={createMemoryRouter(routes, { initialEntries: ['/articulos'] })} />
-      </Providers>,
-    )
+    renderRoute()
 
     const table = within(await screen.findByRole('table', { name: 'Artículos' }))
     expect(await table.findByText('Bebidas')).toBeInTheDocument()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatQuantity, formatUnitQuantity, parseQuantity, unitShort } from './quantity'
+import { formatQuantity, formatUnitQuantity, isLowStock, parseQuantity, unitShort } from './quantity'
 
 describe('formatQuantity', () => {
   it('drops trailing zeros of the fraction', () => {
@@ -23,6 +23,19 @@ describe('formatUnitQuantity', () => {
     expect(formatUnitQuantity(1800, 'kg')).toBe('1,8 kg')
     expect(formatUnitQuantity(-250, 'l')).toBe('-0,25 l')
     expect(unitShort('m')).toBe('m')
+  })
+})
+
+describe('isLowStock', () => {
+  it('is low when the stock is at or below a minimum', () => {
+    expect(isLowStock(3000, 5000)).toBe(true)
+    expect(isLowStock(5000, 5000)).toBe(true)
+    expect(isLowStock(5001, 5000)).toBe(false)
+  })
+
+  it('is never low without a minimum', () => {
+    expect(isLowStock(0, 0)).toBe(false)
+    expect(isLowStock(2000, 0)).toBe(false)
   })
 })
 

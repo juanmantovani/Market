@@ -24,6 +24,7 @@ export const queryKeys = {
   stock: {
     all: ['stock'] as const,
     levels: (params: ListParams & { categoryId: string; lowStock: boolean }) => ['stock', 'levels', params] as const,
+    levelsOf: (itemIds: readonly string[]) => ['stock', 'levels-of', itemIds] as const,
     movements: (params: { itemId: string; page: number; limit: number }) => ['stock', 'movements', params] as const,
   },
 }

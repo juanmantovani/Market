@@ -46,6 +46,16 @@ export const itemPageSchema = pageSchema(itemSchema)
 export type CategoryOption = { id: string; name: string }
 export type SupplierOption = { id: string; name: string }
 
+// The current stock of the items listed, composed in app/ItemsRoute: items
+// don't import the stock feature.
+export type StockQuantities = {
+  // In thousandths of each item's unit, by item ID.
+  quantities: ReadonlyMap<string, number>
+  isLoading: boolean
+}
+
+export type UseStockQuantities = (itemIds: readonly string[]) => StockQuantities
+
 // The form keeps what the person typed (amounts as text) and the schema
 // turns it into the request the backend expects, mirroring domain.NewItem.
 export const itemFormSchema = z
