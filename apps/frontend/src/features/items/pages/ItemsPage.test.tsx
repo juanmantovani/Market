@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../../../test/render'
-import type { CategoryOption, Item, SupplierOption } from '../types'
+import type { CategoryOption, Item, SupplierOption, UseStockQuantities } from '../types'
 import ItemsPage from './ItemsPage'
 
 const NOW = '2026-11-10T15:00:00Z'
@@ -102,16 +102,37 @@ function fakeItemApi(initial: Array<ReturnType<typeof item>> = []) {
   }
 }
 
-function renderPage(categories: CategoryOption[] = CATEGORIES, suppliers: SupplierOption[] = SUPPLIERS) {
+// The stock of the items by their ID, in thousandths of their unit.
+function stockOf(quantities: Record<string, number> = {}, isLoading = false): UseStockQuantities {
+  return () => ({ quantities: new Map(Object.entries(quantities)), isLoading })
+}
+
+function renderPage(
+  categories: CategoryOption[] = CATEGORIES,
+  suppliers: SupplierOption[] = SUPPLIERS,
+  useStockQuantities: UseStockQuantities = stockOf(),
+) {
   return renderWithProviders(
     <MemoryRouter>
-      <ItemsPage categories={categories} categoriesLoading={false} suppliers={suppliers} />
+      <ItemsPage
+        categories={categories}
+        categoriesLoading={false}
+        suppliers={suppliers}
+        useStockQuantities={useStockQuantities}
+      />
     </MemoryRouter>,
   )
 }
 
 async function table() {
   return within(await screen.findByRole('table', { name: 'Artículos' }))
+}
+
+function stockCells(scope: Awaited<ReturnType<typeof table>>) {
+  return scope
+    .getAllByRole('row')
+    .slice(1)
+    .map((row: HTMLElement) => within(row).getAllByRole('cell')[4])
 }
 
 function rowTexts(scope: Awaited<ReturnType<typeof table>>) {
@@ -143,6 +164,71 @@ describe('ItemsPage', () => {
     const cards = within(screen.getByRole('list', { name: 'Artículos' }))
     expect(cards.getAllByRole('listitem')).toHaveLength(2)
     expect(cards.getByRole('button', { name: 'Eliminar Yerba mate 1 kg' })).toBeInTheDocument()
+  })
+
+  it('shows the stock of each item in its own unit, in the table and on the cards', async () => {
+    fakeItemApi([
+      item({ name: 'Yerba mate 1 kg', code: 'ALM-001' }),
+      item({ name: 'Jamón cocido', code: 'FIA-002', categoryId: 'c2', unit: 'kg' }),
+    ])
+    renderPage(CATEGORIES, SUPPLIERS, stockOf({ i1: 12_000, i2: 3_250 }))
+
+    const scope = await table()
+    expect(scope.getByRole('columnheader', { name: 'Stock' })).toBeInTheDocument()
+    const [ham, yerba] = stockCells(scope)
+    expect(ham).toHaveTextContent(/^3,25 kg$/)
+    expect(yerba).toHaveTextContent(/^12 u.$/)
+
+    const cards = within(screen.getByRole('list', { name: 'Artículos' }))
+    expect(cards.getByText('3,25 kg')).toBeInTheDocument()
+    expect(cards.getByText('12 u.')).toBeInTheDocument()
+  })
+
+  it('marks, with text, the items whose stock reached their minimum', async () => {
+    fakeItemApi([
+      item({ name: 'A below', code: 'A-1', minStock: 5_000 }),
+      item({ name: 'B at the minimum', code: 'B-1', minStock: 5_000 }),
+      item({ name: 'C above', code: 'C-1', minStock: 5_000 }),
+      item({ name: 'D without minimum', code: 'D-1', minStock: 0 }),
+    ])
+    renderPage(CATEGORIES, SUPPLIERS, stockOf({ i1: 3_000, i2: 5_000, i3: 5_001, i4: 0 }))
+
+    const cells = stockCells(await table())
+    expect(cells.map((cell) => within(cell).queryByText('Stock bajo') !== null)).toEqual([true, true, false, false])
+    expect(cells[0]).toHaveTextContent('Stock bajo3 u.')
+    expect(cells[3]).toHaveTextContent(/^0 u.$/)
+
+    const cards = within(screen.getByRole('list', { name: 'Artículos' }))
+    expect(cards.getAllByText('Stock bajo')).toHaveLength(2)
+  })
+
+  it('asks for the stock of the items on the page only', async () => {
+    fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' }), item({ name: 'Arroz', code: 'ALM-002' })])
+    const useStockQuantities = vi.fn<UseStockQuantities>(stockOf())
+    renderPage(CATEGORIES, SUPPLIERS, useStockQuantities)
+
+    await table()
+
+    expect(useStockQuantities).toHaveBeenCalledWith([])
+    expect(useStockQuantities).toHaveBeenLastCalledWith(['i2', 'i1'])
+  })
+
+  it('shows the stock loading while it arrives', async () => {
+    fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' })])
+    renderPage(CATEGORIES, SUPPLIERS, stockOf({}, true))
+
+    const scope = await table()
+    expect(within(stockCells(scope)[0]).getByText('Cargando stock')).toBeInTheDocument()
+    expect(scope.queryByText('Stock no disponible')).not.toBeInTheDocument()
+  })
+
+  it('shows a dash when the stock of an item is not available', async () => {
+    fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' })])
+    renderPage()
+
+    const scope = await table()
+    expect(within(stockCells(scope)[0]).getByText('Stock no disponible')).toBeInTheDocument()
+    expect(stockCells(scope)[0]).toHaveTextContent('—')
   })
 
   it('asks to create a category first when there are none', async () => {

@@ -22,6 +22,14 @@ export function listStockLevels({ categoryId, lowStock, ...params }: StockListPa
   return apiFetch(`${STOCK_PATH}?${query}`, stockLevelPageSchema, { signal })
 }
 
+// The levels of some items, all in one page: the backend caps a page at 100
+// items, so `itemIds` can't have more.
+export function listStockLevelsOf(itemIds: readonly string[], signal?: AbortSignal) {
+  const query = new URLSearchParams({ page: '1', limit: String(itemIds.length) })
+  for (const itemId of itemIds) query.append('itemId', itemId)
+  return apiFetch(`${STOCK_PATH}?${query}`, stockLevelPageSchema, { signal })
+}
+
 export function listStockMovements({ itemId, page, limit }: MovementListParams, signal?: AbortSignal) {
   const query = new URLSearchParams({ itemId, page: String(page), limit: String(limit) })
   return apiFetch(`${STOCK_PATH}/movements?${query}`, stockMovementPageSchema, { signal })

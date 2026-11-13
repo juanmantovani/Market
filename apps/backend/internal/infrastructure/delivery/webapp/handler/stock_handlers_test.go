@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -43,7 +44,7 @@ func TestListStockLevelsHandler(t *testing.T) {
 			return domain.Page[domain.ItemStock]{Items: []domain.ItemStock{yerba, queso}, Total: 2, Page: 1, Limit: 25}, nil
 		})
 
-	recorder := serve(NewListStockLevelsHandler(listStockLevels), categoryRequest(http.MethodGet, "/api/v1/stock?q=yer&categoryId=c1&lowStock=true&page=1&limit=25", nil))
+	recorder := serve(NewListStockLevelsHandler(listStockLevels), categoryRequest(http.MethodGet, "/api/v1/stock?q=yer&categoryId=c1&itemId=i1&itemId=i2&lowStock=true&page=1&limit=25", nil))
 
 	assertStatus(t, recorder, http.StatusOK)
 	got := decodeBody[pagination.PageResponse[dto.StockLevelResponse]](t, recorder)
@@ -58,14 +59,17 @@ func TestListStockLevelsHandler(t *testing.T) {
 	if second.Quantity != 0 || second.LowStock || second.UpdatedAt != nil || second.Unit != "kg" {
 		t.Fatalf("level without movements = %+v", second)
 	}
-	want := stock.ListStockLevelsInput{Actor: handlerActor, Search: "yer", CategoryID: "c1", LowStock: true, Page: 1, Limit: 25}
-	if received != want {
+	want := stock.ListStockLevelsInput{Actor: handlerActor, Search: "yer", CategoryID: "c1", ItemIDs: []string{"i1", "i2"}, LowStock: true, Page: 1, Limit: 25}
+	if !reflect.DeepEqual(received, want) {
 		t.Fatalf("input = %+v, want %+v", received, want)
 	}
 
 	serve(NewListStockLevelsHandler(listStockLevels), categoryRequest(http.MethodGet, "/api/v1/stock?lowStock=yes", nil))
 	if received.LowStock {
 		t.Fatal(`lowStock=yes filtered by low stock, want only "true" to`)
+	}
+	if received.ItemIDs != nil {
+		t.Fatalf("ItemIDs without itemId = %q, want none", received.ItemIDs)
 	}
 	assertStatus(t, serve(NewListStockLevelsHandler(listStockLevels), categoryRequest(http.MethodGet, "/api/v1/stock?limit=x", nil)), http.StatusBadRequest)
 }

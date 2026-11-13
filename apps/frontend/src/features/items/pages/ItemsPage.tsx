@@ -16,16 +16,25 @@ import { useToast } from '../../../shared/ui/use-toast'
 import { ItemForm } from '../components/ItemForm'
 import { ItemList } from '../components/ItemList'
 import { useDeleteItem, useItems, useSaveItem } from '../hooks/use-items'
-import { toFormValues, type CategoryOption, type Item, type ItemRequest, type SupplierOption } from '../types'
+import {
+  toFormValues,
+  type CategoryOption,
+  type Item,
+  type ItemRequest,
+  type SupplierOption,
+  type UseStockQuantities,
+} from '../types'
 
 const PAGE_SIZE = 25
 
 type ItemsPageProps = {
-  // Composed in app/ItemsRoute: items don't import the categories or the
-  // suppliers feature.
+  // Composed in app/ItemsRoute: items don't import the categories, the
+  // suppliers or the stock feature. The stock is asked for the items of the
+  // page being shown, which only this page knows.
   categories: readonly CategoryOption[]
   categoriesLoading: boolean
   suppliers: readonly SupplierOption[]
+  useStockQuantities: UseStockQuantities
 }
 
 // `open` is kept apart from what the overlay shows, so its content stays in
@@ -33,7 +42,7 @@ type ItemsPageProps = {
 type FormState = { open: boolean; item: Item | null; formKey: number }
 type ConfirmState = { open: boolean; item: Item | null }
 
-export default function ItemsPage({ categories, categoriesLoading, suppliers }: ItemsPageProps) {
+export default function ItemsPage({ categories, categoriesLoading, suppliers, useStockQuantities }: ItemsPageProps) {
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [page, setPage] = useState(1)
@@ -47,6 +56,7 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers }: 
   const toast = useToast()
 
   const rows = items.data?.items ?? []
+  const stock = useStockQuantities(rows.map((row) => row.id))
   const isFiltered = debouncedSearch.trim() !== '' || categoryId !== ''
   const isEditing = form.item !== null
   const categoryNames = new Map(categories.map((category) => [category.id, category.name]))
@@ -137,6 +147,7 @@ export default function ItemsPage({ categories, categoriesLoading, suppliers }: 
       <>
         <ItemList
           items={rows}
+          stock={stock}
           categoryName={(id) => categoryNames.get(id) ?? '—'}
           isLoading={items.isPending}
           onEdit={openForm}

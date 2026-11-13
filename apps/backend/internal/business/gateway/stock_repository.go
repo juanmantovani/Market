@@ -12,6 +12,9 @@ type StockLevelFilter struct {
 	Search string
 	// CategoryID, when set, keeps only the items of that category.
 	CategoryID string
+	// ItemIDs, when not empty, keeps only the items with one of those IDs.
+	// An ID that matches no item is ignored.
+	ItemIDs []string
 	// LowStock keeps only the items whose stock reached their minimum, as
 	// domain.IsLowStock decides.
 	LowStock bool
