@@ -188,7 +188,7 @@ apps/frontend/src/
 │   ├── suppliers/            # ídem
 │   ├── sellers/              # ídem
 │   ├── stock/                # ajuste, stock inicial, ingreso de mercadería (con buscador de artículos) e historial; se usan desde Artículos
-│   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage y cobro con varios medios de pago
+│   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage y cobro con varios medios de pago; historial de ventas con filtros, detalle y anulación
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
@@ -263,6 +263,16 @@ apps/frontend/src/
   curso. Envía el cliente y el vendedor elegidos (`customerId` en `null` es
   Consumidor Final; `sellerId` en `null`, sin vendedor). Todavía sin
   descuentos en la pantalla.
+- Ventas (`/ventas`, `features/sales/pages/SalesPage`): historial paginado
+  (`GET /api/v1/sales`) con número, fecha, cliente, vendedor, total y estado
+  escrito (Completada / Anulada). Filtra por estado y por días (`Desde` y
+  `Hasta`, ambos incluidos): `lib/sale-filters.ts` los manda como instantes
+  locales, `to` como la medianoche siguiente porque el backend lo excluye. El
+  detalle se abre en un modal con líneas, descuentos, pagos y vuelto; una
+  venta completada se anula ahí mismo con un motivo obligatorio (hasta 200
+  caracteres) detrás de un `ConfirmDialog`
+  (`POST /api/v1/sales/{id}/void`). Anular invalida ventas, artículos y
+  stock; cobrar una venta en `/` también invalida `queryKeys.sales`.
 - Atajos del punto de venta (`useShortcuts`, solo en esa pantalla): `F2`
   vuelve al buscador, `F4` elige el vendedor, `F6` el cliente y `F9` cobra;
   las flechas recorren el catálogo y los resultados, y `Escape` cierra el

@@ -23,6 +23,10 @@ export const queryKeys = {
     all: ['sellers'] as const,
     list: (params: ListParams) => ['sellers', 'list', params] as const,
   },
+  sales: {
+    all: ['sales'] as const,
+    list: (params: { status: string; from: string; to: string; page: number; limit: number }) => ['sales', 'list', params] as const,
+  },
   stock: {
     all: ['stock'] as const,
     levels: (params: ListParams) => ['stock', 'levels', params] as const,

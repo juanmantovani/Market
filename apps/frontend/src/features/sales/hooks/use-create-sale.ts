@@ -11,6 +11,7 @@ export function useCreateSale() {
     mutationFn: ({ request, idempotencyKey }: { request: CreateSaleRequest; idempotencyKey: string }) =>
       createSale(request, idempotencyKey),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sales.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.items.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.stock.all })
     },
