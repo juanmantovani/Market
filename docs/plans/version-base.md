@@ -399,9 +399,11 @@ y prueban en los casos de uso desde ahora.
 
 ### Navegación
 
-- **Escritorio**: sidebar colapsable (Inicio, Vender, Ventas, Artículos,
-  Categorías, Stock, Clientes, Proveedores, Vendedores) y header con buscador
-  global (`Ctrl+K`) y selector de tema.
+- **El inicio (`/`) es la pantalla de venta**: abrir la app es empezar a
+  vender. El resumen del día (Fase 5) va en su propia ruta.
+- **Escritorio**: sidebar colapsable (Vender, Ventas, Artículos, Categorías,
+  Stock, Clientes, Proveedores, Vendedores y, con la Fase 5, Resumen) y header
+  con buscador global (`Ctrl+K`) y selector de tema.
 - **Celular**: barra inferior con Vender, Ventas, Artículos y Más.
 
 ### Pantalla de venta
@@ -551,7 +553,8 @@ cobro con atajos y lector de barras; ticket imprimible (`window.print` con
 
 ### Fase 5 — Inicio y pulido → `v0.1.0`
 
-Resumen del día (ventas, total por medio de pago, stock bajo); command palette
+Resumen del día (ventas, total por medio de pago, stock bajo) en su propia
+ruta, ya que el inicio es la pantalla de venta; command palette
 (`Ctrl+K`); ayuda de atajos; revisión de accesibilidad y de celular; estados
 vacíos; datos demo prolijos; README con instrucciones de demo. Tag `v0.1.0`.
 

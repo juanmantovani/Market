@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { FormDialogContext } from '@/shared/hooks/use-form-dialog'
+import { useReturnFocus } from '@/shared/hooks/use-return-focus'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog'
@@ -23,6 +24,7 @@ type FormDialogProps = {
 // `useUnsavedChanges` asks before discarding them; closing it from the page
 // (after saving) never asks.
 export function FormDialog({ open, onOpenChange, title, description, size = 'default', children }: FormDialogProps) {
+  const finalFocus = useReturnFocus(open)
   const hasChanges = useRef(false)
   const [asking, setAsking] = useState(false)
 
@@ -44,7 +46,10 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'def
 
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : requestClose())}>
-      <DialogContent className={cn('flex flex-col rounded-2xl', size === 'wide' ? 'max-w-2xl' : 'max-w-lg')}>
+      <DialogContent
+        finalFocus={finalFocus}
+        className={cn('flex flex-col rounded-2xl', size === 'wide' ? 'max-w-2xl' : 'max-w-lg')}
+      >
         <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
           <div className="flex flex-col gap-1">
             <DialogTitle>{title}</DialogTitle>
