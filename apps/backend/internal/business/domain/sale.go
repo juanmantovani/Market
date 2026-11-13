@@ -61,7 +61,6 @@ var (
 	ErrSaleItemNotFound               = &Error{Kind: KindInvalid, Code: "sale_item_not_found", Message: "Uno de los artículos de la venta ya no existe"}
 	ErrSaleQuantityInvalid            = &Error{Kind: KindInvalid, Code: "sale_quantity_invalid", Message: "La cantidad tiene que ser mayor a cero y de hasta un millón de unidades"}
 	ErrSaleQuantityNotWhole           = &Error{Kind: KindInvalid, Code: "sale_quantity_not_whole", Message: "El artículo se vende por unidad: la cantidad tiene que ser entera"}
-	ErrSaleDiscountInvalid            = &Error{Kind: KindInvalid, Code: "sale_discount_invalid", Message: "El descuento va de 0 a 100 %"}
 	ErrSaleCustomerNotFound           = &Error{Kind: KindInvalid, Code: "sale_customer_not_found", Message: "El cliente elegido no existe"}
 	ErrSaleSellerNotFound             = &Error{Kind: KindInvalid, Code: "sale_seller_not_found", Message: "El vendedor elegido no existe"}
 	ErrSaleTotalMismatch              = &Error{Kind: KindConflict, Code: "sale_total_mismatch", Message: "El total cambió mientras se armaba la venta: revisar el carrito antes de cobrar"}
@@ -84,13 +83,12 @@ func (status SaleStatus) IsValid() bool {
 	return status == SaleCompleted || status == SaleVoided
 }
 
-// SaleRequestLine is one item the cashier wants to sell. DiscountPercent
-// applies to this line only; the "general discount" of the counter is the
-// same percent on every line.
+// SaleRequestLine is one item the cashier wants to sell, with an optional
+// discount for this line only.
 type SaleRequestLine struct {
-	ItemID          string
-	Quantity        Quantity
-	DiscountPercent Percent
+	ItemID   string
+	Quantity Quantity
+	Discount *Discount
 }
 
 // SaleRequest is what the counter asks to sell, before reading any stored
@@ -100,9 +98,12 @@ type SaleRequest struct {
 	IdempotencyKey string
 	// CustomerID is optional: a sale without customer goes to Consumidor
 	// Final.
-	CustomerID    *string
-	SellerID      *string
-	Lines         []SaleRequestLine
+	CustomerID *string
+	SellerID   *string
+	Lines      []SaleRequestLine
+	// CartDiscount, optional, is the general discount of the whole sale. It
+	// applies after the line discounts.
+	CartDiscount  *Discount
 	Payments      []Payment
 	ExpectedTotal Money
 }
@@ -123,6 +124,10 @@ func NewSaleRequest(request SaleRequest) (SaleRequest, error) {
 	if err != nil {
 		return SaleRequest{}, err
 	}
+	cartDiscount, err := validateDiscount(request.CartDiscount)
+	if err != nil {
+		return SaleRequest{}, err
+	}
 	payments, err := validatePayments(request.Payments)
 	if err != nil {
 		return SaleRequest{}, err
@@ -133,6 +138,7 @@ func NewSaleRequest(request SaleRequest) (SaleRequest, error) {
 		CustomerID:     optionalID(request.CustomerID),
 		SellerID:       optionalID(request.SellerID),
 		Lines:          lines,
+		CartDiscount:   cartDiscount,
 		Payments:       payments,
 		ExpectedTotal:  request.ExpectedTotal,
 	}, nil
@@ -160,10 +166,11 @@ func validateSaleRequestLines(lines []SaleRequestLine) ([]SaleRequestLine, error
 		if line.Quantity <= 0 || line.Quantity > MaxStockQuantity {
 			return nil, ErrSaleQuantityInvalid
 		}
-		if !line.DiscountPercent.IsValid() {
-			return nil, ErrSaleDiscountInvalid
+		discount, err := validateDiscount(line.Discount)
+		if err != nil {
+			return nil, err
 		}
-		valid = append(valid, SaleRequestLine{ItemID: itemID, Quantity: line.Quantity, DiscountPercent: line.DiscountPercent})
+		valid = append(valid, SaleRequestLine{ItemID: itemID, Quantity: line.Quantity, Discount: discount})
 	}
 
 	return valid, nil
@@ -197,9 +204,10 @@ func validatePayments(payments []Payment) ([]Payment, error) {
 // reused it.
 func (request SaleRequest) Fingerprint() string {
 	hash := sha256.New()
-	fmt.Fprintf(hash, "customer=%q seller=%q expected=%d\n", valueOr(request.CustomerID), valueOr(request.SellerID), request.ExpectedTotal)
+	fmt.Fprintf(hash, "customer=%q seller=%q expected=%d cart-discount=%s\n",
+		valueOr(request.CustomerID), valueOr(request.SellerID), request.ExpectedTotal, request.CartDiscount)
 	for _, line := range request.Lines {
-		fmt.Fprintf(hash, "line=%q %d %d\n", line.ItemID, line.Quantity, line.DiscountPercent)
+		fmt.Fprintf(hash, "line=%q %d %s\n", line.ItemID, line.Quantity, line.Discount)
 	}
 	for _, payment := range request.Payments {
 		fmt.Fprintf(hash, "payment=%q %d %q\n", payment.Method, payment.Amount, valueOr(payment.Reference))
@@ -243,11 +251,21 @@ type SaleLine struct {
 	TaxRate  Percent
 	Quantity Quantity
 	// UnitPrice includes IVA, like the item's sale price.
-	UnitPrice       Money
-	DiscountPercent Percent
-	DiscountAmount  Money
-	// LineTotal is UnitPrice × Quantity minus DiscountAmount.
+	UnitPrice Money
+	// Discount is the line's own discount as it was asked for, and
+	// DiscountAmount what it took off.
+	Discount       *Discount
+	DiscountAmount Money
+	// CartDiscountAmount is this line's share of the sale's general
+	// discount.
+	CartDiscountAmount Money
+	// LineTotal is UnitPrice × Quantity minus both discounts.
 	LineTotal Money
+}
+
+// Amount is what the line costs before any discount.
+func (line SaleLine) Amount() Money {
+	return line.LineTotal + line.DiscountAmount + line.CartDiscountAmount
 }
 
 type Payment struct {
@@ -265,9 +283,15 @@ type Sale struct {
 	Number   int64
 	Customer SaleCustomer
 	// Seller is nil for a sale nobody in particular attended.
-	Seller        *SaleSeller
-	Lines         []SaleLine
-	Subtotal      Money
+	Seller *SaleSeller
+	Lines  []SaleLine
+	// Subtotal adds the lines before any discount.
+	Subtotal Money
+	// CartDiscount is the general discount as it was asked for, and
+	// CartDiscountAmount what it took off, spread over the lines.
+	CartDiscount       *Discount
+	CartDiscountAmount Money
+	// DiscountTotal adds the line discounts and the general one.
 	DiscountTotal Money
 	Total         Money
 	Payments      []Payment
@@ -309,6 +333,7 @@ func NewSale(request SaleRequest, customer Customer, seller *Seller, items map[s
 		sale.Seller = &SaleSeller{ID: seller.ID, Name: seller.Name, Code: seller.Code}
 	}
 
+	var afterLineDiscounts Money
 	for _, requested := range request.Lines {
 		item, ok := items[requested.ItemID]
 		if !ok {
@@ -319,11 +344,15 @@ func NewSale(request SaleRequest, customer Customer, seller *Seller, items map[s
 			return Sale{}, err
 		}
 		sale.Lines = append(sale.Lines, line)
-		sale.Subtotal += line.LineTotal + line.DiscountAmount
+		sale.Subtotal += line.Amount()
 		sale.DiscountTotal += line.DiscountAmount
+		afterLineDiscounts += line.LineTotal
 		if sale.Subtotal > MaxSaleAmount {
 			return Sale{}, ErrAmountOutOfRange
 		}
+	}
+	if err := sale.applyCartDiscount(request.CartDiscount, afterLineDiscounts); err != nil {
+		return Sale{}, err
 	}
 	sale.Total = sale.Subtotal - sale.DiscountTotal
 	if sale.Total != request.ExpectedTotal {
@@ -340,9 +369,10 @@ func NewSale(request SaleRequest, customer Customer, seller *Seller, items map[s
 	return sale, nil
 }
 
-// newSaleLine prices one line: the amount is rounded to the cent, then the
-// discount is rounded to the cent and taken from it, so the lines of a
-// ticket always add up to its total.
+// newSaleLine prices one line: the amount is rounded to the cent, then its
+// discount (a percent rounded to the cent, or a fixed amount up to the line's
+// amount) is taken from it, so the lines of a ticket always add up to its
+// total.
 func newSaleLine(item Item, requested SaleRequestLine) (SaleLine, error) {
 	if !item.Unit.Accepts(requested.Quantity) {
 		return SaleLine{}, ErrSaleQuantityNotWhole
@@ -351,23 +381,48 @@ func newSaleLine(item Item, requested SaleRequestLine) (SaleLine, error) {
 	if err != nil {
 		return SaleLine{}, err
 	}
-	discount, err := amount.Percent(requested.DiscountPercent)
+	discount, err := requested.Discount.amountOff(amount, ErrSaleDiscountExceedsLine)
 	if err != nil {
 		return SaleLine{}, err
 	}
 
 	return SaleLine{
-		ItemID:          item.ID,
-		Code:            item.Code,
-		Name:            item.Name,
-		Unit:            item.Unit,
-		TaxRate:         item.TaxRate,
-		Quantity:        requested.Quantity,
-		UnitPrice:       item.SalePrice,
-		DiscountPercent: requested.DiscountPercent,
-		DiscountAmount:  discount,
-		LineTotal:       amount - discount,
+		ItemID:         item.ID,
+		Code:           item.Code,
+		Name:           item.Name,
+		Unit:           item.Unit,
+		TaxRate:        item.TaxRate,
+		Quantity:       requested.Quantity,
+		UnitPrice:      item.SalePrice,
+		Discount:       requested.Discount,
+		DiscountAmount: discount,
+		LineTotal:      amount - discount,
 	}, nil
+}
+
+// applyCartDiscount takes the general discount off what the lines add up to
+// after their own discounts, and spreads it over the lines in proportion to
+// that (prorate), so each line knows its share and the total stays the sum
+// of the lines.
+func (sale *Sale) applyCartDiscount(discount *Discount, afterLineDiscounts Money) error {
+	off, err := discount.amountOff(afterLineDiscounts, ErrSaleDiscountExceedsTotal)
+	if err != nil {
+		return err
+	}
+
+	weights := make([]Money, len(sale.Lines))
+	for i, line := range sale.Lines {
+		weights[i] = line.LineTotal
+	}
+	for i, share := range prorate(off, weights) {
+		sale.Lines[i].CartDiscountAmount = share
+		sale.Lines[i].LineTotal -= share
+	}
+	sale.CartDiscount = discount
+	sale.CartDiscountAmount = off
+	sale.DiscountTotal += off
+
+	return nil
 }
 
 // changeFor checks that payments cover total and returns the change. Card,

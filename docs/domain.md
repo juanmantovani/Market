@@ -22,6 +22,8 @@ El código, la API y la base usan los términos en inglés; la UI, en español.
 | Venta | `Sale` |
 | Línea | `SaleLine` |
 | Pago | `Payment` |
+| Descuento (de línea) | `Discount` |
+| Descuento general (del carrito) | `CartDiscount` |
 | Anulación | `Void` |
 
 ## Tipos de valor (`internal/business/domain`)
@@ -260,7 +262,8 @@ completa y la registra o la rechaza entera.
 | `sellerId` | Opcional: una venta puede no tener vendedor. Si viene, tiene que existir (`sale_seller_not_found`). |
 | `lines` | De 1 a 100 líneas, una por artículo (`sale_item_repeated` si se repite). |
 | `lines[].quantity` | Milésimas, mayor a cero y hasta un millón de unidades; entera si el artículo se vende por unidad (`sale_quantity_not_whole`). |
-| `lines[].discountPercent` | Centésimas de punto, de 0 a 100 %. El “descuento general” de la pantalla es el mismo porcentaje en todas las líneas. |
+| `lines[].discount` | Opcional, descuento de esa línea: `{ "type": "percent", "value": 1000 }` (centésimas de punto, de 0 a 100 %) o `{ "type": "amount", "value": 50000 }` (centavos, desde cero). `null` es sin descuento. |
+| `cartDiscount` | Opcional, el **descuento general** de toda la venta, con la misma forma. Se aplica después de los descuentos de línea. |
 | `payments` | Hasta 10 pagos: `method` (`cash`, `debit_card`, `credit_card`, `transfer`, `qr`), `amount` en centavos mayor a cero y `reference` opcional (cupón, número de transferencia), hasta 60 caracteres. |
 | `expectedTotal` | El total que vio el cajero, en centavos. |
 
@@ -269,11 +272,24 @@ Reglas (`domain.NewSale`):
 - **El backend recalcula todo** con el precio actual de cada artículo. Si el
   total no coincide con `expectedTotal`, falla con `sale_total_mismatch`
   (`409`): el cajero nunca cobra un importe distinto del que vio.
-- **Importe de línea**: precio × cantidad ÷ 1000 redondeado al centavo; el
-  descuento es ese importe × porcentaje, redondeado al centavo; la línea
-  vale la diferencia. El redondeo es *half away from zero*. `subtotal` suma
-  los importes sin descuento, `discountTotal` los descuentos y `total` las
-  líneas, así que el ticket siempre suma exacto.
+- **Importe de línea**: precio × cantidad ÷ 1000 redondeado al centavo. El
+  redondeo es siempre *half away from zero*.
+- **Descuento de línea** (`discountAmount`): un porcentaje del importe,
+  redondeado al centavo, o un monto fijo, que no puede superar el importe
+  (`sale_discount_exceeds_line`).
+- **Descuento general** (`cartDiscountAmount`): un porcentaje (redondeado al
+  centavo) o un monto fijo de lo que suman las líneas después de sus propios
+  descuentos; un monto no puede superarlo (`sale_discount_exceeds_total`).
+  Se **reparte entre las líneas** en proporción a lo que vale cada una: cada
+  parte es su proporción redondeada hacia abajo y los centavos que sobran
+  van, de a uno, a las fracciones más grandes (a igualdad, a la primera
+  línea). Así las partes suman exacto el descuento y ninguna línea queda
+  negativa. Cada línea guarda su parte en `cartDiscountAmount`.
+- **Totales**: `lineTotal` = importe − descuento de línea − parte del
+  general; `subtotal` suma los importes sin descuento, `discountTotal` todos
+  los descuentos y `total` las líneas, así que el ticket siempre suma exacto
+  y nunca es negativo. La venta guarda también los descuentos tal como se
+  pidieron (`lines[].discount`, `cartDiscount`).
 - **Copia de datos**: cada línea guarda código, nombre, unidad, alícuota y
   precio del artículo; la venta guarda nombre, documento y condición frente
   al IVA del cliente, y nombre y código del vendedor. Editarlos después no
@@ -321,7 +337,8 @@ Códigos de error: `sale_not_found`, `idempotency_key_required`,
 `idempotency_key_invalid`, `idempotency_key_conflict`, `sale_lines_required`,
 `sale_too_many_lines`, `sale_item_required`, `sale_item_repeated`,
 `sale_item_not_found`, `sale_quantity_invalid`, `sale_quantity_not_whole`,
-`sale_discount_invalid`, `sale_customer_not_found`, `sale_seller_not_found`,
+`sale_discount_invalid`, `sale_discount_exceeds_line`,
+`sale_discount_exceeds_total`, `sale_customer_not_found`, `sale_seller_not_found`,
 `sale_total_mismatch`, `sale_too_many_payments`, `payment_method_invalid`,
 `payment_amount_invalid`, `payment_reference_too_long`,
 `sale_payment_insufficient`, `sale_non_cash_payment_exceeds_total`,
