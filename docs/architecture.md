@@ -188,7 +188,7 @@ apps/frontend/src/
 │   ├── suppliers/            # ídem
 │   ├── sellers/              # ídem
 │   ├── stock/                # existencias, ajuste, ingreso de mercadería (con buscador de artículos) e historial
-│   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage
+│   └── sales/                # punto de venta: catálogo con buscador y lector de barras, carrito guardado en localStorage y cobro con varios medios de pago
 ├── shared/
 │   ├── api/                  # apiFetch + ApiError (Zod), pagination, query-keys
 │   ├── config/env.ts         # VITE_API_URL opcional
@@ -223,9 +223,22 @@ apps/frontend/src/
   (`features/sales/lib/cart.ts`, con `BigInt`); el backend recalcula todo al
   cobrar. Quitar una línea o vaciar el carrito se deshace desde el aviso
   (`useToast().undoable`), sin pedir confirmación.
+- Cobrar (`F9` o el botón del carrito) abre `CheckoutDialog`: uno o varios
+  medios de pago con su importe (el efectivo viene con el total y tiene
+  atajos «Exacto», $10.000 y $20.000), cuánto falta o el vuelto, y una
+  referencia opcional para los medios que no son efectivo. Las reglas de
+  pago (`features/sales/lib/payments.ts`) son las del backend: la suma tiene
+  que cubrir el total y solo el efectivo puede pasarlo. Al confirmar envía
+  `POST /api/v1/sales` con `expectedTotal` y un `Idempotency-Key`; la clave se
+  reutiliza mientras se reintenta la misma venta (mismo cuerpo) y se renueva
+  si el cuerpo cambia o la venta se registra. Con la venta registrada, el
+  carrito se vacía, se muestran el número y el vuelto, y se vuelven a leer
+  artículos y stock. El diálogo no se cierra mientras la solicitud está en
+  curso. Todavía sin cliente, vendedor ni descuentos en la pantalla: se
+  envían `customerId` y `sellerId` en `null`.
 - Atajos del punto de venta (`useShortcuts`, solo en esa pantalla): `F2`
-  vuelve al buscador; las flechas recorren el catálogo y `Escape` vuelve al
-  buscador o lo limpia.
+  vuelve al buscador, `F9` cobra; las flechas recorren el catálogo y `Escape`
+  vuelve al buscador o lo limpia.
 - `formatMoney`/`parseMoney` y `formatQuantity`/`parseQuantity` son los
   únicos que convierten montos y cantidades entre enteros y texto. Leen lo
   que se tipea en Argentina (`1.234,50`).
