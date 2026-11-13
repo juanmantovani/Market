@@ -108,7 +108,9 @@ vigente está en `docs/plans/version-base.md`.
   (`infrastructure/repository/repositorytest`), que debe pasar igual contra
   memoria y contra PostgreSQL.
 - Los identificadores los asigna el repositorio (UUIDv7).
-- Los ABM son alta, edición y eliminación; no hay activar ni desactivar.
+- Los ABM son alta, edición y eliminación; no hay activar ni desactivar. La
+  única excepción es el artículo, que se puede marcar como **discontinuado**
+  porque, con movimientos de stock, no se puede borrar.
   Eliminar borra el registro; si otro lo referencia, falla con un conflicto
   `<entidad>_in_use` en vez de dejarlo huérfano. Los movimientos de stock y
   las ventas nunca se borran ni se editan: se compensan.

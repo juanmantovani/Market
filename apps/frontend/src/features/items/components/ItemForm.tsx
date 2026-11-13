@@ -259,6 +259,20 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
           />
           {error('minStock')}
         </Field>
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm has-focus-visible:ring-3 has-focus-visible:ring-ring/50">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-5 shrink-0 accent-primary"
+            checked={values.discontinued}
+            onChange={(event) => change('discontinued', event.target.checked)}
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium">Discontinuado</span>
+            <span className="text-muted-foreground">
+              Ya no se vende ni aparece en las búsquedas, pero conserva su historial de stock y ventas.
+            </span>
+          </span>
+        </label>
       </Section>
 
       <div className="flex flex-col gap-2">

@@ -58,12 +58,13 @@ export default function ItemsPage({
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [lowStock, setLowStock] = useState(false)
+  const [includeDiscontinued, setIncludeDiscontinued] = useState(false)
   const [page, setPage] = useState(1)
   const [form, setForm] = useState<FormState>({ open: false, item: null, formKey: 0 })
   const [confirm, setConfirm] = useState<ConfirmState>({ open: false, item: null })
   const debouncedSearch = useDebouncedValue(search)
 
-  const items = useItems({ search: debouncedSearch, categoryId, lowStock, page, limit: PAGE_SIZE })
+  const items = useItems({ search: debouncedSearch, categoryId, lowStock, includeDiscontinued, page, limit: PAGE_SIZE })
   const saveItem = useSaveItem()
   const deleteItem = useDeleteItem()
   const toast = useToast()
@@ -242,6 +243,18 @@ export default function ItemsPage({
             }}
           />
           Solo stock bajo
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border bg-card px-3 text-sm font-medium has-focus-visible:ring-3 has-focus-visible:ring-ring/50 md:min-h-9">
+          <input
+            type="checkbox"
+            className="size-5 shrink-0 accent-primary"
+            checked={includeDiscontinued}
+            onChange={(event) => {
+              setIncludeDiscontinued(event.target.checked)
+              setPage(1)
+            }}
+          />
+          Mostrar discontinuados
         </label>
       </div>
 

@@ -57,7 +57,7 @@ function stubApi({ stockFails = false, withoutMovements = false } = {}) {
       items: [
         {
           id: 'i1', code: 'BEB-001', barcode: null, name: 'Agua mineral', description: null, categoryId: 'c2', supplierIds: ['s1'],
-          unit: 'unit', salePrice: 110_000, cost: null, taxRate: 2100, minStock: 24_000,
+          unit: 'unit', salePrice: 110_000, cost: null, taxRate: 2100, minStock: 24_000, discontinued: false,
           createdAt: NOW, updatedAt: NOW,
         },
       ],

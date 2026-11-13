@@ -7,7 +7,7 @@ export const queryKeys = {
   },
   items: {
     all: ['items'] as const,
-    list: (params: ListParams & { categoryId: string; lowStock?: boolean }) => ['items', 'list', params] as const,
+    list: (params: ListParams & { categoryId: string; lowStock?: boolean; includeDiscontinued?: boolean }) => ['items', 'list', params] as const,
   },
   customers: {
     all: ['customers'] as const,

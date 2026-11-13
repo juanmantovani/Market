@@ -5,16 +5,17 @@ import { itemPageSchema, itemSchema, type ItemRequest } from '../types'
 
 const ITEMS_PATH = '/api/v1/items'
 
-export type ItemListParams = ListParams & { categoryId: string; lowStock?: boolean }
+export type ItemListParams = ListParams & { categoryId: string; lowStock?: boolean; includeDiscontinued?: boolean }
 
 function itemPath(id: string) {
   return `${ITEMS_PATH}/${encodeURIComponent(id)}`
 }
 
-export function listItems({ categoryId, lowStock, ...params }: ItemListParams, signal?: AbortSignal) {
+export function listItems({ categoryId, lowStock, includeDiscontinued, ...params }: ItemListParams, signal?: AbortSignal) {
   const query = new URLSearchParams(listQuery(params))
   if (categoryId) query.set('categoryId', categoryId)
   if (lowStock) query.set('lowStock', 'true')
+  if (includeDiscontinued) query.set('includeDiscontinued', 'true')
   return apiFetch(`${ITEMS_PATH}?${query}`, itemPageSchema, { signal })
 }
 

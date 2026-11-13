@@ -82,6 +82,7 @@ artículo controla stock y tiene stock mínimo.
 | `cost` | Centavos, opcional, entre 0 y `MaxItemAmount`. |
 | `taxRate` | Alícuota de IVA en centésimas de punto: `0`, `1050`, `2100` o `2700`. Informativa hasta facturar. |
 | `minStock` | Milésimas de la unidad, entre 0 y un millón de unidades; entero si se vende por unidad. Umbral de la alerta de stock bajo (Fase 3). |
+| `discontinued` | `false` por defecto. Un artículo con movimientos de stock no se puede eliminar (`item_in_use`): para retirarlo se marca discontinuado. No se vende (`sale_item_discontinued`, `409`) y `GET /api/v1/items` lo deja afuera salvo con `includeDiscontinued=true`, pero conserva su historial; las ventas anteriores y sus anulaciones no cambian. |
 
 Editar reemplaza todos los campos (`PUT`): el formulario siempre manda el
 artículo completo, y así un opcional enviado como `null` se borra.
@@ -337,7 +338,7 @@ vender (todos los roles); `sales:void` para anular (solo `admin` y
 Códigos de error: `sale_not_found`, `idempotency_key_required`,
 `idempotency_key_invalid`, `idempotency_key_conflict`, `sale_lines_required`,
 `sale_too_many_lines`, `sale_item_required`, `sale_item_repeated`,
-`sale_item_not_found`, `sale_quantity_invalid`, `sale_quantity_not_whole`,
+`sale_item_not_found`, `sale_item_discontinued`, `sale_quantity_invalid`, `sale_quantity_not_whole`,
 `sale_discount_invalid`, `sale_discount_exceeds_line`,
 `sale_discount_exceeds_total`, `sale_customer_not_found`, `sale_seller_not_found`,
 `sale_total_mismatch`, `sale_too_many_payments`, `payment_method_invalid`,
