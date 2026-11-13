@@ -254,7 +254,7 @@ Una venta (`Sale`) es un comprobante confirmado (no fiscal). **Nunca se edita
 ni se borra.** El carrito vive en el frontend; el backend recibe la venta
 completa y la registra o la rechaza entera.
 
-**Alta** (`POST /api/v1/sales`, header `Idempotency-Key` obligatorio):
+**Alta** (`POST /api/v1/sales`, header `Idempotency-Key` obligatorio; la clave es única por actor):
 
 | Campo del pedido | Regla |
 | --- | --- |

@@ -160,6 +160,24 @@ func TestCreateSaleReplaysARetry(t *testing.T) {
 	}
 }
 
+func TestCreateSaleKeyBelongsToTheActor(t *testing.T) {
+	fakes := newFakes()
+	useCase := fakes.useCase()
+
+	first, err := useCase.Execute(context.Background(), CreateSaleInput{Actor: cashier, Request: request()})
+	if err != nil {
+		t.Fatalf("first Execute() error = %v", err)
+	}
+	other, err := useCase.Execute(context.Background(), CreateSaleInput{Actor: admin, Request: request()})
+	if err != nil {
+		t.Fatalf("Execute() with another actor's key error = %v", err)
+	}
+
+	if other.ID == first.ID || other.ActorID != admin.ID || len(fakes.sales.Created) != 2 {
+		t.Fatalf("other actor got %+v; %d sales, want their own new sale", other, len(fakes.sales.Created))
+	}
+}
+
 func TestCreateSaleWithInsufficientStock(t *testing.T) {
 	fakes := newFakes()
 	tooMuch := request()

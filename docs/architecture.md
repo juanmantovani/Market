@@ -105,7 +105,8 @@ flowchart LR
   la clave, la reutiliza mientras el alta falle y la rota al confirmar. Un
   reintento con la misma clave y el mismo cuerpo responde la venta original
   (`201`, sin registrarla de nuevo); con otro cuerpo, `409
-  idempotency_key_conflict`.
+  idempotency_key_conflict`. La clave vale por actor: otro actor que mande la
+  misma clave registra su propia venta y nunca recibe la ajena.
 - `Adapt(h, timeout)` acota el contexto al timeout de la ruta y el cuerpo a
   1 MiB (`handler.MaxBodyBytes`). Los deadlines del `http.Server` derivan del
   mayor timeout registrado (`route.MaxHandlerTimeout`).
@@ -154,7 +155,7 @@ flowchart LR
   se pueden borrar mientras un artículo los tenga, un documento por cliente,
   un CUIT por proveedor, un código por vendedor, el artículo y el proveedor
   de un movimiento de stock tienen que existir y no se pueden borrar después,
-  una venta por clave de idempotencia, y el cliente, el vendedor y los
+  una venta por actor y clave de idempotencia, y el cliente, el vendedor y los
   artículos de una venta tienen que existir y el cliente y el vendedor no se
   pueden borrar después)
   las verifica el repositorio dentro del lock, y la suite de contrato prueba
