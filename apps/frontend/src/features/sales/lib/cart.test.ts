@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { CartLine, CatalogItem } from '../types'
 import {
   addItem,
-  cartTotal,
   isValidQuantity,
   lineAmount,
   MAX_LINE_QUANTITY,
@@ -29,13 +28,6 @@ describe('lineAmount', () => {
     { name: 'beyond 2^53 before dividing', unitPrice: 100_000_000_000, quantity: 1_000_000_000, want: 100_000_000_000_000_000 },
   ])('$name', ({ unitPrice, quantity, want }) => {
     expect(lineAmount({ unitPrice, quantity })).toBe(want)
-  })
-})
-
-describe('cartTotal', () => {
-  it('adds the lines so the total always matches them', () => {
-    expect(cartTotal([line(coca, 2_000), line(pan, 750)])).toBe(850_000)
-    expect(cartTotal([])).toBe(0)
   })
 })
 

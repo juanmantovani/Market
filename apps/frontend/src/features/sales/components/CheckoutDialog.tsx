@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { CircleCheck, Plus, Trash2 } from 'lucide-react'
+import { CircleCheck, Plus, Printer, Trash2 } from 'lucide-react'
 import { messageFromError } from '../../../shared/api/client'
 import { centsToInput, formatMoney } from '../../../shared/lib/money'
 import { Button } from '../../../shared/ui/button'
@@ -8,6 +8,7 @@ import { FormDialog } from '../../../shared/ui/form-dialog'
 import { Input } from '../../../shared/ui/input'
 import { NativeSelect } from '../../../shared/ui/native-select'
 import { useCreateSale } from '../hooks/use-create-sale'
+import type { PricedCart } from '../lib/discounts'
 import { newIdempotencyKey } from '../lib/idempotency-key'
 import {
   amountDueExcluding,
@@ -18,15 +19,16 @@ import {
   summarizePayments,
   type PaymentDraft,
 } from '../lib/payments'
-import type { CartLine, PaymentMethod, PaymentRequest, Sale } from '../types'
+import type { CreateSaleRequest, PaymentMethod, PaymentRequest, Sale } from '../types'
+import { SaleTicket } from './SaleTicket'
 
 // Bills the cashier is most likely to be handed, offered as quick amounts.
 const QUICK_CASH_AMOUNTS = [1_000_000, 2_000_000]
 
 type CheckoutDialogProps = {
   open: boolean
-  lines: CartLine[]
-  total: number
+  // The cart as priced for the sale: its lines, discounts and total.
+  pricing: PricedCart
   // null sells to Consumidor Final and without seller.
   customerId: string | null
   sellerId: string | null
@@ -35,7 +37,7 @@ type CheckoutDialogProps = {
   onClose: () => void
 }
 
-export function CheckoutDialog({ open, lines, total, customerId, sellerId, onSold, onClose }: CheckoutDialogProps) {
+export function CheckoutDialog({ open, pricing, customerId, sellerId, onSold, onClose }: CheckoutDialogProps) {
   const create = useCreateSale()
   const [sale, setSale] = useState<Sale | null>(null)
   // The key is reused while the same sale is retried after a failure, and
@@ -49,12 +51,13 @@ export function CheckoutDialog({ open, lines, total, customerId, sellerId, onSol
   }
 
   function submit(payments: PaymentRequest[]) {
-    const request = {
+    const request: CreateSaleRequest = {
       customerId,
       sellerId,
-      lines: lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
+      lines: pricing.lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity, discount: line.discount })),
+      cartDiscount: pricing.cartDiscount,
       payments,
-      expectedTotal: total,
+      expectedTotal: pricing.total,
     }
     const signature = JSON.stringify(request)
     if (attempt.current?.signature !== signature) attempt.current = { key: newIdempotencyKey(), signature }
@@ -85,7 +88,7 @@ export function CheckoutDialog({ open, lines, total, customerId, sellerId, onSol
           <SaleDone sale={sale} onNewSale={close} />
         ) : (
           <PaymentForm
-            total={total}
+            total={pricing.total}
             pending={create.isPending}
             error={create.isError ? messageFromError(create.error) : null}
             onSubmit={submit}
@@ -266,6 +269,15 @@ function QuickAmount({ label, onClick }: { label: string; onClick: () => void })
 
 function SaleDone({ sale, onNewSale }: { sale: Sale; onNewSale: () => void }) {
   return (
+    <>
+      <SaleSummary sale={sale} onNewSale={onNewSale} />
+      <SaleTicket sale={sale} />
+    </>
+  )
+}
+
+function SaleSummary({ sale, onNewSale }: { sale: Sale; onNewSale: () => void }) {
+  return (
     <div className="flex flex-col items-center gap-4 text-center">
       <CircleCheck className="size-10 text-primary" aria-hidden />
       <div role="status" className="flex flex-col gap-1">
@@ -286,6 +298,10 @@ function SaleDone({ sale, onNewSale }: { sale: Sale; onNewSale: () => void }) {
           <span className="text-3xl font-semibold tabular-nums">{formatMoney(sale.change)}</span>
         </p>
       )}
+      <Button type="button" variant="outline" size="lg" className="h-12 w-full text-base" onClick={() => window.print()}>
+        <Printer aria-hidden />
+        Imprimir ticket
+      </Button>
       <Button type="button" size="lg" autoFocus className="h-12 w-full text-base" onClick={onNewSale}>
         Nueva venta
       </Button>

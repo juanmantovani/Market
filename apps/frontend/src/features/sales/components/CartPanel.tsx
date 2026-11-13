@@ -1,15 +1,18 @@
 import { useId, type ReactNode } from 'react'
-import { ShoppingCart } from 'lucide-react'
+import { ShoppingCart, Tag } from 'lucide-react'
 import { formatMoney } from '../../../shared/lib/money'
 import { cn } from '../../../shared/lib/utils'
 import { Button } from '../../../shared/ui/button'
+import { formatDiscount, type PricedCart } from '../lib/discounts'
 import type { CartLine } from '../types'
 import { CartLineRow } from './CartLineRow'
 
 type CartPanelProps = {
   lines: CartLine[]
-  total: number
+  pricing: PricedCart
   onQuantityChange: (itemId: string, quantity: number) => void
+  onLineDiscount: (itemId: string) => void
+  onCartDiscount: () => void
   onRemove: (itemId: string) => void
   onClear: () => void
   // Who the sale is for and who attends it, above the lines.
@@ -21,7 +24,19 @@ type CartPanelProps = {
   className?: string
 }
 
-export function CartPanel({ lines, total, onQuantityChange, onRemove, onClear, parties, headerAction, children, className }: CartPanelProps) {
+export function CartPanel({
+  lines,
+  pricing,
+  onQuantityChange,
+  onLineDiscount,
+  onCartDiscount,
+  onRemove,
+  onClear,
+  parties,
+  headerAction,
+  children,
+  className,
+}: CartPanelProps) {
   const titleId = useId()
 
   return (
@@ -50,19 +65,44 @@ export function CartPanel({ lines, total, onQuantityChange, onRemove, onClear, p
         </div>
       ) : (
         <ul aria-label="Artículos de la venta" className="min-h-0 flex-1 divide-y overflow-y-auto px-4">
-          {lines.map((line) => (
-            <CartLineRow key={line.itemId} line={line} onQuantityChange={onQuantityChange} onRemove={onRemove} />
+          {lines.map((line, index) => (
+            <CartLineRow
+              key={line.itemId}
+              line={line}
+              priced={pricing.lines[index]}
+              onQuantityChange={onQuantityChange}
+              onDiscount={onLineDiscount}
+              onRemove={onRemove}
+            />
           ))}
         </ul>
       )}
 
       <footer className="flex flex-col gap-3 border-t px-4 py-4">
-        <dl>
+        <dl className="flex flex-col gap-1">
+          {pricing.cartDiscount && (
+            <>
+              <div className="flex items-baseline justify-between gap-4 text-sm text-muted-foreground">
+                <dt>Subtotal</dt>
+                <dd className="tabular-nums">{formatMoney(pricing.total + pricing.cartDiscountAmount)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4 text-sm text-muted-foreground">
+                <dt>Descuento general {formatDiscount(pricing.cartDiscount)}</dt>
+                <dd className="tabular-nums">−{formatMoney(pricing.cartDiscountAmount)}</dd>
+              </div>
+            </>
+          )}
           <div className="flex items-baseline justify-between gap-4">
             <dt className="text-base font-medium">Total</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{formatMoney(total)}</dd>
+            <dd className="text-2xl font-semibold tabular-nums">{formatMoney(pricing.total)}</dd>
           </div>
         </dl>
+        {lines.length > 0 && (
+          <Button type="button" variant="outline" size="lg" className="h-11 w-full md:h-9" onClick={onCartDiscount}>
+            <Tag aria-hidden />
+            {pricing.cartDiscount ? 'Cambiar el descuento general' : 'Descuento general'}
+          </Button>
+        )}
         {children}
       </footer>
     </section>

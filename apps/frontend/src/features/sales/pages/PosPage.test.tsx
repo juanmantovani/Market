@@ -220,13 +220,34 @@ describe('PosPage', () => {
   it('keeps the cart after a reload and ignores a damaged one', async () => {
     const { user, unmount } = renderPos()
     await user.click(await catalog().findByRole('button', { name: /Gaseosa cola/ }))
-    expect(JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY)!)).toMatchObject({ version: 1, lines: [{ itemId: 'coca', quantity: 1_000 }] })
+    expect(JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY)!)).toMatchObject({ version: 2, lines: [{ itemId: 'coca', quantity: 1_000 }] })
     unmount()
 
     renderPos()
     expect(cart().getByText('Gaseosa cola')).toBeInTheDocument()
     await user.click(cart().getByRole('button', { name: 'Quitar Gaseosa cola' }))
     expect(window.localStorage.getItem(CART_STORAGE_KEY)).toBeNull()
+  })
+
+  it('reads a cart saved before discounts existed and one with discounts', () => {
+    const stored = { code: 'BEB-001', name: 'Gaseosa cola', unit: 'unit', unitPrice: 320_000, quantity: 2_000 }
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ version: 1, lines: [{ itemId: 'coca', ...stored }] }))
+    const { unmount } = renderPos()
+    expect(cart().getByText('Gaseosa cola')).toBeInTheDocument()
+    expect(cart().getByText(money(640_000), { selector: 'dd' })).toBeInTheDocument()
+    unmount()
+
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        lines: [{ itemId: 'coca', ...stored, discount: { type: 'percent', value: 1_000 } }],
+        cartDiscount: { type: 'amount', value: 10_000 },
+      }),
+    )
+    renderPos()
+    expect(cart().getByText('Descuento 10 %')).toBeInTheDocument()
+    expect(cart().getByText(money(566_000), { selector: 'dd' })).toBeInTheDocument()
   })
 
   it('starts empty when the stored cart is damaged', () => {
