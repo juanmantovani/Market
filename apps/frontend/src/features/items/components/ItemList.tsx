@@ -2,7 +2,8 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { formatMoney } from '../../../shared/lib/money'
 import { Button } from '../../../shared/ui/button'
 import { ResponsiveList, type Column } from '../../../shared/ui/responsive-list'
-import { unitShort, type Item } from '../types'
+import { unitShort } from '../../../shared/lib/quantity'
+import type { Item } from '../types'
 
 type ItemListProps = {
   items: readonly Item[]
