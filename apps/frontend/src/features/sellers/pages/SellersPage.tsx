@@ -167,7 +167,6 @@ export default function SellersPage() {
           initialValues={toFormValues(form.seller)}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear vendedor'}
           onSubmit={save}
-          onCancel={closeForm}
         />
       </FormDialog>
 

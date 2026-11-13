@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { ApiError, messageFromError } from '../../../shared/api/client'
+import { useFormDialog, useUnsavedChanges } from '../../../shared/hooks/use-form-dialog'
 import { Button } from '../../../shared/ui/button'
 import { Field, FieldDescription, FieldError, FieldLabel } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
@@ -15,7 +16,6 @@ type SellerFormProps = {
   initialValues: SellerFormValues
   submitLabel: string
   onSubmit: (request: SellerRequest) => Promise<unknown>
-  onCancel: () => void
 }
 
 type FieldErrors = Partial<Record<SellerField, string>>
@@ -29,8 +29,10 @@ function errorProps(field: SellerField, errors: FieldErrors, hint?: string) {
   }
 }
 
-export function SellerForm({ initialValues, submitLabel, onSubmit, onCancel }: SellerFormProps) {
+export function SellerForm({ initialValues, submitLabel, onSubmit }: SellerFormProps) {
   const [values, setValues] = useState(initialValues)
+  const { requestClose } = useFormDialog()
+  useUnsavedChanges(values)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -127,7 +129,7 @@ export function SellerForm({ initialValues, submitLabel, onSubmit, onCancel }: S
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={onCancel}>
+        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={requestClose}>
           Cancelar
         </Button>
         <Button type="submit" size="lg" className="h-11 md:h-9" disabled={isSubmitting}>

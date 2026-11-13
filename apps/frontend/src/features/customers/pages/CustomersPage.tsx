@@ -168,7 +168,6 @@ export default function CustomersPage() {
           initialValues={toFormValues(form.customer)}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear cliente'}
           onSubmit={save}
-          onCancel={closeForm}
         />
       </FormDialog>
 

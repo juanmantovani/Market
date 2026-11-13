@@ -8,6 +8,7 @@ type ConfirmDialogProps = {
   title: string
   description: string
   confirmLabel: string
+  cancelLabel?: string
   onConfirm: () => void
   isPending?: boolean
 }
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = 'Cancelar',
   onConfirm,
   isPending = false,
 }: ConfirmDialogProps) {
@@ -36,7 +38,7 @@ export function ConfirmDialog({
           <DialogClose
             render={<Button type="button" variant="outline" size="lg" className="h-11 md:h-9" />}
           >
-            Cancelar
+            {cancelLabel}
           </DialogClose>
           <Button
             type="button"

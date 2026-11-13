@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { ApiError, messageFromError } from '../../../shared/api/client'
 import { cn } from '../../../shared/lib/utils'
+import { useFormDialog, useUnsavedChanges } from '../../../shared/hooks/use-form-dialog'
 import { Button } from '../../../shared/ui/button'
 import { Field, FieldError, FieldLabel } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
@@ -27,7 +28,6 @@ type ItemFormProps = {
   suppliers: readonly SupplierOption[]
   submitLabel: string
   onSubmit: (request: ItemRequest) => Promise<unknown>
-  onCancel: () => void
 }
 
 type FieldErrors = Partial<Record<ItemField, string>>
@@ -49,8 +49,10 @@ function errorProps(field: ItemField, errors: FieldErrors) {
   }
 }
 
-export function ItemForm({ initialValues, categories, suppliers, submitLabel, onSubmit, onCancel }: ItemFormProps) {
+export function ItemForm({ initialValues, categories, suppliers, submitLabel, onSubmit }: ItemFormProps) {
   const [values, setValues] = useState(initialValues)
+  const { requestClose } = useFormDialog()
+  useUnsavedChanges(values)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -315,7 +317,7 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={onCancel}>
+        <Button type="button" variant="outline" size="lg" className="h-11 md:h-9" onClick={requestClose}>
           Cancelar
         </Button>
         <Button type="submit" size="lg" className="h-11 md:h-9" disabled={isSubmitting}>
