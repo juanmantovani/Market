@@ -44,3 +44,35 @@ export const storedCartSchema = z.object({
   version: z.literal(1),
   lines: z.array(cartLineSchema),
 })
+
+export const paymentMethodSchema = z.enum(['cash', 'debit_card', 'credit_card', 'transfer', 'qr'])
+
+export type PaymentMethod = z.infer<typeof paymentMethodSchema>
+
+// What the checkout needs from the sale the backend just recorded.
+export const saleSchema = z.object({
+  id: z.string().min(1),
+  number: z.number().int(),
+  total: z.number().int(),
+  change: z.number().int(),
+  payments: z.array(
+    z.object({
+      method: paymentMethodSchema,
+      amount: z.number().int(),
+      reference: z.string().nullable(),
+    }),
+  ),
+  createdAt: z.string(),
+})
+
+export type Sale = z.infer<typeof saleSchema>
+
+export type PaymentRequest = { method: PaymentMethod; amount: number; reference: string | null }
+
+export type CreateSaleRequest = {
+  customerId: string | null
+  sellerId: string | null
+  lines: Array<{ itemId: string; quantity: number }>
+  payments: PaymentRequest[]
+  expectedTotal: number
+}

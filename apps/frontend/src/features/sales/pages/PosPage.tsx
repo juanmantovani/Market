@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { messageFromError } from '../../../shared/api/client'
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value'
 import { formatMoney } from '../../../shared/lib/money'
+import { Button } from '../../../shared/ui/button'
 import { PageHeader } from '../../../shared/ui/page-header'
 import { SearchField } from '../../../shared/ui/search-field'
 import { useToast } from '../../../shared/ui/use-toast'
@@ -9,6 +10,7 @@ import { CartPanel } from '../components/CartPanel'
 import { CartSheet } from '../components/CartSheet'
 import { CatalogGrid } from '../components/CatalogGrid'
 import { CategoryFilter } from '../components/CategoryFilter'
+import { CheckoutDialog } from '../components/CheckoutDialog'
 import { QuantityDialog } from '../components/QuantityDialog'
 import { useCart } from '../hooks/use-cart'
 import { CATALOG_LIMIT, useCatalog, useCodeLookup } from '../hooks/use-catalog'
@@ -37,6 +39,7 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
   const [weighing, setWeighing] = useState<CatalogItem | null>(null)
   const [weighOpen, setWeighOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const debouncedSearch = useDebouncedValue(search.trim(), 250)
   const catalog = useCatalog(searchCatalog, { search: debouncedSearch, categoryId, page: 1, limit: CATALOG_LIMIT })
@@ -47,6 +50,9 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
       setSheetOpen(false)
       searchRef.current?.focus()
       searchRef.current?.select()
+    },
+    F9: () => {
+      if (!checkoutOpen) startCheckout()
     },
   })
 
@@ -124,6 +130,16 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
     if (cleared.length > 0) toast.undoable('Se vació la venta', () => cart.restoreAll(cleared))
   }
 
+  function startCheckout() {
+    if (cart.lines.length === 0) {
+      setNotice('Agregar al menos un artículo antes de cobrar.')
+      return
+    }
+    setNotice(null)
+    setSheetOpen(false)
+    setCheckoutOpen(true)
+  }
+
   function focusSearch() {
     searchRef.current?.focus()
   }
@@ -137,7 +153,12 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
       onClear={clear}
       headerAction={headerAction}
       className={className}
-    />
+    >
+      <Button type="button" size="lg" className="h-12 w-full text-base" disabled={cart.lines.length === 0} onClick={startCheckout}>
+        Cobrar
+        <kbd className="ml-1 hidden rounded border border-primary-foreground/40 px-1.5 text-xs font-medium lg:inline">F9</kbd>
+      </Button>
+    </CartPanel>
   )
 
   return (
@@ -184,6 +205,20 @@ export default function PosPage({ categories, searchCatalog }: PosPageProps) {
       <CartSheet open={sheetOpen} onOpenChange={setSheetOpen} lineCount={cart.lines.length} total={cart.total}>
         {(closeButton) => panel(closeButton, 'min-h-0 flex-1 rounded-none border-0')}
       </CartSheet>
+
+      <CheckoutDialog
+        open={checkoutOpen}
+        lines={cart.lines}
+        total={cart.total}
+        onSold={() => {
+          cart.clear()
+          setNotice(null)
+        }}
+        onClose={() => {
+          setCheckoutOpen(false)
+          if (hasFinePointer()) focusSearch()
+        }}
+      />
 
       <QuantityDialog
         open={weighOpen}
