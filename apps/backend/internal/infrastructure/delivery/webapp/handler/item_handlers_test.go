@@ -186,6 +186,41 @@ func TestDeleteItemHandler(t *testing.T) {
 	assertStatus(t, serve(NewDeleteItemHandler(deleteItem), missing), http.StatusNotFound)
 }
 
+func TestLookupItemByBarcodeHandler(t *testing.T) {
+	var received items.LookupItemByBarcodeInput
+	lookup := useCaseFunc[items.LookupItemByBarcodeInput, items.BarcodeLookup](
+		func(_ context.Context, input items.LookupItemByBarcodeInput) (items.BarcodeLookup, error) {
+			received = input
+			if input.Barcode == "7790387000123" {
+				return items.BarcodeLookup{Item: &handlerItem}, nil
+			}
+			description := "Ferrero, Nutella · 400 g"
+			return items.BarcodeLookup{Suggestion: &domain.ExternalProduct{Name: "Nutella", Description: &description}}, nil
+		})
+
+	recorder := serve(NewLookupItemByBarcodeHandler(lookup), categoryRequest(http.MethodGet, "/api/v1/items/lookup?barcode=7790387000123", nil))
+	assertStatus(t, recorder, http.StatusOK)
+	got := decodeBody[dto.ItemLookupResponse](t, recorder)
+	if got.Item == nil || got.Item.ID != "i1" || got.Suggestion != nil {
+		t.Fatalf("body = %+v", got)
+	}
+	if received.Actor != handlerActor || received.Barcode != "7790387000123" {
+		t.Fatalf("input = %+v", received)
+	}
+
+	recorder = serve(NewLookupItemByBarcodeHandler(lookup), categoryRequest(http.MethodGet, "/api/v1/items/lookup?barcode=3017620422003", nil))
+	assertStatus(t, recorder, http.StatusOK)
+	got = decodeBody[dto.ItemLookupResponse](t, recorder)
+	if got.Item != nil || got.Suggestion == nil || got.Suggestion.Name != "Nutella" {
+		t.Fatalf("body = %+v", got)
+	}
+
+	missingBarcode := func(context.Context, items.LookupItemByBarcodeInput) (items.BarcodeLookup, error) {
+		return items.BarcodeLookup{}, domain.ErrItemBarcodeRequired
+	}
+	assertStatus(t, serve(NewLookupItemByBarcodeHandler(useCaseFunc[items.LookupItemByBarcodeInput, items.BarcodeLookup](missingBarcode)), categoryRequest(http.MethodGet, "/api/v1/items/lookup", nil)), http.StatusBadRequest)
+}
+
 func TestItemHandlersPassErrorsThrough(t *testing.T) {
 	conflict := func(context.Context, items.CreateItemInput) (domain.Item, error) {
 		return domain.Item{}, domain.ErrItemCodeInUse

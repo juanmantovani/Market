@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../../../shared/api/query-keys'
-import { createItem, deleteItem, listItems, updateItem, type ItemListParams } from '../api/items'
+import { createItem, deleteItem, listItems, lookupItemByBarcode, updateItem, type ItemListParams } from '../api/items'
 import type { ItemRequest } from '../types'
 
 export function useItems(params: ItemListParams) {
@@ -27,5 +27,13 @@ export function useDeleteItem() {
   return useMutation({
     mutationFn: (id: string) => deleteItem(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.items.all }),
+  })
+}
+
+// A one-off lookup triggered by scanning or typing a barcode, not a query:
+// nothing to cache or invalidate.
+export function useLookupItemByBarcode() {
+  return useMutation({
+    mutationFn: (barcode: string) => lookupItemByBarcode(barcode),
   })
 }
