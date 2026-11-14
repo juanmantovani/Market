@@ -7,7 +7,7 @@ import (
 
 func clearEnvironment(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"PORT", "STORAGE_DRIVER", "CORS_ALLOWED_ORIGIN", "SEED_DEMO_DATA", "STOCK_ALLOW_NEGATIVE"} {
+	for _, name := range []string{"PORT", "STORAGE_DRIVER", "CORS_ALLOWED_ORIGIN", "SEED_DEMO_DATA", "STOCK_ALLOW_NEGATIVE", "GS1_USERNAME", "GS1_PASSWORD"} {
 		t.Setenv(name, "")
 	}
 }
@@ -60,6 +60,30 @@ func TestLoadServerReportsEveryProblem(t *testing.T) {
 		if !strings.Contains(err.Error(), name) {
 			t.Errorf("error %q does not mention %s", err, name)
 		}
+	}
+}
+
+func TestLoadServerReadsGS1Credentials(t *testing.T) {
+	clearEnvironment(t)
+	t.Setenv("GS1_USERNAME", " member ")
+	t.Setenv("GS1_PASSWORD", "secret")
+
+	cfg, err := LoadServer()
+	if err != nil {
+		t.Fatalf("LoadServer() error = %v", err)
+	}
+	if cfg.GS1Username != "member" || cfg.GS1Password != "secret" {
+		t.Fatalf("credentials = %q %q", cfg.GS1Username, cfg.GS1Password)
+	}
+}
+
+func TestLoadServerRejectsAPartialGS1Credential(t *testing.T) {
+	clearEnvironment(t)
+	t.Setenv("GS1_PASSWORD", "secret")
+
+	_, err := LoadServer()
+	if err == nil || !strings.Contains(err.Error(), "GS1_USERNAME") || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("LoadServer() error = %v", err)
 	}
 }
 

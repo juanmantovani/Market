@@ -44,7 +44,7 @@ export type Item = z.infer<typeof itemSchema>
 export const itemPageSchema = pageSchema(itemSchema)
 
 // What looking up a barcode found: an item already in our catalog, a
-// suggestion from Open Food Facts to prefill a new one, or neither.
+// suggestion from an external catalog to prefill a new one, or neither.
 export const externalProductSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),

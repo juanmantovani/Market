@@ -86,7 +86,7 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
       if (result.suggestion) {
         if (!values.name.trim()) change('name', result.suggestion.name)
         if (result.suggestion.description && !values.description.trim()) change('description', result.suggestion.description)
-        toast.success('Datos del producto cargados', 'Vienen de Open Food Facts: revisarlos antes de guardar.')
+        toast.success('Datos del producto cargados', 'Vienen de un catálogo externo: revisarlos antes de guardar.')
       }
     } catch (error) {
       toast.error('No se pudo buscar el código de barras', messageFromError(error))

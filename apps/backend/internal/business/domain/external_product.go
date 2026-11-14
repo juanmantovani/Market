@@ -1,8 +1,8 @@
 package domain
 
-// ErrExternalProductNotFound means the external catalog (Open Food Facts)
-// has nothing for a barcode. It never reaches the API: a miss there just
-// means no suggestion to prefill a new item, not a failure.
+// ErrExternalProductNotFound means the external catalog has nothing for a
+// barcode. It never reaches the API: a miss there just means no suggestion
+// to prefill a new item, not a failure.
 var ErrExternalProductNotFound = &Error{Kind: KindNotFound, Code: "external_product_not_found", Message: "El producto no está en el catálogo externo"}
 
 // ExternalProduct is what a public catalog knows about a barcode, offered

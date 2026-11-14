@@ -16,6 +16,7 @@ import (
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
 	"market/backend/internal/infrastructure/environments"
+	"market/backend/internal/infrastructure/gs1argentina"
 	"market/backend/internal/infrastructure/openfoodfacts"
 	"market/backend/internal/infrastructure/repository/memory"
 )
@@ -98,7 +99,7 @@ func New(cfg environments.Server) (*Container, error) {
 		GetItem:             items.NewGetItem(repos.items),
 		UpdateItem:          items.NewUpdateItem(repos.items),
 		DeleteItem:          items.NewDeleteItem(repos.items),
-		LookupItemByBarcode: items.NewLookupItemByBarcode(repos.items, openfoodfacts.NewClient(nil, "")),
+		LookupItemByBarcode: items.NewLookupItemByBarcode(repos.items, newProductCatalog(cfg)),
 
 		CreateCustomer: customers.NewCreateCustomer(repos.customers),
 		ListCustomers:  customers.NewListCustomers(repos.customers),
@@ -131,6 +132,17 @@ func New(cfg environments.Server) (*Container, error) {
 
 		GetDashboardSummary: dashboard.NewGetSummary(repos.sales, repos.stock),
 	}, nil
+}
+
+// newProductCatalog asks the GS1 Argentina member portal first when
+// credentials are configured, and Open Food Facts otherwise or as a fallback.
+func newProductCatalog(cfg environments.Server) gateway.ProductCatalog {
+	openFoodFacts := openfoodfacts.NewClient(nil, "")
+	if cfg.GS1Username == "" {
+		return openFoodFacts
+	}
+
+	return gs1argentina.NewClient(nil, "", cfg.GS1Username, cfg.GS1Password, openFoodFacts)
 }
 
 func newRepositories(driver environments.StorageDriver) (repositories, error) {

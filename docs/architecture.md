@@ -31,7 +31,9 @@ apps/backend/
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
     │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta, listado, detalle y anulación; dashboard: resumen del día
     └── infrastructure/
-        ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE
+        ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE, GS1_USERNAME, GS1_PASSWORD
+        ├── openfoodfacts/client.go        # catálogo público por código de barras
+        ├── gs1argentina/client.go         # Verified by GS1, con la cuenta del portal de socios
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
         ├── repository/
         │   ├── memory/                    # Store + TxManager + un repositorio por agregado
@@ -81,6 +83,11 @@ flowchart LR
   objetos, pero no registra rutas (eso lo hace `internal/app`).
 - Los datos demo (`SEED_DEMO_DATA`, activo por defecto) pasan por los mismos
   casos de uso que la app, así que respetan sus reglas.
+- Al escanear un código que todavía no es un artículo, `gateway.ProductCatalog`
+  sugiere nombre y descripción. Con `GS1_USERNAME` y `GS1_PASSWORD` se consulta
+  primero el portal de socios de GS1 Argentina (el mismo formulario de
+  Verified by GS1, un GTIN por vez). Si no hay dato o el portal no responde,
+  se usa Open Food Facts. Sin esas variables solo se usa Open Food Facts.
 
 ### Convenciones HTTP
 

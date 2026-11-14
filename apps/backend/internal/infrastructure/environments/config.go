@@ -26,6 +26,11 @@ type Server struct {
 	// StockAllowNegative lets a sale take more stock than there is. It
 	// defaults to false: the sale fails with insufficient_stock.
 	StockAllowNegative bool
+	// GS1Username and GS1Password are the GS1 Argentina member portal
+	// credentials used to suggest a product from a barcode. Both empty
+	// skips that portal. GS1Password is a secret and is never logged.
+	GS1Username string
+	GS1Password string
 }
 
 // LoadServer reads the server configuration from the environment and
@@ -54,6 +59,12 @@ func LoadServer() (Server, error) {
 		problems = append(problems, "STOCK_ALLOW_NEGATIVE must be true or false")
 	}
 
+	username := strings.TrimSpace(os.Getenv("GS1_USERNAME"))
+	password := strings.TrimSpace(os.Getenv("GS1_PASSWORD"))
+	if (username == "") != (password == "") {
+		problems = append(problems, "GS1_USERNAME and GS1_PASSWORD must both be set or both be empty")
+	}
+
 	if len(problems) > 0 {
 		return Server{}, errors.New(strings.Join(problems, "; "))
 	}
@@ -64,6 +75,8 @@ func LoadServer() (Server, error) {
 		StorageDriver:      driver,
 		SeedDemoData:       seed,
 		StockAllowNegative: allowNegative,
+		GS1Username:        username,
+		GS1Password:        password,
 	}, nil
 }
 
