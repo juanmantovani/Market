@@ -1,7 +1,10 @@
 package dependencies
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
@@ -17,6 +20,7 @@ import (
 	"market/backend/internal/infrastructure/delivery/webapp/route"
 	"market/backend/internal/infrastructure/environments"
 	"market/backend/internal/infrastructure/repository/memory"
+	"market/backend/internal/infrastructure/repository/postgres"
 )
 
 // Container is the object graph: repositories → use cases → handlers. It
@@ -65,6 +69,10 @@ type Container struct {
 	VoidSale   sales.VoidSale
 
 	GetDashboardSummary dashboard.GetSummary
+
+	// Ping reports whether the storage is reachable, for GET
+	// /health/ready. It always succeeds for the in-memory driver.
+	Ping func(ctx context.Context) error
 }
 
 type repositories struct {
@@ -76,15 +84,18 @@ type repositories struct {
 	stock      gateway.StockRepository
 	sales      gateway.SaleRepository
 	tx         gateway.TxManager
+	ping       func(ctx context.Context) error
 }
 
-func New(cfg environments.Server) (*Container, error) {
-	repos, err := newRepositories(cfg.StorageDriver)
+func New(ctx context.Context, cfg environments.Server) (*Container, error) {
+	repos, err := newRepositories(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Container{
+		Ping: repos.ping,
+
 		CreateCategory: categories.NewCreateCategory(repos.categories),
 		ListCategories: categories.NewListCategories(repos.categories),
 		GetCategory:    categories.NewGetCategory(repos.categories),
@@ -130,8 +141,8 @@ func New(cfg environments.Server) (*Container, error) {
 	}, nil
 }
 
-func newRepositories(driver environments.StorageDriver) (repositories, error) {
-	switch driver {
+func newRepositories(ctx context.Context, cfg environments.Server) (repositories, error) {
+	switch cfg.StorageDriver {
 	case environments.StorageMemory:
 		store := memory.NewStore()
 		return repositories{
@@ -143,15 +154,32 @@ func newRepositories(driver environments.StorageDriver) (repositories, error) {
 			stock:      memory.NewStockRepository(store),
 			sales:      memory.NewSaleRepository(store),
 			tx:         store,
+			ping:       func(context.Context) error { return nil },
+		}, nil
+	case environments.StoragePostgres:
+		// Only Customers is wired so far: the other repositories arrive
+		// with their own PostgreSQL adapter, aggregate by aggregate. Until
+		// then, any route besides the customer ones and /health/ready
+		// panics on this driver.
+		pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return repositories{}, fmt.Errorf("connect to postgres: %w", err)
+		}
+		return repositories{
+			customers: postgres.NewCustomerRepository(pool),
+			tx:        postgres.NewTxManager(pool),
+			ping:      pool.Ping,
 		}, nil
 	default:
-		return repositories{}, fmt.Errorf("unsupported storage driver %q", driver)
+		return repositories{}, fmt.Errorf("unsupported storage driver %q", cfg.StorageDriver)
 	}
 }
 
 // Handlers wraps every use case in its route's handler.
 func (container *Container) Handlers() route.Handlers {
 	return route.Handlers{
+		Ready: handler.NewReadyHandler(container.Ping),
+
 		ListCategories: handler.NewListCategoriesHandler(container.ListCategories),
 		GetCategory:    handler.NewGetCategoryHandler(container.GetCategory),
 		CreateCategory: handler.NewCreateCategoryHandler(container.CreateCategory),

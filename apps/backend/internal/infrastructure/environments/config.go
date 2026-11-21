@@ -9,9 +9,14 @@ import (
 
 type StorageDriver string
 
-// StorageMemory keeps everything in the process: data is lost on restart.
-// PostgreSQL arrives as a second driver in a later phase.
-const StorageMemory StorageDriver = "memory"
+const (
+	// StorageMemory keeps everything in the process: data is lost on
+	// restart.
+	StorageMemory StorageDriver = "memory"
+	// StoragePostgres persists through PostgreSQL. DatabaseURL names the
+	// database to connect to.
+	StoragePostgres StorageDriver = "postgres"
+)
 
 type Server struct {
 	Port string
@@ -20,6 +25,9 @@ type Server struct {
 	// proxy or the backend serving the build).
 	AllowedOrigin string
 	StorageDriver StorageDriver
+	// DatabaseURL is the PostgreSQL connection string. Required when
+	// StorageDriver is StoragePostgres, ignored otherwise.
+	DatabaseURL string
 	// SeedDemoData loads sample records on startup. It defaults to true
 	// because in-memory storage starts empty on every restart.
 	SeedDemoData bool
@@ -40,8 +48,13 @@ func LoadServer() (Server, error) {
 	}
 
 	driver := StorageDriver(envOrDefault("STORAGE_DRIVER", string(StorageMemory)))
-	if driver != StorageMemory {
-		problems = append(problems, `STORAGE_DRIVER must be "memory"`)
+	if driver != StorageMemory && driver != StoragePostgres {
+		problems = append(problems, `STORAGE_DRIVER must be "memory" or "postgres"`)
+	}
+
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if driver == StoragePostgres && databaseURL == "" {
+		problems = append(problems, "DATABASE_URL is required when STORAGE_DRIVER is \"postgres\"")
 	}
 
 	seed, err := strconv.ParseBool(envOrDefault("SEED_DEMO_DATA", "true"))
@@ -62,6 +75,7 @@ func LoadServer() (Server, error) {
 		Port:               port,
 		AllowedOrigin:      strings.TrimRight(strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGIN")), "/"),
 		StorageDriver:      driver,
+		DatabaseURL:        databaseURL,
 		SeedDemoData:       seed,
 		StockAllowNegative: allowNegative,
 	}, nil

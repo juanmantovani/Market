@@ -7,7 +7,7 @@ import (
 
 func clearEnvironment(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"PORT", "STORAGE_DRIVER", "CORS_ALLOWED_ORIGIN", "SEED_DEMO_DATA", "STOCK_ALLOW_NEGATIVE"} {
+	for _, name := range []string{"PORT", "STORAGE_DRIVER", "DATABASE_URL", "CORS_ALLOWED_ORIGIN", "SEED_DEMO_DATA", "STOCK_ALLOW_NEGATIVE"} {
 		t.Setenv(name, "")
 	}
 }
@@ -45,10 +45,35 @@ func TestLoadServerReadsTheEnvironment(t *testing.T) {
 	}
 }
 
+func TestLoadServerAcceptsPostgresWithADatabaseURL(t *testing.T) {
+	clearEnvironment(t)
+	t.Setenv("STORAGE_DRIVER", "postgres")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/market")
+
+	cfg, err := LoadServer()
+	if err != nil {
+		t.Fatalf("LoadServer() error = %v", err)
+	}
+
+	want := Server{Port: "8080", StorageDriver: StoragePostgres, DatabaseURL: "postgres://user:pass@localhost:5432/market", SeedDemoData: true}
+	if cfg != want {
+		t.Fatalf("LoadServer() = %+v, want %+v", cfg, want)
+	}
+}
+
+func TestLoadServerRejectsPostgresWithoutADatabaseURL(t *testing.T) {
+	clearEnvironment(t)
+	t.Setenv("STORAGE_DRIVER", "postgres")
+
+	if _, err := LoadServer(); err == nil || !strings.Contains(err.Error(), "DATABASE_URL") {
+		t.Fatalf("LoadServer() error = %v, want a DATABASE_URL error", err)
+	}
+}
+
 func TestLoadServerReportsEveryProblem(t *testing.T) {
 	clearEnvironment(t)
 	t.Setenv("PORT", "70000")
-	t.Setenv("STORAGE_DRIVER", "postgres")
+	t.Setenv("STORAGE_DRIVER", "sqlite")
 	t.Setenv("SEED_DEMO_DATA", "maybe")
 	t.Setenv("STOCK_ALLOW_NEGATIVE", "sometimes")
 

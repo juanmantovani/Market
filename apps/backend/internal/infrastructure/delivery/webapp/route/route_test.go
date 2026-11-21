@@ -1,6 +1,7 @@
 package route_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,7 +16,7 @@ import (
 
 func newMux(t *testing.T) http.Handler {
 	t.Helper()
-	container, err := dependencies.New(environments.Server{StorageDriver: environments.StorageMemory})
+	container, err := dependencies.New(context.Background(), environments.Server{StorageDriver: environments.StorageMemory})
 	if err != nil {
 		t.Fatalf("dependencies.New() error = %v", err)
 	}
@@ -44,6 +45,7 @@ func TestRegisterRoutes(t *testing.T) {
 	}{
 		{method: http.MethodGet, path: "/health/live", want: http.StatusOK},
 		{method: http.MethodPost, path: "/health/live", want: http.StatusMethodNotAllowed},
+		{method: http.MethodGet, path: "/health/ready", want: http.StatusOK},
 		{method: http.MethodGet, path: "/api/v1/unknown", want: http.StatusNotFound},
 		{method: http.MethodGet, path: "/api/v1/categories", want: http.StatusOK},
 		{method: http.MethodGet, path: "/api/v1/categories/missing", want: http.StatusNotFound},

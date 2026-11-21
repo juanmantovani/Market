@@ -30,7 +30,7 @@ func New(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	container, err := dependencies.New(cfg)
+	container, err := dependencies.New(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
