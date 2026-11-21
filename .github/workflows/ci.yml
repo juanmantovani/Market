@@ -64,6 +64,23 @@ jobs:
   test:
     name: Test / frontend + backend
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: market
+          POSTGRES_PASSWORD: market
+          POSTGRES_DB: market
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U market -d market"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://market:market@localhost:5432/market?sslmode=disable
+      TEST_DATABASE_URL: postgres://market:market@localhost:5432/market?sslmode=disable
     steps:
       - uses: actions/checkout@v4
 
@@ -81,6 +98,10 @@ jobs:
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.mod
+
+      - name: Apply database migrations
+        working-directory: apps/backend
+        run: go run ./cmd/migrate up
 
       - name: Run tests
         run: pnpm test
@@ -88,6 +109,23 @@ jobs:
   coverage:
     name: Coverage / frontend + backend (thresholds)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: market
+          POSTGRES_PASSWORD: market
+          POSTGRES_DB: market
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U market -d market"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://market:market@localhost:5432/market?sslmode=disable
+      TEST_DATABASE_URL: postgres://market:market@localhost:5432/market?sslmode=disable
     steps:
       - uses: actions/checkout@v4
 
@@ -105,6 +143,10 @@ jobs:
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.mod
+
+      - name: Apply database migrations
+        working-directory: apps/backend
+        run: go run ./cmd/migrate up
 
       - name: Run coverage
         run: pnpm test:coverage

@@ -6,8 +6,8 @@ o `develop`.
 | Job | Qué hace |
 | --- | --- |
 | `build` | Typecheck, lint y build del frontend; `gofmt`, `go vet` y build del backend. |
-| `test` | `pnpm test` (frontend y backend). |
-| `coverage` | `pnpm test:coverage`, aplicando los umbrales de [testing.md](testing.md). |
+| `test` | `pnpm test` (frontend y backend). Levanta un servicio PostgreSQL y aplica las migraciones antes de la suite. |
+| `coverage` | `pnpm test:coverage`, aplicando los umbrales de [testing.md](testing.md). Mismo servicio PostgreSQL y migraciones que `test`. |
 | `dependency-audit` | `pnpm audit --audit-level=high` y `govulncheck` sobre todo el árbol actual. |
 | `dependency-review` | Solo en PRs: revisa las dependencias nuevas o cambiadas del diff. |
 | `compose-config` | `docker compose config`: valida `compose.yaml` sin levantar nada. |
@@ -17,8 +17,11 @@ La versión de Go sale de la directiva `go` de `apps/backend/go.mod`.
 Mantenerla en el último parche evita que `govulncheck` reporte
 vulnerabilidades de la librería estándar ya corregidas.
 
-Cuando llegue PostgreSQL, `test` y `coverage` levantan un servicio de base y
-aplican las migraciones antes de la suite.
+`test` y `coverage` levantan PostgreSQL como *service container*
+(`postgres:17-alpine`) y corren `cmd/migrate` antes de la suite, con
+`DATABASE_URL`/`TEST_DATABASE_URL` apuntando a él. La suite de contrato de
+`repository/postgres` corre siempre en CI; localmente se salta si no hay
+`TEST_DATABASE_URL` (ver [development.md](development.md)).
 
 ## Ramas
 

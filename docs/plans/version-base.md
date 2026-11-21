@@ -589,7 +589,7 @@ flowchart LR
 
 | Fase | Contenido |
 | --- | --- |
-| 6 · PostgreSQL | Migraciones Goose en `migrations/`, `repository/postgres` con `pgxpool`, `TxManager` con `pgx.Tx`, `FOR UPDATE` en stock, suite de contrato contra PostgreSQL en CI, `STORAGE_DRIVER=postgres`, `db` + `migrate` en Compose. |
+| 6 · PostgreSQL | Migraciones Goose en `migrations/`, `repository/postgres` con `pgxpool`, `TxManager` con `pgx.Tx`, `FOR UPDATE` en stock, suite de contrato contra PostgreSQL en CI, `STORAGE_DRIVER=postgres`, `db` + `migrate` en Compose. **En curso**: infraestructura (Docker, Goose, CI) y `CustomerRepository` listos; falta un adaptador por agregado restante (`Seller`, `Category`+`Item`, `Supplier`, `Stock`, `Sale`). |
 | Configuración | Sección «Configuración» (`/configuracion`) con los ajustes del comercio, guardados en la base y editables desde la app sin reiniciar, y las preferencias de cada dispositivo (como el tema). Arranca con cliente en la venta, vendedor en la venta, vender sin stock y el tema; después se suman otros. Va después de la Fase 6, porque necesita persistencia. Trae un refactor: ver §10.1. |
 | 7 · Autenticación y usuarios | Proveedor según el hosting (local: sesiones o JWT propios; nube: Supabase como LoteosAPP u otro). Reemplaza el middleware de actor; los casos de uso no cambian. |
 | Caja | Apertura, movimientos, cierre y arqueo por medio de pago; la venta pasa a exigir caja abierta. |

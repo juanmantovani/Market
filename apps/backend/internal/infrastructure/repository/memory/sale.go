@@ -8,6 +8,7 @@ import (
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
+	repoid "market/backend/internal/infrastructure/repository"
 )
 
 var _ gateway.SaleRepository = (*SaleRepository)(nil)
@@ -26,7 +27,7 @@ func (repository *SaleRepository) Create(ctx context.Context, sale domain.Sale) 
 		if err := repository.checkReferences(sale); err != nil {
 			return err
 		}
-		sale.ID = newID()
+		sale.ID = repoid.NewID()
 		set(current, &repository.store.lastSaleNumber, repository.store.lastSaleNumber+1)
 		sale.Number = repository.store.lastSaleNumber
 		put(current, repository.store.sales, sale.ID, cloneSale(sale))

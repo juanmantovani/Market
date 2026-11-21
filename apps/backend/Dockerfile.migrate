@@ -1,0 +1,13 @@
+FROM golang:1.27-alpine
+
+WORKDIR /app
+
+COPY apps/backend/go.mod apps/backend/go.sum* ./
+RUN go mod download
+
+COPY apps/backend/ ./
+COPY migrations/ /migrations/
+
+ENV MIGRATIONS_DIR=/migrations
+
+CMD ["go", "run", "./cmd/migrate", "up"]

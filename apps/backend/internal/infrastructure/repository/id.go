@@ -1,4 +1,4 @@
-package memory
+package repository
 
 import (
 	"crypto/rand"
@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// newID returns a UUIDv7: time-ordered like the IDs PostgreSQL 18 generates
-// with uuidv7(), so listings sort the same way on both adapters.
-func newID() string {
+// NewID returns a UUIDv7: time-ordered like the IDs PostgreSQL 18 generates
+// with uuidv7(), so listings sort the same way on every adapter.
+func NewID() string {
 	var id [16]byte
 	var timestamp [8]byte
 	binary.BigEndian.PutUint64(timestamp[:], uint64(time.Now().UnixMilli()))
