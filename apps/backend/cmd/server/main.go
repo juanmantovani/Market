@@ -8,9 +8,15 @@ import (
 	"syscall"
 
 	"market/backend/internal/app"
+	"market/backend/internal/infrastructure/environments"
 )
 
 func main() {
+	if err := environments.LoadProjectDotEnv(); err != nil {
+		slog.Error("backend startup failed", "error", err)
+		os.Exit(1)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
