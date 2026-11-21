@@ -94,10 +94,17 @@ Permisos: los de catálogo (`catalog:view` para listar y consultar,
 Eliminar un artículo que tiene movimientos de stock falla con `item_in_use`
 (`409`): los movimientos nunca se borran, así que el artículo tampoco.
 
+`GET /api/v1/items/lookup?barcode=` busca un código de barras al escanearlo
+para dar de alta un artículo nuevo: si ya es de un artículo devuelve `item`;
+si no, pero un catálogo externo lo tiene, devuelve `suggestion` (nombre y
+descripción, solo para prellenar el formulario); si ninguno lo conoce
+devuelve los dos en `null`, sin error. Requiere `catalog:manage`, igual que
+crear. Qué catálogo externo se consulta está en `docs/architecture.md`.
+
 Códigos de error: `item_not_found`, `item_in_use`, `item_code_required`,
-`item_code_too_long`, `item_code_in_use`, `item_barcode_invalid`,
-`item_barcode_in_use`, `item_name_required`, `item_name_too_long`,
-`item_description_too_long`, `item_category_required`,
+`item_code_too_long`, `item_code_in_use`, `item_barcode_required`,
+`item_barcode_invalid`, `item_barcode_in_use`, `item_name_required`,
+`item_name_too_long`, `item_description_too_long`, `item_category_required`,
 `item_category_not_found`, `item_supplier_not_found`, `item_unit_invalid`, `item_price_invalid`,
 `item_cost_invalid`, `item_tax_rate_invalid`, `item_min_stock_invalid`.
 
