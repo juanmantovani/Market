@@ -3,7 +3,6 @@ package memory
 import (
 	"context"
 	"errors"
-	"regexp"
 	"testing"
 
 	"market/backend/internal/infrastructure/repository/repositorytest"
@@ -61,18 +60,5 @@ func TestRepositoriesHonorCancellation(t *testing.T) {
 	}
 	if _, err := repositories.Items.Get(ctx, "any"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Items.Get() error = %v, want context.Canceled", err)
-	}
-}
-
-func TestNewIDIsAUUIDv7(t *testing.T) {
-	uuidV7 := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-
-	first, second := newID(), newID()
-
-	if !uuidV7.MatchString(first) {
-		t.Fatalf("newID() = %q, want a UUIDv7", first)
-	}
-	if first == second {
-		t.Fatal("newID() repeated an ID")
 	}
 }

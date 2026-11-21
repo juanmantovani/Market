@@ -7,6 +7,7 @@ import (
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
+	repoid "market/backend/internal/infrastructure/repository"
 )
 
 var _ gateway.StockRepository = (*StockRepository)(nil)
@@ -42,7 +43,7 @@ func (repository *StockRepository) Record(ctx context.Context, movement domain.S
 				return domain.ErrStockSupplierNotFound
 			}
 		}
-		movement.ID = newID()
+		movement.ID = repoid.NewID()
 		appendRow(current, &repository.store.stockMovements, cloneMovement(movement))
 		put(current, repository.store.stockLevels, movement.ItemID, domain.StockLevel{
 			ItemID:    movement.ItemID,

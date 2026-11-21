@@ -9,6 +9,7 @@ import (
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
+	repoid "market/backend/internal/infrastructure/repository"
 )
 
 var _ gateway.CustomerRepository = (*CustomerRepository)(nil)
@@ -24,7 +25,7 @@ func NewCustomerRepository(store *Store) *CustomerRepository {
 func (repository *CustomerRepository) Create(ctx context.Context, customer domain.Customer) (domain.Customer, error) {
 	var created domain.Customer
 	err := repository.store.run(ctx, func(current *tx) error {
-		customer.ID = newID()
+		customer.ID = repoid.NewID()
 		if err := repository.checkDocumentIsFree(customer); err != nil {
 			return err
 		}

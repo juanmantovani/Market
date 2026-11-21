@@ -8,6 +8,7 @@ import (
 
 	"market/backend/internal/business/domain"
 	"market/backend/internal/business/gateway"
+	repoid "market/backend/internal/infrastructure/repository"
 )
 
 var _ gateway.ItemRepository = (*ItemRepository)(nil)
@@ -23,7 +24,7 @@ func NewItemRepository(store *Store) *ItemRepository {
 func (repository *ItemRepository) Create(ctx context.Context, item domain.Item) (domain.Item, error) {
 	var created domain.Item
 	err := repository.store.run(ctx, func(current *tx) error {
-		item.ID = newID()
+		item.ID = repoid.NewID()
 		if err := repository.checkConstraints(item); err != nil {
 			return err
 		}
