@@ -16,13 +16,16 @@ flowchart LR
     backend --> usecases["Casos de uso"]
     usecases --> gateway["Contratos (gateway)"]
     memory["repository/memory"] -.implementa.-> gateway
+    postgres["repository/postgres"] -.implementa.-> gateway
 ```
 
 ## Backend
 
 ```text
 apps/backend/
-├── cmd/server/main.go                     # señales + app.New(ctx).Run(ctx)
+├── cmd/
+│   ├── server/main.go                     # señales + app.New(ctx).Run(ctx)
+│   └── migrate/main.go                    # aplica migrations/ con Goose (DATABASE_URL, comando por argv)
 └── internal/
     ├── app/app.go                         # composition root: config, contenedor, datos demo, rutas, servidor
     ├── business/
@@ -31,10 +34,12 @@ apps/backend/
     │   │   └── gatewayfake/               # fakes de los contratos para tests de casos de uso
     │   └── usecase/                       # categories, items, customers, suppliers, sellers: create, list, get, update, delete; stock: existencias, movimientos, ingreso, ajuste y stock inicial; sales: alta, listado, detalle y anulación; dashboard: resumen del día
     └── infrastructure/
-        ├── environments/config.go         # PORT, STORAGE_DRIVER, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE
+        ├── environments/config.go         # PORT, STORAGE_DRIVER, DATABASE_URL, CORS_ALLOWED_ORIGIN, SEED_DEMO_DATA, STOCK_ALLOW_NEGATIVE
         ├── demo/seed.go                   # datos demo, cargados a través de los casos de uso
         ├── repository/
+        │   ├── id.go                      # NewID: UUIDv7, compartido por todos los adaptadores
         │   ├── memory/                    # Store + TxManager + un repositorio por agregado
+        │   ├── postgres/                  # TxManager + un repositorio por agregado, con pgx (hoy: solo Customer)
         │   └── repositorytest/            # suite de contrato compartida por todos los adaptadores
         └── delivery/webapp/
             ├── dependencies/              # IoC: repositorios → casos de uso → handlers
@@ -61,6 +66,7 @@ flowchart LR
     app --> server["delivery/webapp/server"]
     app --> middleware["delivery/webapp/middleware"]
     deps --> memory
+    deps --> postgres
     deps --> route
     demo --> usecase
     route --> handler["delivery/webapp/handler"]
@@ -69,6 +75,7 @@ flowchart LR
     usecase --> gateway["business/gateway"]
     usecase --> domain["business/domain"]
     memory["repository/memory"] -.implementa.-> gateway
+    postgres["repository/postgres"] -.implementa.-> gateway
     response --> domain
     middleware --> domain
 ```
@@ -76,9 +83,14 @@ flowchart LR
 - Un handler no ejecuta lógica de negocio ni accede a la persistencia.
 - Un repositorio no toma decisiones de negocio.
 - Un caso de uso no conoce `http.Request`, JSON, `sync.Mutex` ni `pgx`.
-- `dependencies` arma el grafo y elige el adaptador según `STORAGE_DRIVER`.
+- `dependencies` arma el grafo y elige el adaptador según `STORAGE_DRIVER`
+  (`memory` o `postgres`) y expone `Container.Ping`, que `GET /health/ready`
+  usa para chequear la base (siempre `nil` en memoria).
   `Container.Handlers()` devuelve el `route.Handlers` ya armado: construye
   objetos, pero no registra rutas (eso lo hace `internal/app`).
+  Mientras no todos los agregados tengan su adaptador PostgreSQL, elegir
+  `postgres` deja sin repositorio (y por lo tanto en `500`) las rutas de los
+  agregados que todavía no lo tienen.
 - Los datos demo (`SEED_DEMO_DATA`, activo por defecto) pasan por los mismos
   casos de uso que la app, así que respetan sus reglas.
 
@@ -111,8 +123,9 @@ flowchart LR
   1 MiB (`handler.MaxBodyBytes`). Los deadlines del `http.Server` derivan del
   mayor timeout registrado (`route.MaxHandlerTimeout`).
 - `GET /health/live` responde `{ "status": "ok" }` para chequeos de
-  infraestructura (Docker, un balanceador); la app no lo consulta. `/health/ready` (con
-  chequeo de la base) llega con PostgreSQL.
+  infraestructura (Docker, un balanceador); la app no lo consulta.
+  `GET /health/ready` además comprueba la base (`Container.Ping`): `503
+  storage_unavailable` si no responde.
 
 ### Persistencia en memoria
 
@@ -126,7 +139,7 @@ flowchart LR
   en orden inverso y las tablas quedan exactamente como estaban.
 - `NewStore` arranca vacío salvo por el cliente de sistema **Consumidor
   Final** (`domain.FinalConsumer`, con ID fijo `domain.FinalConsumerID`); en
-  PostgreSQL lo insertará una migración.
+  PostgreSQL lo inserta la migración `00001_create_customers.sql`.
 - El número de venta sale de un contador (`lastSaleNumber`, escrito con
   `set`), que hace de secuencia. A diferencia de una secuencia, una unidad de
   trabajo que falla devuelve su número; la suite de contrato no depende de
@@ -160,12 +173,47 @@ flowchart LR
   pueden borrar después)
   las verifica el repositorio dentro del lock, y la suite de contrato prueba
   que se cumplan también bajo concurrencia.
-- Los IDs son UUIDv7, ordenados por tiempo como los de `uuidv7()` en
-  PostgreSQL 18.
+- Los IDs son UUIDv7 (`repository.NewID`, compartida con el adaptador
+  PostgreSQL), ordenados por tiempo como los de `uuidv7()` en PostgreSQL 18.
 
 Se eligió un registro de deshacer en lugar de copiar todo el estado en cada
 transacción (como proponía el plan): cuesta lo mismo que las escrituras
 hechas, no lo que mide la base completa.
+
+### Persistencia en PostgreSQL
+
+`repository/postgres` implementa los mismos contratos de `gateway` contra
+PostgreSQL, con [pgx](https://github.com/jackc/pgx) (`pgxpool.Pool`). Hoy
+solo existe `CustomerRepository`; el resto de los agregados llega en PRs
+siguientes, cada uno con su propia migración y su propio adaptador.
+
+- `TxManager.WithinTx` abre un `pgx.Tx` con `pool.Begin(ctx)` y lo guarda en
+  el `ctx` (misma idea que el `txKey` de `repository/memory`, pero con una
+  transacción real en vez de un lock); si `fn` devuelve error, se hace
+  `Rollback`, y si no, `Commit`. Un `ctx` que ya está dentro de una
+  transacción de este paquete se une a ella en vez de abrir una segunda.
+- Cada repositorio corre sus consultas contra el `pgx.Tx` del `ctx` cuando
+  hay uno, o contra el pool directamente (`querierFrom`). Los casos de uso
+  que modifican más de un agregado siguen pasando por `WithinTx` sin
+  distinción entre adaptadores.
+- Las restricciones que en memoria verifica el repositorio dentro del lock
+  (documento único por cliente, por ejemplo) son índices únicos reales en
+  PostgreSQL (`customers_document_key`, parcial: un cliente sin documento
+  nunca colisiona). El repositorio traduce la violación (`23505`) al mismo
+  `*domain.Error` que devuelve memoria; la suite de contrato prueba esto
+  también bajo escrituras concurrentes.
+- Los IDs se generan en Go con `repository.NewID()`, igual que en memoria
+  (no se usa `DEFAULT uuidv7()` de PostgreSQL 18): así ambos adaptadores
+  generan IDs de forma idéntica sin atarse a una versión de PostgreSQL.
+- `List` trae todas las filas y filtra, ordena y pagina en Go, con las
+  mismas funciones que memoria (`domain.NormalizeText`, comparación por
+  dígitos del documento). Para una base de clientes de un comercio esto no
+  cuesta nada hoy; si una tabla crece mucho, pasar ese filtro a SQL es un
+  cambio aislado a su repositorio.
+- Las migraciones viven en `migrations/` (raíz del repo), versionadas con
+  Goose (`-- +goose Up` / `-- +goose Down`, numeración secuencial). Se
+  aplican con `apps/backend/cmd/migrate` (ver
+  [development.md](development.md)); no hay que instalar la CLI de Goose.
 
 ## Frontend
 
@@ -355,10 +403,14 @@ clientes, proveedores, vendedores).
    concurrencia).
 6. `repository/memory/<entidad>.go`: el adaptador, con su test que corre la
    suite.
-7. `dto/<feature>/`: requests, response y conversión desde el dominio.
-8. `handler/`: un handler por ruta, con tests de su contrato HTTP.
-9. `route.Handlers` + `RegisterRoutes`, `dependencies`, datos demo y el
-   paquete nuevo en `test:backend:coverage:profile`.
+7. `repository/postgres/<entidad>.go` (+ su migración en `migrations/`): el
+   adaptador contra PostgreSQL, con su test (`newRepositories` en
+   `postgres_test.go`) que corre la misma suite; se salta sin
+   `TEST_DATABASE_URL`.
+8. `dto/<feature>/`: requests, response y conversión desde el dominio.
+9. `handler/`: un handler por ruta, con tests de su contrato HTTP.
+10. `route.Handlers` + `RegisterRoutes`, `dependencies`, datos demo y el
+    paquete nuevo (memoria y postgres) en `test:backend:coverage:profile`.
 
 **Frontend**
 
