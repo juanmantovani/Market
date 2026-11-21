@@ -41,9 +41,12 @@ function item(overrides: Partial<Item> & { name: string; code: string }): Omit<I
   }
 }
 
+type CatalogEntry = { name: string; description?: string | null }
+
 // An in-memory stand-in for /api/v1/items that follows the backend's rules:
 // unique codes and barcodes, deletes remove the record, sorted by name.
-function fakeItemApi(initial: Array<ReturnType<typeof item>> = []) {
+// catalog stands in for what Open Food Facts would answer, keyed by barcode.
+function fakeItemApi(initial: Array<ReturnType<typeof item>> = [], catalog: Record<string, CatalogEntry> = {}) {
   let sequence = 0
   const items: Item[] = initial.map((entry) => ({ ...entry, id: `i${++sequence}` }) as Item)
   const requests: Array<{ method: string; path: string; body: unknown }> = []
@@ -74,6 +77,14 @@ function fakeItemApi(initial: Array<ReturnType<typeof item>> = []) {
           .filter((entry) => `${entry.name} ${entry.code} ${entry.barcode ?? ''}`.toLowerCase().includes(search))
           .sort((a, b) => a.name.localeCompare(b.name))
         return json({ items: matches.slice((page - 1) * limit, page * limit), total: matches.length, page, limit })
+      }
+
+      if (url.pathname === '/api/v1/items/lookup' && method === 'GET') {
+        const barcode = url.searchParams.get('barcode') ?? ''
+        const existing = items.find((entry) => entry.barcode === barcode)
+        if (existing) return json({ item: existing, suggestion: null })
+        const found = catalog[barcode]
+        return json({ item: null, suggestion: found ? { name: found.name, description: found.description ?? null } : null })
       }
 
       if (url.pathname === '/api/v1/items' && method === 'POST') {
@@ -344,6 +355,93 @@ describe('ItemsPage', () => {
       },
     ])
     expect(rowTexts(await table())[0].slice(0, 3)).toEqual(['FIA-001', 'Queso cremoso', 'Fiambrería'])
+  })
+
+  it('autocompletes the name and description from an external catalog when scanning a new barcode', async () => {
+    fakeItemApi([], { '7790000000099': { name: 'Nutella 400g', description: 'Ferrero, Nutella · 400 g' } })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Crear el primero' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nuevo artículo' }))
+    expect(form.getByText('Escanear o escribir y presionar Enter para buscarlo.')).toBeInTheDocument()
+
+    await user.type(form.getByLabelText(/Código de barras/), '7790000000099{Enter}')
+
+    expect(await screen.findByText('Datos del producto cargados')).toBeInTheDocument()
+    expect(form.getByLabelText('Nombre')).toHaveValue('Nutella 400g')
+    expect(form.getByLabelText(/Descripción/)).toHaveValue('Ferrero, Nutella · 400 g')
+  })
+
+  it('does not overwrite the name already typed, but fills the still-blank description', async () => {
+    fakeItemApi([], { '123': { name: 'Nombre sugerido', description: 'Descripción sugerida' } })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Crear el primero' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nuevo artículo' }))
+    await user.type(form.getByLabelText('Nombre'), 'Mi propio nombre')
+    await user.type(form.getByLabelText(/Código de barras/), '123')
+    await user.click(form.getByRole('button', { name: 'Buscar el código de barras en el catálogo' }))
+
+    expect(await screen.findByText('Datos del producto cargados')).toBeInTheDocument()
+    expect(form.getByLabelText('Nombre')).toHaveValue('Mi propio nombre')
+    expect(form.getByLabelText(/Descripción/)).toHaveValue('Descripción sugerida')
+  })
+
+  it('warns, without autofilling, when a scanned barcode already belongs to another item', async () => {
+    const api = fakeItemApi([item({ name: 'Yerba', code: 'ALM-001', barcode: '7790000000011' })])
+    const user = userEvent.setup()
+    renderPage()
+    await table()
+
+    await user.click(screen.getByRole('button', { name: 'Nuevo artículo' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nuevo artículo' }))
+    await user.type(form.getByLabelText(/Código de barras/), '7790000000011{Enter}')
+
+    expect(await form.findByText('Ya hay un artículo con ese código de barras: «Yerba».')).toBeInTheDocument()
+    expect(form.getByLabelText(/Código de barras/)).toHaveAttribute('aria-invalid', 'true')
+    expect(form.getByLabelText('Nombre')).toHaveValue('')
+    expect(api.writes()).toEqual([])
+  })
+
+  it('does nothing when a scanned barcode is unknown everywhere', async () => {
+    fakeItemApi([])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Crear el primero' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nuevo artículo' }))
+    await user.type(form.getByLabelText(/Código de barras/), '0000000000000{Enter}')
+
+    await waitFor(() => expect(form.getByRole('button', { name: 'Buscar el código de barras en el catálogo' })).not.toBeDisabled())
+    expect(form.getByLabelText('Nombre')).toHaveValue('')
+    expect(form.queryByText(/Ya hay un artículo/)).not.toBeInTheDocument()
+  })
+
+  it('reports a failed barcode search as a toast, without blocking the form', async () => {
+    const api = fakeItemApi([])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Crear el primero' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Nuevo artículo' }))
+    api.failNext({ status: 503, code: 'storage_unavailable', message: 'El almacenamiento no está disponible' })
+    await user.type(form.getByLabelText(/Código de barras/), '123{Enter}')
+
+    expect((await screen.findAllByText('No se pudo buscar el código de barras'))[0]).toBeInTheDocument()
+    expect(form.getByLabelText('Nombre')).toHaveValue('')
+  })
+
+  it('does not offer to look up a barcode while editing an item', async () => {
+    fakeItemApi([item({ name: 'Yerba', code: 'ALM-001' })])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click((await table()).getByRole('button', { name: 'Editar Yerba' }))
+    const form = within(await screen.findByRole('dialog', { name: 'Editar artículo' }))
+    expect(form.queryByRole('button', { name: 'Buscar el código de barras en el catálogo' })).not.toBeInTheDocument()
+    expect(form.queryByText('Escanear o escribir y presionar Enter para buscarlo.')).not.toBeInTheDocument()
   })
 
   it('validates the form before sending it', async () => {

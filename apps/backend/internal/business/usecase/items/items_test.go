@@ -3,6 +3,7 @@ package items
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,10 @@ import (
 	"market/backend/internal/business/gateway"
 	"market/backend/internal/business/gateway/gatewayfake"
 )
+
+func ptr[T any](value T) *T {
+	return &value
+}
 
 var (
 	admin   = domain.Actor{ID: "u-admin", Role: domain.RoleAdmin}
@@ -188,6 +193,111 @@ func TestUpdateItemErrors(t *testing.T) {
 			assertError(t, err, test.want)
 		})
 	}
+}
+
+func TestLookupItemByBarcode(t *testing.T) {
+	t.Run("finds an item already in the catalog, without asking the external catalog", func(t *testing.T) {
+		stored := storedItem()
+		stored.Barcode = ptr("7790387000123")
+		repository := &gatewayfake.ItemRepository{ListResult: domain.Page[domain.Item]{Items: []domain.Item{stored}, Total: 1}}
+		catalog := &gatewayfake.ProductCatalog{}
+
+		got, err := NewLookupItemByBarcode(repository, catalog).Execute(context.Background(), LookupItemByBarcodeInput{Actor: admin, Barcode: " 7790387000123 "})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+		if got.Item == nil || got.Item.ID != stored.ID || got.Suggestion != nil {
+			t.Fatalf("got = %+v", got)
+		}
+		if len(catalog.Barcodes) != 0 {
+			t.Fatal("the external catalog was asked despite the item being in our own catalog")
+		}
+		if repository.ListFilters[0].Search != "7790387000123" {
+			t.Fatalf("Search = %q, want the trimmed barcode", repository.ListFilters[0].Search)
+		}
+	})
+
+	t.Run("only an exact barcode match counts, not a substring one", func(t *testing.T) {
+		stored := storedItem()
+		stored.Barcode = ptr("7790387000123999")
+		repository := &gatewayfake.ItemRepository{ListResult: domain.Page[domain.Item]{Items: []domain.Item{stored}, Total: 1}}
+		product := domain.ExternalProduct{Name: "Yerba mate"}
+		catalog := &gatewayfake.ProductCatalog{Result: product}
+
+		got, err := NewLookupItemByBarcode(repository, catalog).Execute(context.Background(), LookupItemByBarcodeInput{Actor: admin, Barcode: "7790387000123"})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+		if got.Item != nil || got.Suggestion == nil || got.Suggestion.Name != "Yerba mate" {
+			t.Fatalf("got = %+v", got)
+		}
+	})
+
+	t.Run("suggests the external catalog's product when the barcode isn't ours", func(t *testing.T) {
+		repository := &gatewayfake.ItemRepository{}
+		description := "Ferrero, Nutella · 400 g"
+		product := domain.ExternalProduct{Name: "Nutella", Description: &description}
+		catalog := &gatewayfake.ProductCatalog{Result: product}
+
+		got, err := NewLookupItemByBarcode(repository, catalog).Execute(context.Background(), LookupItemByBarcodeInput{Actor: manager, Barcode: "3017620422003"})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+		if got.Item != nil || got.Suggestion == nil || got.Suggestion.Name != "Nutella" || *got.Suggestion.Description != description {
+			t.Fatalf("got = %+v", got)
+		}
+		if catalog.Barcodes[0] != "3017620422003" {
+			t.Fatalf("catalog was asked for %q", catalog.Barcodes)
+		}
+	})
+
+	t.Run("finds nothing without failing when neither catalog knows the barcode", func(t *testing.T) {
+		repository := &gatewayfake.ItemRepository{}
+		catalog := &gatewayfake.ProductCatalog{Err: domain.ErrExternalProductNotFound}
+
+		got, err := NewLookupItemByBarcode(repository, catalog).Execute(context.Background(), LookupItemByBarcodeInput{Actor: admin, Barcode: "0000000000000"})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+		if got.Item != nil || got.Suggestion != nil {
+			t.Fatalf("got = %+v", got)
+		}
+	})
+
+	t.Run("a flaky external catalog doesn't fail the request", func(t *testing.T) {
+		repository := &gatewayfake.ItemRepository{}
+		catalog := &gatewayfake.ProductCatalog{Err: errDown}
+
+		got, err := NewLookupItemByBarcode(repository, catalog).Execute(context.Background(), LookupItemByBarcodeInput{Actor: admin, Barcode: "123"})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+		if got.Item != nil || got.Suggestion != nil {
+			t.Fatalf("got = %+v", got)
+		}
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		longBarcode := strings.Repeat("1", 33)
+
+		tests := []struct {
+			name       string
+			repository *gatewayfake.ItemRepository
+			input      LookupItemByBarcodeInput
+			want       *domain.Error
+		}{
+			{"cashier", &gatewayfake.ItemRepository{}, LookupItemByBarcodeInput{Actor: cashier, Barcode: "123"}, domain.ErrForbidden},
+			{"blank barcode", &gatewayfake.ItemRepository{}, LookupItemByBarcodeInput{Actor: admin, Barcode: "   "}, domain.ErrItemBarcodeRequired},
+			{"barcode too long", &gatewayfake.ItemRepository{}, LookupItemByBarcodeInput{Actor: admin, Barcode: longBarcode}, domain.ErrItemBarcodeInvalid},
+			{"storage down", &gatewayfake.ItemRepository{ListErr: errDown}, LookupItemByBarcodeInput{Actor: admin, Barcode: "123"}, domain.ErrStorageUnavailable},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				_, err := NewLookupItemByBarcode(test.repository, &gatewayfake.ProductCatalog{}).Execute(context.Background(), test.input)
+				assertError(t, err, test.want)
+			})
+		}
+	})
 }
 
 func TestDeleteItem(t *testing.T) {

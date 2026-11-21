@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { apiFetch } from '../../../shared/api/client'
 import { listQuery, type ListParams } from '../../../shared/api/pagination'
-import { itemPageSchema, itemSchema, type ItemRequest } from '../types'
+import { barcodeLookupSchema, itemPageSchema, itemSchema, type ItemRequest } from '../types'
 
 const ITEMS_PATH = '/api/v1/items'
 
@@ -32,4 +32,10 @@ export function updateItem(id: string, request: ItemRequest) {
 // The backend answers 204 with an empty body.
 export function deleteItem(id: string) {
   return apiFetch(itemPath(id), z.undefined(), { method: 'DELETE' })
+}
+
+// Checks our own catalog for barcode and, when it isn't there, asks Open
+// Food Facts for a product to suggest.
+export function lookupItemByBarcode(barcode: string, signal?: AbortSignal) {
+  return apiFetch(`${ITEMS_PATH}/lookup?barcode=${encodeURIComponent(barcode)}`, barcodeLookupSchema, { signal })
 }

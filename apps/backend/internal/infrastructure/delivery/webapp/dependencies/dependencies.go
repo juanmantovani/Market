@@ -16,6 +16,8 @@ import (
 	"market/backend/internal/infrastructure/delivery/webapp/handler"
 	"market/backend/internal/infrastructure/delivery/webapp/route"
 	"market/backend/internal/infrastructure/environments"
+	"market/backend/internal/infrastructure/gs1argentina"
+	"market/backend/internal/infrastructure/openfoodfacts"
 	"market/backend/internal/infrastructure/repository/memory"
 )
 
@@ -29,11 +31,12 @@ type Container struct {
 	UpdateCategory categories.UpdateCategory
 	DeleteCategory categories.DeleteCategory
 
-	CreateItem items.CreateItem
-	ListItems  items.ListItems
-	GetItem    items.GetItem
-	UpdateItem items.UpdateItem
-	DeleteItem items.DeleteItem
+	CreateItem          items.CreateItem
+	ListItems           items.ListItems
+	GetItem             items.GetItem
+	UpdateItem          items.UpdateItem
+	DeleteItem          items.DeleteItem
+	LookupItemByBarcode items.LookupItemByBarcode
 
 	CreateCustomer customers.CreateCustomer
 	ListCustomers  customers.ListCustomers
@@ -91,11 +94,12 @@ func New(cfg environments.Server) (*Container, error) {
 		UpdateCategory: categories.NewUpdateCategory(repos.categories),
 		DeleteCategory: categories.NewDeleteCategory(repos.categories),
 
-		CreateItem: items.NewCreateItem(repos.items),
-		ListItems:  items.NewListItems(repos.items),
-		GetItem:    items.NewGetItem(repos.items),
-		UpdateItem: items.NewUpdateItem(repos.items),
-		DeleteItem: items.NewDeleteItem(repos.items),
+		CreateItem:          items.NewCreateItem(repos.items),
+		ListItems:           items.NewListItems(repos.items),
+		GetItem:             items.NewGetItem(repos.items),
+		UpdateItem:          items.NewUpdateItem(repos.items),
+		DeleteItem:          items.NewDeleteItem(repos.items),
+		LookupItemByBarcode: items.NewLookupItemByBarcode(repos.items, newProductCatalog(cfg)),
 
 		CreateCustomer: customers.NewCreateCustomer(repos.customers),
 		ListCustomers:  customers.NewListCustomers(repos.customers),
@@ -130,6 +134,17 @@ func New(cfg environments.Server) (*Container, error) {
 	}, nil
 }
 
+// newProductCatalog asks the GS1 Argentina member portal first when
+// credentials are configured, and Open Food Facts otherwise or as a fallback.
+func newProductCatalog(cfg environments.Server) gateway.ProductCatalog {
+	openFoodFacts := openfoodfacts.NewClient(nil, "")
+	if cfg.GS1Username == "" {
+		return openFoodFacts
+	}
+
+	return gs1argentina.NewClient(nil, "", cfg.GS1Username, cfg.GS1Password, openFoodFacts)
+}
+
 func newRepositories(driver environments.StorageDriver) (repositories, error) {
 	switch driver {
 	case environments.StorageMemory:
@@ -158,11 +173,12 @@ func (container *Container) Handlers() route.Handlers {
 		UpdateCategory: handler.NewUpdateCategoryHandler(container.UpdateCategory),
 		DeleteCategory: handler.NewDeleteCategoryHandler(container.DeleteCategory),
 
-		ListItems:  handler.NewListItemsHandler(container.ListItems),
-		GetItem:    handler.NewGetItemHandler(container.GetItem),
-		CreateItem: handler.NewCreateItemHandler(container.CreateItem),
-		UpdateItem: handler.NewUpdateItemHandler(container.UpdateItem),
-		DeleteItem: handler.NewDeleteItemHandler(container.DeleteItem),
+		ListItems:           handler.NewListItemsHandler(container.ListItems),
+		GetItem:             handler.NewGetItemHandler(container.GetItem),
+		CreateItem:          handler.NewCreateItemHandler(container.CreateItem),
+		UpdateItem:          handler.NewUpdateItemHandler(container.UpdateItem),
+		DeleteItem:          handler.NewDeleteItemHandler(container.DeleteItem),
+		LookupItemByBarcode: handler.NewLookupItemByBarcodeHandler(container.LookupItemByBarcode),
 
 		ListCustomers:  handler.NewListCustomersHandler(container.ListCustomers),
 		GetCustomer:    handler.NewGetCustomerHandler(container.GetCustomer),

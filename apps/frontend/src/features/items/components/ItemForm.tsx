@@ -1,15 +1,17 @@
 import { Collapsible } from '@base-ui/react/collapsible'
-import { ChevronDown } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { ChevronDown, Loader2, Search } from 'lucide-react'
+import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { ApiError, messageFromError } from '../../../shared/api/client'
 import { cn } from '../../../shared/lib/utils'
 import { useFormDialog, useUnsavedChanges } from '../../../shared/hooks/use-form-dialog'
 import { Button } from '../../../shared/ui/button'
-import { Field, FieldError, FieldLabel } from '../../../shared/ui/field'
+import { Field, FieldDescription, FieldError, FieldLabel } from '../../../shared/ui/field'
 import { Input } from '../../../shared/ui/input'
 import { NativeSelect } from '../../../shared/ui/native-select'
 import { Textarea } from '../../../shared/ui/textarea'
+import { useToast } from '../../../shared/ui/use-toast'
 import { unitShort } from '../../../shared/lib/quantity'
+import { useLookupItemByBarcode } from '../hooks/use-items'
 import {
   ITEM_FIELD_ERRORS,
   itemFormSchema,
@@ -28,6 +30,9 @@ type ItemFormProps = {
   suppliers: readonly SupplierOption[]
   submitLabel: string
   onSubmit: (request: ItemRequest) => Promise<unknown>
+  // Looking up a scanned barcode only makes sense while creating an item:
+  // editing one already has its own data and its own barcode to keep.
+  isNew?: boolean
 }
 
 type FieldErrors = Partial<Record<ItemField, string>>
@@ -49,7 +54,7 @@ function errorProps(field: ItemField, errors: FieldErrors) {
   }
 }
 
-export function ItemForm({ initialValues, categories, suppliers, submitLabel, onSubmit }: ItemFormProps) {
+export function ItemForm({ initialValues, categories, suppliers, submitLabel, onSubmit, isNew = false }: ItemFormProps) {
   const [values, setValues] = useState(initialValues)
   const { requestClose } = useFormDialog()
   useUnsavedChanges(values)
@@ -57,10 +62,41 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
+  const lookupBarcode = useLookupItemByBarcode()
+  const toast = useToast()
 
   function change<F extends ItemField>(field: F, value: ItemFormValues[F]) {
     setValues((current) => ({ ...current, [field]: value }))
     setFieldErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  async function handleBarcodeLookup() {
+    const barcode = values.barcode.trim()
+    if (!barcode) return
+
+    try {
+      const result = await lookupBarcode.mutateAsync(barcode)
+      if (result.item) {
+        setFieldErrors((current) => ({
+          ...current,
+          barcode: `Ya hay un artículo con ese código de barras: «${result.item!.name}».`,
+        }))
+        return
+      }
+      if (result.suggestion) {
+        if (!values.name.trim()) change('name', result.suggestion.name)
+        if (result.suggestion.description && !values.description.trim()) change('description', result.suggestion.description)
+        toast.success('Datos del producto cargados', 'Vienen de un catálogo externo: revisarlos antes de guardar.')
+      }
+    } catch (error) {
+      toast.error('No se pudo buscar el código de barras', messageFromError(error))
+    }
+  }
+
+  function handleBarcodeKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    void handleBarcodeLookup()
   }
 
   function toggleSupplier(supplierId: string, selected: boolean) {
@@ -135,13 +171,34 @@ export function ItemForm({ initialValues, categories, suppliers, submitLabel, on
             <FieldLabel htmlFor="item-barcode">
               Código de barras <span className="font-normal text-muted-foreground">(opcional)</span>
             </FieldLabel>
-            <Input
-              {...errorProps('barcode', fieldErrors)}
-              autoComplete="off"
-              inputMode="numeric"
-              value={values.barcode}
-              onChange={(event) => change('barcode', event.target.value)}
-            />
+            <div className="relative">
+              <Input
+                {...errorProps('barcode', fieldErrors)}
+                aria-describedby={[isNew && 'item-barcode-hint', fieldErrors.barcode && 'item-barcode-error'].filter(Boolean).join(' ') || undefined}
+                autoComplete="off"
+                inputMode="numeric"
+                value={values.barcode}
+                onChange={(event) => change('barcode', event.target.value)}
+                onKeyDown={isNew ? handleBarcodeKeyDown : undefined}
+                className={isNew ? 'pr-11' : undefined}
+              />
+              {isNew && (
+                <button
+                  type="button"
+                  aria-label="Buscar el código de barras en el catálogo"
+                  disabled={!values.barcode.trim() || lookupBarcode.isPending}
+                  onClick={() => void handleBarcodeLookup()}
+                  className="absolute top-1/2 right-1 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 md:size-7"
+                >
+                  {lookupBarcode.isPending ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="size-4" aria-hidden />
+                  )}
+                </button>
+              )}
+            </div>
+            {isNew && <FieldDescription id="item-barcode-hint">Escanear o escribir y presionar Enter para buscarlo.</FieldDescription>}
             {error('barcode')}
           </Field>
           <Field>

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"market/backend/internal/business/domain"
+	"market/backend/internal/business/usecase/items"
 )
 
 // ItemRequest is the body of both creating and replacing an item. Amounts
@@ -89,4 +90,31 @@ func NewItemResponse(item domain.Item) ItemResponse {
 		CreatedAt:    item.CreatedAt,
 		UpdatedAt:    item.UpdatedAt,
 	}
+}
+
+// ItemLookupResponse is the result of looking up a barcode: Item is set
+// when it's already in our catalog, Suggestion when it isn't but an
+// external catalog has it. Neither is set when the barcode is unknown
+// everywhere, so the person fills the item in by hand.
+type ItemLookupResponse struct {
+	Item       *ItemResponse            `json:"item"`
+	Suggestion *ExternalProductResponse `json:"suggestion"`
+}
+
+type ExternalProductResponse struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+func NewItemLookupResponse(lookup items.BarcodeLookup) ItemLookupResponse {
+	response := ItemLookupResponse{}
+	if lookup.Item != nil {
+		found := NewItemResponse(*lookup.Item)
+		response.Item = &found
+	}
+	if lookup.Suggestion != nil {
+		response.Suggestion = &ExternalProductResponse{Name: lookup.Suggestion.Name, Description: lookup.Suggestion.Description}
+	}
+
+	return response
 }

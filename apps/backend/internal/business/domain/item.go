@@ -30,6 +30,7 @@ var (
 	ErrItemCodeRequired       = &Error{Kind: KindInvalid, Code: "item_code_required", Message: "El código es obligatorio"}
 	ErrItemCodeTooLong        = &Error{Kind: KindInvalid, Code: "item_code_too_long", Message: "El código admite hasta 30 caracteres"}
 	ErrItemCodeInUse          = &Error{Kind: KindConflict, Code: "item_code_in_use", Message: "Ya hay un artículo con ese código"}
+	ErrItemBarcodeRequired    = &Error{Kind: KindInvalid, Code: "item_barcode_required", Message: "El código de barras es obligatorio"}
 	ErrItemBarcodeInvalid     = &Error{Kind: KindInvalid, Code: "item_barcode_invalid", Message: "El código de barras no puede tener espacios y admite hasta 32 caracteres"}
 	ErrItemBarcodeInUse       = &Error{Kind: KindConflict, Code: "item_barcode_in_use", Message: "Ya hay un artículo con ese código de barras"}
 	ErrItemNameRequired       = &Error{Kind: KindInvalid, Code: "item_name_required", Message: "El nombre es obligatorio"}

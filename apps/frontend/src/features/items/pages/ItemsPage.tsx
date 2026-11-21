@@ -276,6 +276,7 @@ export default function ItemsPage({
           suppliers={suppliers}
           submitLabel={isEditing ? 'Guardar cambios' : 'Crear artículo'}
           onSubmit={save}
+          isNew={!isEditing}
         />
       </FormDialog>
 

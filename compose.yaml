@@ -8,6 +8,8 @@ services:
     environment:
       PORT: 8080
       STORAGE_DRIVER: ${STORAGE_DRIVER:-memory}
+      GS1_USERNAME: ${GS1_USERNAME:-}
+      GS1_PASSWORD: ${GS1_PASSWORD:-}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:

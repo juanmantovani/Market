@@ -44,8 +44,8 @@ docker compose up --build
 
 ## Variables de entorno
 
-Ninguna es secreta todavía. `.env.example` las lista con sus valores por
-defecto.
+`.env.example` las lista con sus valores por defecto. La única secreta es
+`GS1_PASSWORD`: no se commitea.
 
 | Variable | Dónde | Default | Uso |
 | --- | --- | --- | --- |
@@ -54,9 +54,21 @@ defecto.
 | `CORS_ALLOWED_ORIGIN` | backend | vacío | Solo si el frontend se sirve desde otro origen que la API. |
 | `SEED_DEMO_DATA` | backend | `true` | Carga datos de ejemplo al iniciar (catálogo, stock, terceros y algunas ventas). `false` arranca vacío, salvo el cliente Consumidor Final. |
 | `STOCK_ALLOW_NEGATIVE` | backend | `false` | `true` deja vender más de lo que hay (el stock queda negativo). Con `false`, la venta falla con `insufficient_stock`. |
+| `GS1_USERNAME` | backend | vacío | Usuario del portal de socios de GS1 Argentina. Junto con `GS1_PASSWORD`, sugiere el producto al escanear un código que todavía no está cargado. |
+| `GS1_PASSWORD` | backend | vacío | Contraseña de ese portal. Secreta. Las dos variables van juntas o vacías. |
 | `API_PROXY_TARGET` | frontend (Vite) | `http://localhost:8080` | Destino del proxy de `/api`. |
 | `VITE_API_URL` | frontend | vacío | Solo si la API vive en otro origen; se suma a `connect-src` de la CSP. |
 | `WATCH_POLLING` | frontend (Vite) | vacío | `true` activa polling del watcher (lo usa Compose). |
+
+Al arrancar, el backend busca el `.env` en la raíz del repositorio (el
+directorio que tiene `pnpm-workspace.yaml`) y carga las variables que el
+proceso todavía no tiene. `pnpm dev:backend` las toma solo, aunque arranque
+desde `apps/backend`. Una variable ya definida en la shell, o inyectada por
+Compose, tiene prioridad. Si el archivo no está, sigue con los valores por
+defecto. Los tests no leen ese archivo.
+
+Para probar el portal real, desde `apps/backend`:
+`GS1_LIVE=1 GS1_USERNAME=… GS1_PASSWORD=… go test -run TestLivePortal ./internal/infrastructure/gs1argentina`.
 
 ## Verificación antes de un PR
 
